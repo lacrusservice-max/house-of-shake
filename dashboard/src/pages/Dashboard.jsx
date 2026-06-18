@@ -2,9 +2,7 @@ import { useState, useEffect } from 'react';
 import { statsApi, setupApi } from '../services/api';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer
-} from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 const levelColors = { BRONZE: '#cd7f32', SILVER: '#b0b0b0', GOLD: '#f5c842' };
 const levelLabels = { BRONZE: 'Bronce', SILVER: 'Plata', GOLD: 'Oro' };
@@ -13,18 +11,15 @@ const txTypeLabel = {
   EXPIRY: 'Expiración', ADJUSTMENT: 'Ajuste manual', REVERSAL: 'Reversión',
 };
 
-function StatCard({ title, value, subtitle, color = 'red' }) {
-  const colors = {
-    red: 'from-red-500 to-red-600',
-    amber: 'from-amber-500 to-orange-500',
-    green: 'from-green-500 to-emerald-600',
-    blue: 'from-blue-500 to-indigo-500',
-  };
+function StatCard({ title, value, subtitle, gradient }) {
   return (
-    <div className={`bg-gradient-to-br ${colors[color]} rounded-2xl p-6 text-white`}>
-      <p className="text-sm font-medium opacity-80">{title}</p>
-      <p className="text-3xl font-extrabold mt-1">{value}</p>
-      {subtitle && <p className="text-xs opacity-70 mt-1">{subtitle}</p>}
+    <div style={{
+      background: gradient, borderRadius: 18, padding: '20px 24px',
+      color: '#fff', minWidth: 0,
+    }}>
+      <p style={{ fontSize: 12, fontWeight: 600, opacity: .85, marginBottom: 4 }}>{title}</p>
+      <p style={{ fontSize: 30, fontWeight: 900, lineHeight: 1, marginBottom: 2 }}>{value}</p>
+      {subtitle && <p style={{ fontSize: 11, opacity: .65 }}>{subtitle}</p>}
     </div>
   );
 }
@@ -56,10 +51,10 @@ export default function Dashboard() {
   }
 
   if (loading) return (
-    <div className="flex items-center justify-center h-64 text-gray-400">
-      <div className="text-center">
-        <div className="text-4xl mb-2">⏳</div>
-        <p>Cargando estadísticas...</p>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240 }}>
+      <div style={{ textAlign: 'center', color: '#aaa' }}>
+        <div style={{ fontSize: 36, marginBottom: 8 }}>⏳</div>
+        <p style={{ fontSize: 13 }}>Cargando estadísticas...</p>
       </div>
     </div>
   );
@@ -71,64 +66,79 @@ export default function Dashboard() {
   })) || [];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <button
-          onClick={handleSetupShopify}
-          disabled={setupLoading}
-          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-xl transition-colors disabled:opacity-60"
-        >
+    <div style={{ maxWidth: 1200 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 900, color: '#111', margin: 0 }}>Dashboard</h1>
+        <button onClick={handleSetupShopify} disabled={setupLoading}
+          style={{
+            padding: '9px 18px', background: '#16a34a', color: '#fff',
+            border: 'none', borderRadius: 10, fontSize: 12, fontWeight: 700,
+            cursor: 'pointer', opacity: setupLoading ? .6 : 1,
+            fontFamily: 'inherit',
+          }}>
           {setupLoading ? '⏳ Configurando...' : '🔧 Setup Shopify'}
         </button>
       </div>
 
       {setupResult && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-          <p className="font-medium text-green-800 mb-2">✅ Setup completado</p>
-          <pre className="text-xs text-green-700 overflow-auto">{JSON.stringify(setupResult, null, 2)}</pre>
+        <div style={{
+          background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 12,
+          padding: 16, marginBottom: 20,
+        }}>
+          <p style={{ fontWeight: 700, color: '#166534', marginBottom: 8, fontSize: 13 }}>✅ Setup completado</p>
+          <pre style={{ fontSize: 11, color: '#15803d', overflow: 'auto', margin: 0 }}>
+            {JSON.stringify(setupResult, null, 2)}
+          </pre>
         </div>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <StatCard title="Total Clientes" value={stats?.totalCustomers?.toLocaleString() || 0} color="red" />
-        <StatCard title="Puntos en Circulación" value={stats?.totalAvailablePoints?.toLocaleString() || 0} subtitle="puntos disponibles" color="amber" />
-        <StatCard title="Canjes Hoy" value={stats?.redemptionsToday || 0} color="green" />
+      {/* Stats grid — 1 col mobile, 3 col desktop */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+        gap: 14, marginBottom: 24,
+      }}>
+        <StatCard title="Total Clientes" value={stats?.totalCustomers?.toLocaleString() || 0} gradient="linear-gradient(135deg,#c85032,#e8401a)" />
+        <StatCard title="Puntos en Circulación" value={stats?.totalAvailablePoints?.toLocaleString() || 0} subtitle="puntos disponibles" gradient="linear-gradient(135deg,#f59e0b,#ea580c)" />
+        <StatCard title="Canjes Hoy" value={stats?.redemptionsToday || 0} gradient="linear-gradient(135deg,#16a34a,#059669)" />
       </div>
 
-      {/* Distribución por nivel */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-gray-900 mb-4">Distribución por Nivel</h2>
+      {/* Charts grid — stack on mobile */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
+        {/* Distribución por nivel */}
+        <div style={{ background: '#fff', borderRadius: 18, padding: '20px 24px', boxShadow: '0 1px 8px rgba(0,0,0,.06)' }}>
+          <h2 style={{ fontSize: 15, fontWeight: 800, color: '#111', marginBottom: 16, marginTop: 0 }}>Distribución por Nivel</h2>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={levelData}>
-              <XAxis dataKey="name" axisLine={false} tickLine={false} />
-              <YAxis axisLine={false} tickLine={false} />
-              <Tooltip />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} />
+              <Tooltip
+                contentStyle={{ borderRadius: 10, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,.12)', fontSize: 12 }}
+              />
               <Bar dataKey="clientes" radius={[6, 6, 0, 0]} fill="#c85032" />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* Últimas transacciones */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-gray-900 mb-4">Últimos Movimientos</h2>
-          <div className="space-y-3 max-h-48 overflow-y-auto">
-            {stats?.recentTransactions?.length === 0 && (
-              <p className="text-gray-400 text-sm text-center py-4">Sin movimientos aún</p>
+        <div style={{ background: '#fff', borderRadius: 18, padding: '20px 24px', boxShadow: '0 1px 8px rgba(0,0,0,.06)' }}>
+          <h2 style={{ fontSize: 15, fontWeight: 800, color: '#111', marginBottom: 16, marginTop: 0 }}>Últimos Movimientos</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 220, overflowY: 'auto' }}>
+            {!stats?.recentTransactions?.length && (
+              <p style={{ color: '#bbb', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>Sin movimientos aún</p>
             )}
             {stats?.recentTransactions?.map(tx => (
-              <div key={tx.id} className="flex items-center justify-between text-sm">
-                <div>
-                  <p className="font-medium text-gray-800">
+              <div key={tx.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: '#222', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {tx.customer?.firstName} {tx.customer?.lastName}
                   </p>
-                  <p className="text-gray-400 text-xs">
+                  <p style={{ fontSize: 11, color: '#aaa', margin: 0 }}>
                     {txTypeLabel[tx.type]} · {format(new Date(tx.createdAt), 'dd MMM HH:mm', { locale: es })}
                   </p>
                 </div>
-                <span className={`font-bold ${tx.points > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <span style={{ fontWeight: 800, fontSize: 14, color: tx.points > 0 ? '#16a34a' : '#dc2626', flexShrink: 0 }}>
                   {tx.points > 0 ? '+' : ''}{tx.points}
                 </span>
               </div>

@@ -10,8 +10,9 @@ const LEVEL = {
 };
 
 export default function POS() {
-  const [screen, setScreen]     = useState('home');  // home | scan | camera | customer | addPoints | redeem | success
+  const [screen, setScreen]     = useState('home');  // home | scan | camera | searchEmail | customer | addPoints | redeem | success
   const [codeInput, setCodeInput] = useState('');
+  const [emailInput, setEmailInput] = useState('');
   const [customer, setCustomer] = useState(null);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState('');
@@ -25,6 +26,21 @@ export default function POS() {
     try {
       const { data } = await api.get(`/pos/customer/${encodeURIComponent(code.trim())}`);
       setCustomer(data);
+      setScreen('customer');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Cliente no encontrado');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function lookupByEmail(email) {
+    if (!email.trim()) return;
+    setLoading(true); setError('');
+    try {
+      const { data } = await api.get(`/customers/email/${encodeURIComponent(email.trim())}`);
+      const cust = data.customer || data;
+      setCustomer(cust);
       setScreen('customer');
     } catch (err) {
       setError(err.response?.data?.error || 'Cliente no encontrado');
@@ -74,7 +90,7 @@ export default function POS() {
 
   function reset() {
     setScreen('home'); setCustomer(null); setError('');
-    setResult(null); setCodeInput(''); setAmount(''); setRedeemPts('');
+    setResult(null); setCodeInput(''); setEmailInput(''); setAmount(''); setRedeemPts('');
   }
 
   const lvl = LEVEL[customer?.level] || LEVEL.BRONZE;
@@ -94,6 +110,13 @@ export default function POS() {
               <div>
                 <div style={styles.bigBtnTitle}>Escanear con cámara</div>
                 <div style={styles.bigBtnSub}>Apunta al código QR del cliente</div>
+              </div>
+            </button>
+            <button onClick={() => { setScreen('searchEmail'); setError(''); }} style={{ ...styles.bigBtn, background: 'rgba(245,200,66,.10)', color: 'var(--gold)', border: '1px solid rgba(245,200,66,.25)' }}>
+              <span style={{ fontSize: 28 }}>📧</span>
+              <div>
+                <div style={styles.bigBtnTitle}>Buscar por email</div>
+                <div style={{ ...styles.bigBtnSub, opacity: .7 }}>Escribe el correo del cliente</div>
               </div>
             </button>
             <button onClick={() => setScreen('scan')} style={{ ...styles.bigBtn, background: 'rgba(251,247,240,.06)', color: 'var(--cream)', border: '1px solid rgba(251,247,240,.12)' }}>
@@ -120,6 +143,28 @@ export default function POS() {
             />
           </Suspense>
           {loading && <div style={styles.loadingBox}>Buscando cliente…</div>}
+        </div>
+      )}
+
+      {/* ── EMAIL SEARCH ── */}
+      {screen === 'searchEmail' && (
+        <div>
+          <button onClick={() => setScreen('home')} style={styles.back}>← Volver</button>
+          <h2 style={styles.title}>Buscar por email</h2>
+          <p style={{ ...styles.sub, marginBottom: 20 }}>Escribe el correo electrónico del cliente</p>
+          <form onSubmit={e => { e.preventDefault(); lookupByEmail(emailInput); }}>
+            <input
+              type="email" required autoFocus
+              placeholder="correo@ejemplo.com"
+              value={emailInput}
+              onChange={e => setEmailInput(e.target.value)}
+              style={{ ...styles.input, fontSize: 15 }}
+            />
+            {error && <div style={styles.errorBox}>{error}</div>}
+            <button type="submit" disabled={loading} style={styles.goldBtn}>
+              {loading ? 'Buscando…' : 'Buscar cliente'}
+            </button>
+          </form>
         </div>
       )}
 

@@ -1,12 +1,22 @@
 import { useState, useEffect } from 'react';
 import { customersApi } from '../services/api';
 
-const levelBadge = {
-  BRONZE: 'bg-amber-100 text-amber-800',
-  SILVER: 'bg-gray-100 text-gray-700',
-  GOLD: 'bg-yellow-100 text-yellow-800',
-};
-const levelLabel = { BRONZE: 'Bronce', SILVER: 'Plata', GOLD: 'Oro' };
+const LEVEL_COLOR = { BRONZE: '#cd7f32', SILVER: '#b0b0b0', GOLD: '#f5c842' };
+const LEVEL_LABEL = { BRONZE: 'Bronce', SILVER: 'Plata', GOLD: 'Oro' };
+
+function LevelBadge({ level }) {
+  return (
+    <span style={{
+      display: 'inline-block', padding: '2px 10px', borderRadius: 99,
+      fontSize: 11, fontWeight: 700, letterSpacing: .5,
+      background: `${LEVEL_COLOR[level]}22`,
+      color: LEVEL_COLOR[level],
+      border: `1px solid ${LEVEL_COLOR[level]}44`,
+    }}>
+      {LEVEL_LABEL[level] || level}
+    </span>
+  );
+}
 
 export default function Customers() {
   const [customers, setCustomers] = useState([]);
@@ -68,28 +78,34 @@ export default function Customers() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Clientes ({total})</h1>
-        <button onClick={handleExport} className="px-4 py-2 bg-gray-800 text-white text-sm font-medium rounded-xl hover:bg-gray-700">
+    <div style={{ maxWidth: 1100 }}>
+      <style>{`
+        .cust-table { display: none; }
+        .cust-cards { display: flex; flex-direction: column; gap: 10px; }
+        @media (min-width: 700px) {
+          .cust-table { display: block; }
+          .cust-cards { display: none; }
+        }
+      `}</style>
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 900, color: '#111', margin: 0 }}>Clientes ({total})</h1>
+        <button onClick={handleExport}
+          style={{ padding: '9px 16px', background: '#1f2937', color: '#fff', border: 'none', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
           📥 Exportar CSV
         </button>
       </div>
 
-      {/* Filtros */}
-      <div className="flex gap-3 flex-wrap">
+      {/* Filters */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
         <input
-          type="text"
-          placeholder="Buscar por nombre o email..."
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(1); }}
-          className="flex-1 min-w-48 px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+          type="text" placeholder="Buscar por nombre o email..."
+          value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
+          style={{ flex: 1, minWidth: 200, padding: '10px 14px', border: '1.5px solid #e5e7eb', borderRadius: 10, fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
         />
-        <select
-          value={level}
-          onChange={e => { setLevel(e.target.value); setPage(1); }}
-          className="px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
-        >
+        <select value={level} onChange={e => { setLevel(e.target.value); setPage(1); }}
+          style={{ padding: '10px 14px', border: '1.5px solid #e5e7eb', borderRadius: 10, fontSize: 13, outline: 'none', fontFamily: 'inherit', background: '#fff' }}>
           <option value="">Todos los niveles</option>
           <option value="BRONZE">Bronce</option>
           <option value="SILVER">Plata</option>
@@ -97,39 +113,39 @@ export default function Customers() {
         </select>
       </div>
 
-      {/* Tabla */}
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600">Cliente</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600">Email</th>
-                <th className="px-4 py-3 text-right font-semibold text-gray-600">Puntos</th>
-                <th className="px-4 py-3 text-center font-semibold text-gray-600">Nivel</th>
-                <th className="px-4 py-3 text-center font-semibold text-gray-600">Acciones</th>
+      {/* DESKTOP TABLE */}
+      <div className="cust-table" style={{ background: '#fff', borderRadius: 16, boxShadow: '0 1px 6px rgba(0,0,0,.06)', overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: '#f9fafb', borderBottom: '1px solid #f0f0f0' }}>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 700, color: '#555', whiteSpace: 'nowrap' }}>Cliente</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 700, color: '#555' }}>Email</th>
+                <th style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700, color: '#555' }}>Puntos</th>
+                <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 700, color: '#555' }}>Nivel</th>
+                <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 700, color: '#555' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={5} className="text-center py-8 text-gray-400">Cargando...</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: 'center', padding: '32px', color: '#bbb', fontSize: 13 }}>Cargando...</td></tr>
               )}
               {!loading && customers.map(c => (
-                <tr key={c.id} className="border-b border-gray-50 hover:bg-red-50 transition-colors">
-                  <td className="px-4 py-3 font-medium text-gray-900">{c.firstName} {c.lastName}</td>
-                  <td className="px-4 py-3 text-gray-500">{c.email}</td>
-                  <td className="px-4 py-3 text-right font-bold text-gray-900">{c.availablePoints.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-center">
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${levelBadge[c.level]}`}>
-                      {levelLabel[c.level]}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <div className="flex gap-2 justify-center">
-                      <button onClick={() => setSelected(c)} className="text-xs px-3 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200">
+                <tr key={c.id} style={{ borderBottom: '1px solid #f9f9f9', transition: 'background .1s' }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#fff4f2'}
+                  onMouseLeave={e => e.currentTarget.style.background = ''}>
+                  <td style={{ padding: '12px 16px', fontWeight: 600, color: '#111' }}>{c.firstName} {c.lastName}</td>
+                  <td style={{ padding: '12px 16px', color: '#888' }}>{c.email}</td>
+                  <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700, color: '#111' }}>{c.availablePoints.toLocaleString()}</td>
+                  <td style={{ padding: '12px 16px', textAlign: 'center' }}><LevelBadge level={c.level} /></td>
+                  <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+                      <button onClick={() => setSelected(c)}
+                        style={{ fontSize: 11, padding: '5px 10px', background: '#fff4f2', color: '#c85032', border: '1px solid #fecaca', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit' }}>
                         Ajustar
                       </button>
-                      <button onClick={() => handlePush(c.id)} className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200">
+                      <button onClick={() => handlePush(c.id)}
+                        style={{ fontSize: 11, padding: '5px 10px', background: '#eff6ff', color: '#3b82f6', border: '1px solid #bfdbfe', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit' }}>
                         Push 🍎
                       </button>
                     </div>
@@ -137,50 +153,103 @@ export default function Customers() {
                 </tr>
               ))}
               {!loading && customers.length === 0 && (
-                <tr><td colSpan={5} className="text-center py-8 text-gray-400">Sin resultados</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: 'center', padding: '32px', color: '#bbb', fontSize: 13 }}>Sin resultados</td></tr>
               )}
             </tbody>
           </table>
         </div>
 
-        {/* Paginación */}
-        {totalPages > 1 && (
-          <div className="flex justify-center gap-2 p-4">
-            <button disabled={page === 1} onClick={() => setPage(p => p - 1)}
-              className="px-3 py-1 rounded-lg bg-gray-100 text-gray-600 disabled:opacity-40 text-sm">← Anterior</button>
-            <span className="px-3 py-1 text-sm text-gray-500">{page} / {totalPages}</span>
-            <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)}
-              className="px-3 py-1 rounded-lg bg-gray-100 text-gray-600 disabled:opacity-40 text-sm">Siguiente →</button>
-          </div>
-        )}
+        {totalPages > 1 && <Pagination page={page} totalPages={totalPages} setPage={setPage} />}
       </div>
 
-      {/* Modal ajuste de puntos */}
-      {selected && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={() => setSelected(null)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-bold mb-1">Ajuste de Puntos</h3>
-            <p className="text-sm text-gray-500 mb-4">{selected.firstName} {selected.lastName} · {selected.availablePoints} pts actuales</p>
+      {/* MOBILE CARDS */}
+      <div className="cust-cards">
+        {loading && (
+          <div style={{ textAlign: 'center', padding: 32, color: '#bbb', fontSize: 13 }}>Cargando...</div>
+        )}
+        {!loading && customers.map(c => (
+          <div key={c.id} style={{
+            background: '#fff', borderRadius: 14, padding: '14px 16px',
+            boxShadow: '0 1px 6px rgba(0,0,0,.06)', border: '1px solid #f0f0f0',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+              <div>
+                <p style={{ fontWeight: 700, fontSize: 14, color: '#111', margin: 0 }}>{c.firstName} {c.lastName}</p>
+                <p style={{ fontSize: 12, color: '#999', margin: '2px 0 0' }}>{c.email}</p>
+              </div>
+              <LevelBadge level={c.level} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 12, color: '#888' }}>
+                <strong style={{ fontSize: 18, fontWeight: 900, color: '#111' }}>{c.availablePoints.toLocaleString()}</strong> pts disponibles
+              </span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => setSelected(c)}
+                  style={{ fontSize: 11, padding: '6px 12px', background: '#fff4f2', color: '#c85032', border: '1px solid #fecaca', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit' }}>
+                  Ajustar
+                </button>
+                <button onClick={() => handlePush(c.id)}
+                  style={{ fontSize: 11, padding: '6px 12px', background: '#eff6ff', color: '#3b82f6', border: '1px solid #bfdbfe', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit' }}>
+                  Push
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+        {!loading && customers.length === 0 && (
+          <div style={{ textAlign: 'center', padding: 32, color: '#bbb', fontSize: 13 }}>Sin resultados</div>
+        )}
+        {totalPages > 1 && <Pagination page={page} totalPages={totalPages} setPage={setPage} />}
+      </div>
 
-            <input type="number" placeholder="Puntos (+ agregar, - quitar)"
-              value={adjustForm.points}
-              onChange={e => setAdjustForm({ ...adjustForm, points: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-200 rounded-xl mb-3 focus:outline-none focus:ring-2 focus:ring-red-500 text-sm" />
+      {/* MODAL */}
+      {selected && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+          onClick={() => setSelected(null)}>
+          <div style={{ background: '#fff', borderRadius: 20, padding: 24, width: '100%', maxWidth: 400, boxShadow: '0 24px 60px rgba(0,0,0,.25)' }}
+            onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 4px' }}>Ajuste de Puntos</h3>
+            <p style={{ fontSize: 12, color: '#999', margin: '0 0 18px' }}>{selected.firstName} {selected.lastName} · {selected.availablePoints} pts actuales</p>
+
+            <input type="number" placeholder="Puntos (+ agregar, − quitar)"
+              value={adjustForm.points} onChange={e => setAdjustForm({ ...adjustForm, points: e.target.value })}
+              style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #e5e7eb', borderRadius: 10, fontSize: 14, marginBottom: 10, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
 
             <input type="text" placeholder="Descripción (opcional)"
-              value={adjustForm.description}
-              onChange={e => setAdjustForm({ ...adjustForm, description: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-200 rounded-xl mb-4 focus:outline-none focus:ring-2 focus:ring-red-500 text-sm" />
+              value={adjustForm.description} onChange={e => setAdjustForm({ ...adjustForm, description: e.target.value })}
+              style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #e5e7eb', borderRadius: 10, fontSize: 14, marginBottom: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
 
-            {adjustMsg && <p className="text-sm mb-3">{adjustMsg}</p>}
+            {adjustMsg && <p style={{ fontSize: 13, marginBottom: 10 }}>{adjustMsg}</p>}
 
-            <div className="flex gap-3">
-              <button onClick={() => setSelected(null)} className="flex-1 py-2 rounded-xl bg-gray-100 text-gray-700 text-sm font-medium">Cancelar</button>
-              <button onClick={handleAdjust} className="flex-1 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700">Aplicar</button>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setSelected(null)}
+                style={{ flex: 1, padding: '11px', borderRadius: 10, background: '#f5f5f5', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                Cancelar
+              </button>
+              <button onClick={handleAdjust}
+                style={{ flex: 1, padding: '11px', borderRadius: 10, background: '#c85032', color: '#fff', border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                Aplicar
+              </button>
             </div>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function Pagination({ page, totalPages, setPage }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, padding: '14px 16px' }}>
+      <button disabled={page === 1} onClick={() => setPage(p => p - 1)}
+        style={{ padding: '6px 12px', borderRadius: 8, background: '#f5f5f5', border: 'none', fontSize: 13, color: '#555', cursor: 'pointer', opacity: page === 1 ? .4 : 1, fontFamily: 'inherit' }}>
+        ← Anterior
+      </button>
+      <span style={{ fontSize: 13, color: '#888' }}>{page} / {totalPages}</span>
+      <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)}
+        style={{ padding: '6px 12px', borderRadius: 8, background: '#f5f5f5', border: 'none', fontSize: 13, color: '#555', cursor: 'pointer', opacity: page === totalPages ? .4 : 1, fontFamily: 'inherit' }}>
+        Siguiente →
+      </button>
     </div>
   );
 }

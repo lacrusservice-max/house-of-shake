@@ -24,6 +24,24 @@ export default function MiCuenta() {
   const [transactions, setTransactions] = useState([]);
   const [txLoading, setTxLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('tarjeta');
+
+  const LEVELS_INFO = [
+    {
+      key: 'BRONZE', emoji: '🥉', label: 'Bronze', color: '#cd7f32',
+      range: '0 – 100 pts', pts: 0,
+      perks: ['1 pto por cada $1 MXN', 'Bono de bienvenida', 'Acceso al programa de lealtad'],
+    },
+    {
+      key: 'SILVER', emoji: '🥈', label: 'Silver', color: '#c0c0c0',
+      range: '101 – 300 pts', pts: 101,
+      perks: ['1 pto por cada $1 MXN', '+10% bonus de puntos', 'Acceso prioritario', 'Canjes exclusivos'],
+    },
+    {
+      key: 'GOLD', emoji: '🥇', label: 'Gold', color: '#ffd700',
+      range: '301+ pts', pts: 301,
+      perks: ['1 pto por cada $1 MXN', '+20% bonus de puntos', 'Beneficios exclusivos', 'Sorpresas especiales', 'Atención VIP'],
+    },
+  ];
   const navigate = useNavigate();
 
   const token = localStorage.getItem('hos_customer_token');
@@ -128,8 +146,9 @@ export default function MiCuenta() {
         {/* TABS */}
         <div className="mc-tabs">
           {[
-            { key: 'tarjeta',  label: '📱 Mi Tarjeta' },
+            { key: 'tarjeta',  label: '📱 Tarjeta' },
             { key: 'historial', label: '📋 Historial' },
+            { key: 'lealtad', label: '🏆 Lealtad' },
           ].map(t => (
             <button
               key={t.key}
@@ -236,6 +255,88 @@ export default function MiCuenta() {
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {/* TAB — LEALTAD */}
+        {activeTab === 'lealtad' && (
+          <div className="mc-loyalty">
+
+            {/* Current level highlight */}
+            <div className="mc-loyalty-hero" style={{ borderColor: `${level.color}40`, background: `${level.color}0d` }}>
+              <div className="mc-loyalty-hero-emoji">{level.emoji}</div>
+              <div>
+                <p className="mc-loyalty-hero-label">Tu nivel actual</p>
+                <p className="mc-loyalty-hero-name" style={{ color: level.color }}>{level.label}</p>
+                {level.nextAt && (
+                  <p className="mc-loyalty-hero-hint">{ptsToNext} pts para alcanzar {level.next}</p>
+                )}
+                {!level.nextAt && (
+                  <p className="mc-loyalty-hero-hint" style={{ color: '#ffd700' }}>¡Nivel máximo! 🎉</p>
+                )}
+              </div>
+            </div>
+
+            {/* Level cards */}
+            <p className="mc-loyalty-section-title">Niveles del programa</p>
+            <div className="mc-loyalty-levels">
+              {LEVELS_INFO.map(lvl => {
+                const isActive = customer.level === lvl.key;
+                return (
+                  <div key={lvl.key}
+                    className={`mc-loyalty-level-card${isActive ? ' active' : ''}`}
+                    style={{ borderColor: isActive ? lvl.color : 'rgba(251,247,240,.08)', background: isActive ? `${lvl.color}0d` : 'rgba(251,247,240,.03)' }}>
+                    <div className="mc-loyalty-level-header">
+                      <span style={{ fontSize: 24 }}>{lvl.emoji}</span>
+                      <div>
+                        <p className="mc-loyalty-level-name" style={{ color: isActive ? lvl.color : 'var(--cream)' }}>{lvl.label}</p>
+                        <p className="mc-loyalty-level-range">{lvl.range} vitalicio</p>
+                      </div>
+                      {isActive && <span className="mc-loyalty-current-badge">ACTUAL</span>}
+                    </div>
+                    <ul className="mc-loyalty-perks">
+                      {lvl.perks.map(p => (
+                        <li key={p}><span className="mc-loyalty-check" style={{ color: lvl.color }}>✓</span> {p}</li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* How it works */}
+            <p className="mc-loyalty-section-title" style={{ marginTop: 28 }}>¿Cómo funciona?</p>
+            <div className="mc-loyalty-how">
+              <div className="mc-loyalty-step">
+                <div className="mc-loyalty-step-icon">☕</div>
+                <div>
+                  <p className="mc-loyalty-step-title">Compra en sucursal</p>
+                  <p className="mc-loyalty-step-desc">Muestra tu tarjeta QR al pagar en el mostrador</p>
+                </div>
+              </div>
+              <div className="mc-loyalty-step">
+                <div className="mc-loyalty-step-icon">⚡</div>
+                <div>
+                  <p className="mc-loyalty-step-title">Gana puntos al instante</p>
+                  <p className="mc-loyalty-step-desc">1 punto por cada $1 MXN gastado (más bonus por nivel)</p>
+                </div>
+              </div>
+              <div className="mc-loyalty-step">
+                <div className="mc-loyalty-step-icon">🎁</div>
+                <div>
+                  <p className="mc-loyalty-step-title">Canjea tu saldo</p>
+                  <p className="mc-loyalty-step-desc">100 puntos = $5 MXN de descuento en tu próxima compra</p>
+                </div>
+              </div>
+              <div className="mc-loyalty-step">
+                <div className="mc-loyalty-step-icon">🏆</div>
+                <div>
+                  <p className="mc-loyalty-step-title">Sube de nivel</p>
+                  <p className="mc-loyalty-step-desc">Acumula puntos de por vida para desbloquear beneficios exclusivos</p>
+                </div>
+              </div>
+            </div>
+
           </div>
         )}
 
