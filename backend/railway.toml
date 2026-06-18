@@ -1,6 +1,5 @@
 [build]
 builder = "nixpacks"
-buildCommand = "npm install && npx prisma generate && npx prisma db push --accept-data-loss"
 
 [deploy]
 startCommand = "node src/index.js"
