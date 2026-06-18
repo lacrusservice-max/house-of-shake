@@ -17,12 +17,13 @@ if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS configurado para tienda Shopify
+// CORS — permite Vercel, Railway, Shopify y localhost
 const allowedOrigins = [
   `https://${process.env.SHOPIFY_STORE_URL}`,
   process.env.SHOPIFY_APP_URL,
   'http://localhost:3000',
-  'http://localhost:5173', // Dashboard dev
+  'http://localhost:5173',
+  'https://house-of-shake.vercel.app',
 ].filter(Boolean);
 
 app.use(helmet({
@@ -31,7 +32,10 @@ app.use(helmet({
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    // Permitir sin origin (apps móviles, Postman) y subdominios de vercel/railway
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    if (origin.endsWith('.vercel.app') || origin.endsWith('.railway.app') || origin.endsWith('.up.railway.app')) return callback(null, true);
     callback(new Error('No permitido por CORS'));
   },
   credentials: true,
