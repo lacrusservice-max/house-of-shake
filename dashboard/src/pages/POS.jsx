@@ -21,7 +21,7 @@ export default function POS() {
   const [result, setResult]     = useState(null);
 
   async function lookupByCode(code) {
-    if (!code.trim()) return;
+    if (!code.trim() || loading) return;
     setLoading(true); setError('');
     try {
       const { data } = await api.get(`/pos/customer/${encodeURIComponent(code.trim())}`);
@@ -35,7 +35,7 @@ export default function POS() {
   }
 
   async function lookupByEmail(email) {
-    if (!email.trim()) return;
+    if (!email.trim() || loading) return;
     setLoading(true); setError('');
     try {
       const { data } = await api.get(`/customers/email/${encodeURIComponent(email.trim())}`);

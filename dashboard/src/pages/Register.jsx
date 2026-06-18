@@ -108,9 +108,15 @@ export default function Register() {
             )}
 
             <button type="submit" disabled={loading}
-              className="hs-btn hs-btn-gold"
-              style={{ width: '100%', justifyContent: 'center', padding: '16px', borderRadius: 12, opacity: loading ? .6 : 1 }}>
-              {loading ? 'Creando cuenta...' : '¡Crear mi cuenta!'}
+              style={{
+                width: '100%', padding: '16px', borderRadius: 12,
+                background: 'var(--gold)', color: '#2C1A0E',
+                border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
+                fontSize: 14, fontWeight: 800, letterSpacing: 1.5,
+                textTransform: 'uppercase', fontFamily: "'Montserrat', sans-serif",
+                opacity: loading ? .6 : 1, transition: 'opacity .2s',
+              }}>
+              {loading ? 'Creando cuenta...' : '¡Crear mi cuenta! →'}
             </button>
           </form>
 

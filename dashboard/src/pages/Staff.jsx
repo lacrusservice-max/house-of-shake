@@ -106,7 +106,7 @@ function POSView({ token, onLogout }) {
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 
   async function lookupByCode(code) {
-    if (!code?.trim()) return;
+    if (!code?.trim() || loading) return; // guard: prevent concurrent calls
     setLoading(true); setError('');
     try {
       const res = await fetch(`${API}/pos/customer/${encodeURIComponent(code.trim())}`, { headers });
@@ -122,7 +122,7 @@ function POSView({ token, onLogout }) {
   }
 
   async function lookupByEmail(email) {
-    if (!email?.trim()) return;
+    if (!email?.trim() || loading) return;
     setLoading(true); setError('');
     try {
       const res = await fetch(`${API}/customers/email/${encodeURIComponent(email.trim())}`, { headers });

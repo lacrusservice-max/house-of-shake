@@ -24,6 +24,7 @@ export default function MiCuenta() {
   const [transactions, setTransactions] = useState([]);
   const [txLoading, setTxLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('tarjeta');
+  const [qrFullscreen, setQrFullscreen] = useState(false);
 
   const LEVELS_INFO = [
     {
@@ -163,48 +164,68 @@ export default function MiCuenta() {
         {/* TAB — TARJETA */}
         {activeTab === 'tarjeta' && (
           <div className="mc-card-wrap">
-            <div className="mc-card">
-              <div className={`mc-card-body ${level.cls}`}>
-                <div className="mc-card-header">
+
+            {/* ── QR HERO ── tappable, opens fullscreen */}
+            <div className="mc-qr-hero" onClick={() => setQrFullscreen(true)}>
+              <div className="mc-qr-hero-inner" style={{ borderColor: `${level.color}55` }}>
+                {/* Header */}
+                <div className="mc-qr-hero-header">
                   <div>
-                    <p className="mc-card-brand">House of Shake</p>
-                    <p className="mc-card-name">{customer.firstName} {customer.lastName}</p>
-                    <p className="mc-card-email">{customer.email}</p>
+                    <p className="mc-qr-hero-brand">House of Shake</p>
+                    <p className="mc-qr-hero-name">{customer.firstName} {customer.lastName}</p>
                   </div>
-                  <div className="mc-card-level-badge">
-                    <div className="emoji">{level.emoji}</div>
-                    <div className="lbl" style={{ color: level.color }}>{level.label}</div>
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{ fontSize: 26 }}>{level.emoji}</span>
+                    <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 15, letterSpacing: 2, color: level.color, lineHeight: 1 }}>{level.label}</p>
                   </div>
                 </div>
 
-                <div className="mc-card-bottom">
+                {/* QR Code — center stage */}
+                <div className="mc-qr-center">
+                  <div className="mc-qr-box">
+                    <QRCodeSVG
+                      value={customer.id}
+                      size={180}
+                      bgColor="#ffffff"
+                      fgColor="#0B1509"
+                      level="H"
+                      includeMargin={true}
+                    />
+                  </div>
+                  <p className="mc-qr-tap-hint">Toca para ampliar</p>
+                </div>
+
+                {/* Points footer */}
+                <div className="mc-qr-hero-footer" style={{ borderTopColor: `${level.color}20` }}>
                   <div>
-                    <p className="mc-card-pts-label">Puntos disponibles</p>
-                    <p className="mc-card-pts-value">{customer.availablePoints}</p>
-                    {redeemable > 0 && (
-                      <p className="mc-card-pts-redeem">= ${redeemable} MXN canjeables</p>
-                    )}
+                    <p className="mc-qr-pts-label">Puntos disponibles</p>
+                    <p className="mc-qr-pts-value" style={{ color: level.color }}>{customer.availablePoints.toLocaleString()}</p>
                   </div>
-                  <div className="mc-card-qr">
-                    <QRCodeSVG value={customer.id} size={96} />
-                  </div>
+                  {redeemable > 0 && (
+                    <div style={{ textAlign: 'right' }}>
+                      <p className="mc-qr-pts-label">Canjeable</p>
+                      <p className="mc-qr-pts-value" style={{ color: '#5EC97A' }}>${redeemable} MXN</p>
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="mc-card-footer">
-                Muestra este código QR al staff para acumular o canjear puntos
-              </div>
+
+              <p className="mc-qr-instruction">
+                📷 Muestra este QR al staff al momento de pagar
+              </p>
             </div>
 
+            {/* Info tiles */}
             <div className="mc-info-grid">
               <div className="mc-info-card">
-                <div className="mc-info-icon">📱</div>
-                <p className="mc-info-title">Muestra el QR</p>
-                <p className="mc-info-desc">Al pagar en el mostrador</p>
+                <div className="mc-info-icon">⚡</div>
+                <p className="mc-info-title">1 pto = $1 MXN</p>
+                <p className="mc-info-desc">Ganas puntos en cada compra</p>
               </div>
               <div className="mc-info-card">
                 <div className="mc-info-icon">🎁</div>
                 <p className="mc-info-title">100 pts = $5 MXN</p>
-                <p className="mc-info-desc">Descuento en tu compra</p>
+                <p className="mc-info-desc">Canjea tu saldo en tienda</p>
               </div>
             </div>
 
@@ -213,6 +234,54 @@ export default function MiCuenta() {
                 🍎 Agregar a Apple Wallet
               </a>
             )}
+          </div>
+        )}
+
+        {/* ── QR FULLSCREEN OVERLAY ── */}
+        {qrFullscreen && (
+          <div
+            onClick={() => setQrFullscreen(false)}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 200,
+              background: 'rgba(0,0,0,.92)',
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center',
+              gap: 20, padding: 24,
+            }}
+          >
+            <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: 3, color: 'rgba(251,247,240,.4)', textTransform: 'uppercase' }}>
+              House of Shake
+            </p>
+            <div style={{ background: '#fff', padding: 20, borderRadius: 20, boxShadow: '0 0 80px rgba(245,200,66,.3)' }}>
+              <QRCodeSVG
+                value={customer.id}
+                size={Math.min(280, window.innerWidth - 100)}
+                bgColor="#ffffff"
+                fgColor="#0B1509"
+                level="H"
+                includeMargin={false}
+              />
+            </div>
+            <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 36, letterSpacing: 2, color: '#F5C842' }}>
+              {customer.availablePoints.toLocaleString()} pts
+            </p>
+            <p style={{ fontSize: 12, color: 'rgba(251,247,240,.35)', letterSpacing: 1, fontWeight: 600 }}>
+              {customer.firstName} {customer.lastName} · {level.emoji} {level.label}
+            </p>
+            <button
+              onClick={() => setQrFullscreen(false)}
+              style={{
+                marginTop: 8, padding: '12px 32px',
+                background: 'rgba(251,247,240,.08)',
+                border: '1px solid rgba(251,247,240,.15)',
+                borderRadius: 12, color: 'rgba(251,247,240,.5)',
+                fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                fontFamily: "'Montserrat', sans-serif", letterSpacing: 2,
+                textTransform: 'uppercase',
+              }}
+            >
+              ✕ Cerrar
+            </button>
           </div>
         )}
 
