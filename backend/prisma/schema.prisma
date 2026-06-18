@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Customer {
+  id                String        @id @default(uuid())
+  shopifyCustomerId String?       @unique
+  email             String        @unique
+  firstName         String
+  lastName          String
+  phone             String?
+  password          String?
+  totalPoints       Int           @default(0)
+  availablePoints   Int           @default(0)
+  lifetimePoints    Int           @default(0)
+  level             String        @default("BRONZE")
+  walletPassSerial  String?       @unique
+  walletPassToken   String?
+  walletRegistered  Boolean       @default(false)
+  pushToken         String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  transactions      Transaction[]
+  registrations     WalletRegistration[]
+
+  @@map("customers")
+}
+
+model Transaction {
+  id              String   @id @default(uuid())
+  customerId      String
+  customer        Customer @relation(fields: [customerId], references: [id])
+  type            String
+  points          Int
+  description     String
+  shopifyOrderId  String?
+  shopifyOrderNum String?
+  orderAmount     Float?
+  expiresAt       DateTime?
+  createdAt       DateTime @default(now())
+
+  @@map("transactions")
+}
+
+model WalletRegistration {
+  id            String   @id @default(uuid())
+  customerId    String
+  customer      Customer @relation(fields: [customerId], references: [id])
+  deviceId      String
+  pushToken     String
+  passSerial    String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([deviceId, passSerial])
+  @@map("wallet_registrations")
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  price       Float
+  pointsValue Int
+  category    String   @default("bebida")
+  imageUrl    String?
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("products")
+}
+
+model Config {
+  id                    String   @id @default(uuid())
+  pointsPerDollar       Float    @default(1)
+  pointsToRedeem        Int      @default(100)
+  redeemValueUsd        Float    @default(5)
+  welcomeBonus          Int      @default(50)
+  expiryMonths          Int      @default(12)
+  silverThreshold       Int      @default(101)
+  goldThreshold         Int      @default(301)
+  silverBonusPercent    Float    @default(10)
+  goldBonusPercent      Float    @default(20)
+  updatedAt             DateTime @updatedAt
+
+  @@map("config")
+}
+
+model AdminUser {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("admin")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("admin_users")
+}
+
+model WebhookLog {
+  id          String    @id @default(uuid())
+  topic       String
+  shopDomain  String
+  orderId     String?
+  payload     String
+  status      String    @default("pending")
+  error       String?
+  createdAt   DateTime  @default(now())
+  processedAt DateTime?
+
+  @@map("webhook_logs")
+}
