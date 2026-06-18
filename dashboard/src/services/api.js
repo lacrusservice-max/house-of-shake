@@ -50,4 +50,10 @@ export const setupApi = {
   shopify: () => api.post('/admin/setup-shopify'),
 };
 
+export const posApi = {
+  lookup:    (code)            => api.get(`/pos/customer/${encodeURIComponent(code)}`),
+  addPoints: (id, amount)      => api.post(`/pos/customer/${id}/add-points`, { amount }),
+  redeem:    (id, points)      => api.post(`/pos/customer/${id}/redeem`, { points }),
+};
+
 export default api;

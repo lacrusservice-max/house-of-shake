@@ -9,6 +9,7 @@ import Staff from './pages/Staff';
 
 import AdminLogin from './pages/AdminLogin';
 import Dashboard from './pages/Dashboard';
+import POS from './pages/POS';
 import Customers from './pages/Customers';
 import Transactions from './pages/Transactions';
 import Config from './pages/Config';
@@ -46,6 +47,7 @@ export default function App() {
             <Layout>
               <Routes>
                 <Route path="/" element={<Dashboard />} />
+                <Route path="/pos" element={<POS />} />
                 <Route path="/customers" element={<Customers />} />
                 <Route path="/transactions" element={<Transactions />} />
                 <Route path="/products" element={<Products />} />

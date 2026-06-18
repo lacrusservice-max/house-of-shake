@@ -1,0 +1,466 @@
+import { useState, lazy, Suspense } from 'react';
+import api from '../services/api';
+
+const QRScanner = lazy(() => import('../components/QRScanner'));
+
+const LEVEL = {
+  BRONZE: { color: '#cd7f32', emoji: '🥉', label: 'Bronze' },
+  SILVER: { color: '#c0c0c0', emoji: '🥈', label: 'Silver' },
+  GOLD:   { color: '#ffd700', emoji: '🥇', label: 'Gold' },
+};
+
+export default function POS() {
+  const [screen, setScreen]     = useState('home');  // home | scan | camera | customer | addPoints | redeem | success
+  const [codeInput, setCodeInput] = useState('');
+  const [customer, setCustomer] = useState(null);
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState('');
+  const [amount, setAmount]     = useState('');
+  const [redeemPts, setRedeemPts] = useState('');
+  const [result, setResult]     = useState(null);
+
+  async function lookupByCode(code) {
+    if (!code.trim()) return;
+    setLoading(true); setError('');
+    try {
+      const { data } = await api.get(`/pos/customer/${encodeURIComponent(code.trim())}`);
+      setCustomer(data);
+      setScreen('customer');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Cliente no encontrado');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleQRScan(code) {
+    setCodeInput(code);
+    lookupByCode(code);
+  }
+
+  async function handleAddPoints(e) {
+    e.preventDefault();
+    setLoading(true); setError('');
+    try {
+      const { data } = await api.post(`/pos/customer/${customer.id}/add-points`, {
+        amount: parseFloat(amount),
+      });
+      setResult({ type: 'earn', ...data });
+      setAmount('');
+      setScreen('success');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error al agregar puntos');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleRedeem(e) {
+    e.preventDefault();
+    setLoading(true); setError('');
+    try {
+      const { data } = await api.post(`/pos/customer/${customer.id}/redeem`, {
+        points: parseInt(redeemPts),
+      });
+      setResult({ type: 'redeem', ...data });
+      setRedeemPts('');
+      setScreen('success');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error al canjear');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function reset() {
+    setScreen('home'); setCustomer(null); setError('');
+    setResult(null); setCodeInput(''); setAmount(''); setRedeemPts('');
+  }
+
+  const lvl = LEVEL[customer?.level] || LEVEL.BRONZE;
+  const redeemable = customer ? Math.floor(customer.availablePoints / 100) * 5 : 0;
+
+  return (
+    <div style={{ maxWidth: 560, margin: '0 auto' }}>
+
+      {/* ── HOME ── */}
+      {screen === 'home' && (
+        <div>
+          <h1 style={styles.title}>POS · Cobrar</h1>
+          <p style={styles.sub}>Escanea el QR del cliente para acumular o canjear puntos</p>
+          <div style={{ display: 'grid', gap: 12, marginTop: 32 }}>
+            <button onClick={() => setScreen('camera')} style={{ ...styles.bigBtn, background: 'var(--gold)', color: '#2C1A0E' }}>
+              <span style={{ fontSize: 28 }}>📷</span>
+              <div>
+                <div style={styles.bigBtnTitle}>Escanear con cámara</div>
+                <div style={styles.bigBtnSub}>Apunta al código QR del cliente</div>
+              </div>
+            </button>
+            <button onClick={() => setScreen('scan')} style={{ ...styles.bigBtn, background: 'rgba(251,247,240,.06)', color: 'var(--cream)', border: '1px solid rgba(251,247,240,.12)' }}>
+              <span style={{ fontSize: 28 }}>⌨️</span>
+              <div>
+                <div style={styles.bigBtnTitle}>Ingresar código manual</div>
+                <div style={{ ...styles.bigBtnSub, opacity: .6 }}>Pega o escribe el ID del cliente</div>
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── CAMERA SCAN ── */}
+      {screen === 'camera' && (
+        <div>
+          <button onClick={() => setScreen('home')} style={styles.back}>← Volver</button>
+          <h2 style={styles.title}>Escanear QR</h2>
+          {error && <div style={styles.errorBox}>{error}</div>}
+          <Suspense fallback={<div style={styles.loadingBox}>Cargando cámara…</div>}>
+            <QRScanner
+              onScan={handleQRScan}
+              onClose={() => setScreen('home')}
+            />
+          </Suspense>
+          {loading && <div style={styles.loadingBox}>Buscando cliente…</div>}
+        </div>
+      )}
+
+      {/* ── MANUAL SCAN ── */}
+      {screen === 'scan' && (
+        <div>
+          <button onClick={() => setScreen('home')} style={styles.back}>← Volver</button>
+          <h2 style={styles.title}>Buscar cliente</h2>
+          <p style={{ ...styles.sub, marginBottom: 20 }}>Pega el código QR escaneado o ingresa el ID del cliente</p>
+          <form onSubmit={e => { e.preventDefault(); lookupByCode(codeInput); }}>
+            <input
+              type="text" required autoFocus
+              placeholder="ID del cliente (del QR)"
+              value={codeInput}
+              onChange={e => setCodeInput(e.target.value)}
+              style={{ ...styles.input, fontFamily: 'monospace', fontSize: 13 }}
+            />
+            {error && <div style={styles.errorBox}>{error}</div>}
+            <button type="submit" disabled={loading} style={styles.goldBtn}>
+              {loading ? 'Buscando…' : 'Buscar cliente'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* ── CUSTOMER PROFILE ── */}
+      {screen === 'customer' && customer && (
+        <div>
+          <button onClick={reset} style={styles.back}>← Nueva búsqueda</button>
+
+          {/* Customer card */}
+          <div style={{
+            background: 'linear-gradient(135deg, #2C1A0E 0%, #1a0e06 100%)',
+            border: `1px solid ${lvl.color}30`,
+            borderRadius: 20,
+            padding: 24,
+            marginBottom: 20,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+              <div>
+                <div style={{ fontSize: 10, letterSpacing: 3, color: 'rgba(251,247,240,.35)', textTransform: 'uppercase', marginBottom: 6 }}>
+                  House of Shake
+                </div>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: 2, color: 'var(--cream)' }}>
+                  {customer.firstName} {customer.lastName}
+                </div>
+                <div style={{ fontSize: 12, color: 'rgba(251,247,240,.4)', marginTop: 2 }}>{customer.email}</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 28 }}>{lvl.emoji}</div>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, letterSpacing: 2, color: lvl.color }}>{lvl.label}</div>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={styles.statBox}>
+                <div style={styles.statLabel}>Puntos disponibles</div>
+                <div style={{ ...styles.statValue, color: 'var(--gold)' }}>{customer.availablePoints}</div>
+              </div>
+              <div style={styles.statBox}>
+                <div style={styles.statLabel}>Canjeable</div>
+                <div style={{ ...styles.statValue, color: '#5EC97A' }}>${redeemable} MXN</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+            <button onClick={() => { setScreen('addPoints'); setError(''); }} style={{ ...styles.actionBtn, background: 'rgba(94,201,122,.12)', border: '1px solid rgba(94,201,122,.3)', color: '#5EC97A' }}>
+              <span style={{ fontSize: 26 }}>+</span>
+              <span style={{ fontSize: 13, fontWeight: 700 }}>Acumular puntos</span>
+            </button>
+            <button
+              disabled={customer.availablePoints < 100}
+              onClick={() => { setScreen('redeem'); setError(''); }}
+              style={{ ...styles.actionBtn, background: 'rgba(74,125,156,.12)', border: '1px solid rgba(74,125,156,.3)', color: '#4a9fd4', opacity: customer.availablePoints < 100 ? .4 : 1, cursor: customer.availablePoints < 100 ? 'not-allowed' : 'pointer' }}>
+              <span style={{ fontSize: 26 }}>🎁</span>
+              <span style={{ fontSize: 13, fontWeight: 700 }}>Canjear puntos</span>
+            </button>
+          </div>
+
+          {/* Recent transactions */}
+          {customer.recentTransactions?.length > 0 && (
+            <div style={styles.recentBox}>
+              <div style={styles.recentTitle}>Últimas transacciones</div>
+              {customer.recentTransactions.map(t => (
+                <div key={t.id} style={styles.recentRow}>
+                  <span style={{ color: 'rgba(251,247,240,.6)', fontSize: 12, flex: 1 }}>{t.description}</span>
+                  <span style={{ fontWeight: 700, color: t.points > 0 ? '#5EC97A' : '#E05C5C', fontSize: 13 }}>
+                    {t.points > 0 ? '+' : ''}{t.points}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── ADD POINTS ── */}
+      {screen === 'addPoints' && customer && (
+        <div>
+          <button onClick={() => setScreen('customer')} style={styles.back}>← Volver</button>
+          <h2 style={styles.title}>Acumular puntos</h2>
+          <p style={styles.sub}>
+            Cliente: <strong style={{ color: 'var(--cream)' }}>{customer.firstName} {customer.lastName}</strong>
+          </p>
+          <div style={{ ...styles.infoBanner, borderColor: 'rgba(245,200,66,.25)', background: 'rgba(245,200,66,.06)', color: 'var(--gold)', marginBottom: 20, marginTop: 16 }}>
+            1 punto por cada $1 MXN gastado
+          </div>
+          <form onSubmit={handleAddPoints}>
+            <label style={styles.label}>Monto de la compra (MXN)</label>
+            <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: 'rgba(251,247,240,.4)', fontSize: 20 }}>$</span>
+              <input
+                type="number" required min="1" step="0.01" autoFocus
+                value={amount} onChange={e => setAmount(e.target.value)}
+                placeholder="0.00"
+                style={{ ...styles.input, paddingLeft: 36, fontSize: 28, fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 2 }}
+              />
+            </div>
+            {amount && (
+              <div style={{ textAlign: 'center', color: 'var(--gold)', fontSize: 14, fontWeight: 700, marginTop: 8 }}>
+                +{Math.floor(parseFloat(amount) || 0)} puntos para {customer.firstName}
+              </div>
+            )}
+            {error && <div style={styles.errorBox}>{error}</div>}
+            <button type="submit" disabled={loading} style={{ ...styles.goldBtn, marginTop: 20 }}>
+              {loading ? 'Procesando…' : 'Confirmar compra ✓'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* ── REDEEM ── */}
+      {screen === 'redeem' && customer && (
+        <div>
+          <button onClick={() => setScreen('customer')} style={styles.back}>← Volver</button>
+          <h2 style={styles.title}>Canjear puntos</h2>
+          <p style={styles.sub}>
+            Cliente: <strong style={{ color: 'var(--cream)' }}>{customer.firstName} {customer.lastName}</strong>
+          </p>
+
+          <div style={styles.statBox2}>
+            <div style={styles.statLabel}>Puntos disponibles</div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, color: 'var(--gold)', letterSpacing: 2 }}>{customer.availablePoints}</div>
+            <div style={{ fontSize: 11, color: 'rgba(251,247,240,.35)', letterSpacing: 1 }}>100 puntos = $5 MXN de descuento</div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, margin: '16px 0' }}>
+            {[100, 200, 300].filter(v => v <= customer.availablePoints).map(v => (
+              <button key={v} onClick={() => setRedeemPts(String(v))}
+                style={{
+                  padding: '14px 8px', borderRadius: 12,
+                  background: redeemPts === String(v) ? 'var(--gold)' : 'rgba(251,247,240,.06)',
+                  color: redeemPts === String(v) ? '#2C1A0E' : 'var(--cream)',
+                  border: `1px solid ${redeemPts === String(v) ? 'var(--gold)' : 'rgba(251,247,240,.1)'}`,
+                  fontFamily: "'Montserrat', sans-serif",
+                  fontWeight: 700, cursor: 'pointer', textAlign: 'center', fontSize: 12,
+                }}>
+                <div>{v} pts</div>
+                <div style={{ fontSize: 11, opacity: .8 }}>${(v / 100) * 5} MXN</div>
+              </button>
+            ))}
+          </div>
+
+          <form onSubmit={handleRedeem}>
+            <input
+              type="number" required min="100" step="100"
+              value={redeemPts} onChange={e => setRedeemPts(e.target.value)}
+              placeholder="Múltiplos de 100"
+              style={{ ...styles.input, textAlign: 'center', fontSize: 24, fontFamily: "'Bebas Neue', sans-serif" }}
+            />
+            {redeemPts && parseInt(redeemPts) >= 100 && (
+              <div style={{ textAlign: 'center', color: '#4a9fd4', fontWeight: 700, fontSize: 14, marginTop: 8 }}>
+                Descuento: ${(Math.floor(parseInt(redeemPts) / 100) * 5).toFixed(2)} MXN
+              </div>
+            )}
+            {error && <div style={styles.errorBox}>{error}</div>}
+            <button type="submit"
+              disabled={loading || !redeemPts || parseInt(redeemPts) < 100}
+              style={{ ...styles.goldBtn, marginTop: 16 }}>
+              {loading ? 'Procesando…' : 'Confirmar canje ✓'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* ── SUCCESS ── */}
+      {screen === 'success' && result && (
+        <div style={{ textAlign: 'center', padding: '24px 0' }}>
+          <div style={{ fontSize: 72, marginBottom: 16 }}>{result.type === 'earn' ? '🎉' : '🎁'}</div>
+
+          {result.type === 'earn' ? (
+            <>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, letterSpacing: 2, color: '#5EC97A' }}>
+                +{result.pointsAdded} puntos
+              </div>
+              <p style={{ color: 'rgba(251,247,240,.6)', marginBottom: 20 }}>
+                agregados a la cuenta de <strong style={{ color: 'var(--cream)' }}>{customer?.firstName}</strong>
+              </p>
+            </>
+          ) : (
+            <>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, letterSpacing: 2, color: '#4a9fd4' }}>
+                ${result.discountUsd?.toFixed(2)} MXN
+              </div>
+              <p style={{ color: 'rgba(251,247,240,.6)', marginBottom: 20 }}>
+                descuento aplicado a <strong style={{ color: 'var(--cream)' }}>{customer?.firstName}</strong>
+              </p>
+            </>
+          )}
+
+          <div style={styles.statBox2}>
+            <div style={styles.statLabel}>Saldo actual</div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: 'var(--gold)', letterSpacing: 2 }}>
+              {result.newBalance}
+            </div>
+            <div style={{ fontSize: 11, color: 'rgba(251,247,240,.3)', letterSpacing: 1 }}>puntos disponibles</div>
+          </div>
+
+          <div style={{ display: 'grid', gap: 10, marginTop: 24 }}>
+            <button onClick={() => { setScreen('customer'); setResult(null); }} style={{ ...styles.goldBtn, background: 'rgba(251,247,240,.08)', color: 'var(--cream)' }}>
+              Ver perfil del cliente
+            </button>
+            <button onClick={reset} style={styles.goldBtn}>
+              Nueva transacción
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── shared styles ── */
+const styles = {
+  title: {
+    fontFamily: "'Bebas Neue', sans-serif",
+    fontSize: 40,
+    letterSpacing: 2,
+    color: 'var(--cream)',
+    marginBottom: 6,
+  },
+  sub: {
+    fontSize: 13,
+    color: 'rgba(251,247,240,.45)',
+    fontWeight: 600,
+  },
+  back: {
+    background: 'none', border: 'none', cursor: 'pointer',
+    color: 'rgba(251,247,240,.4)', fontSize: 12, fontWeight: 700,
+    letterSpacing: 1, padding: 0, marginBottom: 16,
+    fontFamily: "'Montserrat', sans-serif",
+  },
+  bigBtn: {
+    display: 'flex', alignItems: 'center', gap: 16,
+    padding: '20px 24px', borderRadius: 16,
+    border: 'none', cursor: 'pointer',
+    fontFamily: "'Montserrat', sans-serif",
+    transition: 'transform .15s',
+    textAlign: 'left',
+  },
+  bigBtnTitle: { fontSize: 15, fontWeight: 800, marginBottom: 2 },
+  bigBtnSub: { fontSize: 11, letterSpacing: .5 },
+  input: {
+    width: '100%',
+    background: 'rgba(251,247,240,.05)',
+    color: 'var(--cream)',
+    border: '1px solid rgba(251,247,240,.12)',
+    borderRadius: 12,
+    padding: '14px 16px',
+    outline: 'none',
+    fontFamily: "'Montserrat', sans-serif",
+    fontSize: 15,
+    boxSizing: 'border-box',
+    marginBottom: 0,
+  },
+  label: {
+    display: 'block',
+    fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase',
+    color: 'rgba(251,247,240,.4)', marginBottom: 8,
+    fontFamily: "'Montserrat', sans-serif",
+  },
+  goldBtn: {
+    width: '100%', padding: '16px',
+    background: 'var(--gold)', color: '#2C1A0E',
+    border: 'none', borderRadius: 12,
+    fontFamily: "'Montserrat', sans-serif",
+    fontWeight: 800, fontSize: 13, letterSpacing: 1.5, textTransform: 'uppercase',
+    cursor: 'pointer', marginTop: 12, display: 'block',
+  },
+  errorBox: {
+    background: 'rgba(224,92,92,.1)', border: '1px solid rgba(224,92,92,.25)',
+    color: '#E05C5C', fontSize: 12, padding: '10px 14px',
+    borderRadius: 10, marginTop: 10,
+  },
+  loadingBox: {
+    textAlign: 'center', padding: 24,
+    color: 'rgba(251,247,240,.4)', fontSize: 13, fontWeight: 600,
+  },
+  infoBanner: {
+    padding: '10px 16px', borderRadius: 10, border: '1px solid',
+    fontSize: 12, fontWeight: 700, letterSpacing: 1, textAlign: 'center',
+    fontFamily: "'Montserrat', sans-serif",
+  },
+  statBox: {
+    background: 'rgba(251,247,240,.05)',
+    borderRadius: 12, padding: '14px',
+    textAlign: 'center',
+  },
+  statBox2: {
+    background: 'rgba(251,247,240,.04)', border: '1px solid rgba(251,247,240,.08)',
+    borderRadius: 16, padding: '20px', textAlign: 'center', margin: '12px 0',
+  },
+  statLabel: {
+    fontSize: 9, fontWeight: 700, letterSpacing: 3,
+    textTransform: 'uppercase', color: 'rgba(251,247,240,.35)', marginBottom: 4,
+    fontFamily: "'Montserrat', sans-serif",
+  },
+  statValue: {
+    fontFamily: "'Bebas Neue', sans-serif",
+    fontSize: 36, letterSpacing: 2,
+  },
+  actionBtn: {
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+    padding: '20px 16px', borderRadius: 16,
+    fontFamily: "'Montserrat', sans-serif",
+    cursor: 'pointer', transition: 'opacity .2s',
+  },
+  recentBox: {
+    background: 'rgba(251,247,240,.03)', border: '1px solid rgba(251,247,240,.07)',
+    borderRadius: 16, padding: '16px 20px',
+  },
+  recentTitle: {
+    fontSize: 9, fontWeight: 700, letterSpacing: 3,
+    textTransform: 'uppercase', color: 'rgba(251,247,240,.3)',
+    marginBottom: 12, fontFamily: "'Montserrat', sans-serif",
+  },
+  recentRow: {
+    display: 'flex', justifyContent: 'space-between',
+    alignItems: 'center', padding: '6px 0',
+    borderBottom: '1px solid rgba(251,247,240,.04)',
+  },
+};

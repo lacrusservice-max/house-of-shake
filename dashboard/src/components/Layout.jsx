@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 const nav = [
   { path: '/admin/', label: 'Dashboard', icon: '📊' },
+  { path: '/admin/pos', label: 'POS · Cobrar', icon: '📷' },
   { path: '/admin/customers', label: 'Clientes', icon: '👥' },
   { path: '/admin/transactions', label: 'Transacciones', icon: '💳' },
   { path: '/admin/products', label: 'Menú / Productos', icon: '🍵' },
