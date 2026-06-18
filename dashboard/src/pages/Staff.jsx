@@ -105,17 +105,33 @@ function POSView({ token, onLogout }) {
 
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 
+  // Extract UUID from scanned text (handles extra characters from some QR scanners)
+  function extractCode(raw) {
+    const uuid = raw?.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+    return uuid ? uuid[0] : raw?.trim();
+  }
+
   async function lookupByCode(code) {
-    if (!code?.trim() || loading) return; // guard: prevent concurrent calls
+    if (!code?.trim() || loading) return;
+    const cleanCode = extractCode(code);
     setLoading(true); setError('');
     try {
-      const res = await fetch(`${API}/pos/customer/${encodeURIComponent(code.trim())}`, { headers });
+      const res = await fetch(`${API}/pos/customer/${encodeURIComponent(cleanCode)}`, { headers });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Cliente no encontrado');
-      setCustomer(data);
+      if (!res.ok) {
+        if (res.status === 401) throw new Error('Sesión expirada. Vuelve a iniciar sesión.');
+        if (res.status === 404) throw new Error(`NOTFOUND:${cleanCode}`);
+        throw new Error(data.error || 'Error al buscar cliente');
+      }
+      const cust = data.customer || data;
+      setCustomer(cust);
       setScreen('customer');
     } catch (err) {
-      setError(err.message);
+      if (err.name === 'TypeError') {
+        setError('Sin conexión al servidor. Verifica tu internet e intenta de nuevo.');
+      } else {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -125,10 +141,13 @@ function POSView({ token, onLogout }) {
     if (!email?.trim() || loading) return;
     setLoading(true); setError('');
     try {
-      const res = await fetch(`${API}/customers/email/${encodeURIComponent(email.trim())}`, { headers });
+      const res = await fetch(`${API}/customers/email/${encodeURIComponent(email.trim().toLowerCase())}`, { headers });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Cliente no encontrado');
-      // Use the customer data (may come as { customer: {...} } or direct)
+      if (!res.ok) {
+        if (res.status === 401) throw new Error('Sesión expirada. Vuelve a iniciar sesión.');
+        if (res.status === 404) throw new Error('No se encontró ningún cliente con ese email. ¿Ya se registró en la app?');
+        throw new Error(data.error || 'Error al buscar cliente');
+      }
       const cust = data.customer || data;
       setCustomer({
         id: cust.id,
@@ -143,7 +162,11 @@ function POSView({ token, onLogout }) {
       });
       setScreen('customer');
     } catch (err) {
-      setError(err.message);
+      if (err.name === 'TypeError') {
+        setError('Sin conexión al servidor. Verifica tu internet.');
+      } else {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -255,19 +278,65 @@ function POSView({ token, onLogout }) {
         )}
 
         {/* ── CAMERA QR ── */}
-        {screen === 'camera' && (
-          <div>
-            <button onClick={() => setScreen('home')} style={S.back}>← Volver</button>
-            <h2 className="mc-heading" style={{ fontSize: 34, marginBottom: 6 }}>
-              Escanear <span>QR</span>
-            </h2>
-            {error && <div style={S.err}>{error}<br/><button onClick={() => { setError(''); setScreen('searchEmail'); }} style={{ marginTop: 8, background: 'none', border: '1px solid rgba(224,92,92,.4)', borderRadius: 8, color: '#E05C5C', padding: '6px 12px', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>Buscar por email en cambio</button></div>}
-            {loading && <div style={{ textAlign: 'center', color: 'var(--gold)', padding: 16, fontWeight: 600 }}>Buscando cliente…</div>}
-            <Suspense fallback={<div style={{ color: 'rgba(251,247,240,.4)', textAlign: 'center', padding: 40, fontSize: 13 }}>Cargando cámara…</div>}>
-              <QRScanner onScan={(code) => { setCodeInput(code); lookupByCode(code); }} onClose={() => setScreen('home')} />
-            </Suspense>
-          </div>
-        )}
+        {screen === 'camera' && (() => {
+          const isNotFound = error?.startsWith('NOTFOUND:');
+          const scannedId = isNotFound ? error.replace('NOTFOUND:', '') : null;
+          return (
+            <div>
+              <button onClick={() => setScreen('home')} style={S.back}>← Volver</button>
+              <h2 className="mc-heading" style={{ fontSize: 34, marginBottom: 6 }}>
+                Escanear <span>QR</span>
+              </h2>
+
+              {/* NOT FOUND: show clear explanation + options */}
+              {isNotFound && (
+                <div style={{ ...S.err, marginBottom: 14 }}>
+                  <p style={{ fontWeight: 800, marginBottom: 6 }}>⚠️ Cliente no encontrado</p>
+                  <p style={{ fontSize: 11, opacity: .8, marginBottom: 10 }}>
+                    QR escaneado: <code style={{ background: 'rgba(224,92,92,.15)', padding: '2px 6px', borderRadius: 4, fontFamily: 'monospace', fontSize: 10 }}>{scannedId?.substring(0, 16)}...</code>
+                  </p>
+                  <p style={{ fontSize: 12, opacity: .75, marginBottom: 12, lineHeight: 1.5 }}>
+                    Este cliente no está registrado en la app. Pídele que se registre en:<br/>
+                    <strong>house-of-shake.vercel.app/registro</strong>
+                  </p>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button onClick={() => { setError(''); setScreen('searchEmail'); }}
+                      style={{ flex: 1, padding: '8px 12px', background: 'none', border: '1px solid rgba(224,92,92,.5)', borderRadius: 8, color: '#E05C5C', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                      Buscar por email
+                    </button>
+                    <button onClick={() => setError('')}
+                      style={{ flex: 1, padding: '8px 12px', background: 'none', border: '1px solid rgba(251,247,240,.15)', borderRadius: 8, color: 'rgba(251,247,240,.5)', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                      Intentar de nuevo
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Generic error */}
+              {error && !isNotFound && (
+                <div style={{ ...S.err, marginBottom: 14 }}>
+                  {error}
+                  <br/>
+                  <button onClick={() => { setError(''); setScreen('searchEmail'); }}
+                    style={{ marginTop: 8, background: 'none', border: '1px solid rgba(224,92,92,.4)', borderRadius: 8, color: '#E05C5C', padding: '6px 12px', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                    Buscar por email en cambio
+                  </button>
+                </div>
+              )}
+
+              {loading && <div style={{ textAlign: 'center', color: 'var(--gold)', padding: 16, fontWeight: 600 }}>Buscando cliente…</div>}
+
+              {/* Re-mount scanner when user clicks "intentar de nuevo" */}
+              <Suspense fallback={<div style={{ color: 'rgba(251,247,240,.4)', textAlign: 'center', padding: 40, fontSize: 13 }}>Cargando cámara…</div>}>
+                <QRScanner
+                  key={error ? 'error' : 'scanning'} // re-mount after error reset
+                  onScan={(code) => { setCodeInput(code); lookupByCode(code); }}
+                  onClose={() => setScreen('home')}
+                />
+              </Suspense>
+            </div>
+          );
+        })()}
 
         {/* ── SEARCH BY EMAIL ── */}
         {screen === 'searchEmail' && (
