@@ -146,7 +146,7 @@ Pon estas imágenes en `backend/pass-template/images/`:
 SHOPIFY_API_KEY=your_shopify_api_key
 SHOPIFY_API_SECRET=your_shopify_api_secret
 SHOPIFY_ACCESS_TOKEN=your_shopify_access_token
-SHOPIFY_STORE_URL=house-of-shake.myshopify.com
+SHOPIFY_STORE_URL=your-store.myshopify.com
 SHOPIFY_WEBHOOK_SECRET=$(openssl rand -hex 32)
 ```
 
