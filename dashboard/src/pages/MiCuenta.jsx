@@ -1,21 +1,22 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
+import '../styles/mi-cuenta.css';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const LEVEL_CONFIG = {
-  BRONZE: { color: '#cd7f32', bg: 'from-amber-900/40', emoji: '🥉', label: 'Bronze', next: 'Silver', nextAt: 101 },
-  SILVER: { color: '#c0c0c0', bg: 'from-gray-600/40', emoji: '🥈', label: 'Silver', next: 'Gold', nextAt: 301 },
-  GOLD:   { color: '#ffd700', bg: 'from-yellow-700/40', emoji: '🥇', label: 'Gold', next: null, nextAt: null },
+  BRONZE: { color: '#cd7f32', cls: '',       emoji: '🥉', label: 'Bronze', next: 'Silver', nextAt: 101 },
+  SILVER: { color: '#c0c0c0', cls: 'silver', emoji: '🥈', label: 'Silver', next: 'Gold',   nextAt: 301 },
+  GOLD:   { color: '#ffd700', cls: 'gold',   emoji: '🥇', label: 'Gold',   next: null,     nextAt: null },
 };
 
-const TX_TYPE_LABEL = {
-  EARN: { label: 'Puntos ganados', color: 'text-green-400', sign: '+' },
-  REDEEM: { label: 'Canje', color: 'text-blue-400', sign: '' },
-  WELCOME_BONUS: { label: 'Bono de bienvenida', color: 'text-amber-400', sign: '+' },
-  REVERSAL: { label: 'Reversión', color: 'text-red-400', sign: '' },
-  ADJUSTMENT: { label: 'Ajuste', color: 'text-purple-400', sign: '' },
+const TX_TYPE = {
+  EARN:          { label: 'Puntos ganados',    color: '#5EC97A' },
+  REDEEM:        { label: 'Canje',             color: '#4a9fd4' },
+  WELCOME_BONUS: { label: 'Bono bienvenida',   color: '#F5C842' },
+  REVERSAL:      { label: 'Reversión',         color: '#E05C5C' },
+  ADJUSTMENT:    { label: 'Ajuste',            color: '#b07bff' },
 };
 
 export default function MiCuenta() {
@@ -29,12 +30,8 @@ export default function MiCuenta() {
   const headers = { Authorization: `Bearer ${token}` };
 
   useEffect(() => {
-    // Refresh customer data
     fetch(`${API}/me`, { headers })
-      .then(r => {
-        if (r.status === 401) { handleLogout(); return null; }
-        return r.json();
-      })
+      .then(r => { if (r.status === 401) { handleLogout(); return null; } return r.json(); })
       .then(data => {
         if (!data) return;
         setCustomer(data.customer);
@@ -42,7 +39,6 @@ export default function MiCuenta() {
       })
       .catch(() => {});
 
-    // Load transactions
     fetch(`${API}/me/transactions`, { headers })
       .then(r => r.json())
       .then(data => setTransactions(data.transactions || []))
@@ -66,177 +62,174 @@ export default function MiCuenta() {
   const redeemable = Math.floor(customer.availablePoints / 100) * 5;
 
   return (
-    <div className="min-h-screen bg-[#120800] text-white">
+    <div className="mc-root">
 
       {/* NAV */}
-      <nav className="bg-[#1a0e04] border-b border-white/5 px-4 h-14 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2">
-          <span className="text-xl">☕</span>
-          <span className="font-black text-sm tracking-tight">HOUSE OF SHAKE</span>
+      <nav className="mc-nav">
+        <Link to="/" className="mc-nav-brand">
+          <div className="mc-nav-logo">☕</div>
+          <span className="mc-nav-title">HOUSE OF SHAKE</span>
         </Link>
-        <div className="flex items-center gap-3">
-          <span className="text-white/40 text-sm hidden sm:block">Hola, {customer.firstName}</span>
-          <button onClick={handleLogout} className="text-white/30 hover:text-white/60 text-xs transition">
-            Salir
-          </button>
+        <div className="mc-nav-right">
+          <span className="mc-nav-user">Hola, {customer.firstName}</span>
+          <button onClick={handleLogout} className="mc-nav-logout">Salir</button>
         </div>
       </nav>
 
-      <div className="max-w-2xl mx-auto px-4 py-6">
+      <div className="mc-wrap">
 
         {/* WELCOME */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-black">Hola, {customer.firstName} {level.emoji}</h1>
-          <p className="text-white/40 text-sm mt-0.5">Miembro {level.label}</p>
-        </div>
+        <div className="mc-eyebrow">Mi cuenta</div>
+        <h1 className="mc-heading">
+          Hola, <span>{customer.firstName}</span> {level.emoji}
+        </h1>
+        <p className="mc-sub">Miembro {level.label}</p>
 
-        {/* STATS ROW */}
-        <div className="grid grid-cols-3 gap-3 mb-6">
-          <div className="bg-white/5 border border-white/8 rounded-2xl p-4 text-center">
-            <p className="text-white/40 text-xs mb-1">Disponibles</p>
-            <p className="text-2xl font-black text-amber-400">{customer.availablePoints}</p>
-            <p className="text-white/30 text-xs">puntos</p>
+        {/* STATS */}
+        <div className="mc-stats">
+          <div className="mc-stat">
+            <p className="mc-stat-label">Disponibles</p>
+            <p className="mc-stat-value gold">{customer.availablePoints}</p>
+            <p className="mc-stat-unit">puntos</p>
           </div>
-          <div className="bg-white/5 border border-white/8 rounded-2xl p-4 text-center">
-            <p className="text-white/40 text-xs mb-1">Acumulados</p>
-            <p className="text-2xl font-black text-white">{customer.lifetimePoints}</p>
-            <p className="text-white/30 text-xs">total</p>
+          <div className="mc-stat">
+            <p className="mc-stat-label">Acumulados</p>
+            <p className="mc-stat-value">{customer.lifetimePoints}</p>
+            <p className="mc-stat-unit">total</p>
           </div>
-          <div className="bg-white/5 border border-white/8 rounded-2xl p-4 text-center">
-            <p className="text-white/40 text-xs mb-1">Canjeable</p>
-            <p className="text-2xl font-black text-green-400">${redeemable}</p>
-            <p className="text-white/30 text-xs">MXN</p>
+          <div className="mc-stat">
+            <p className="mc-stat-label">Canjeable</p>
+            <p className="mc-stat-value green">${redeemable}</p>
+            <p className="mc-stat-unit">MXN</p>
           </div>
         </div>
 
         {/* LEVEL PROGRESS */}
-        {level.nextAt && (
-          <div className="bg-white/5 border border-white/8 rounded-2xl p-4 mb-6">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-semibold">{level.emoji} {level.label}</span>
-              <span className="text-xs text-white/40">{ptsToNext} pts para {level.next} →</span>
+        {level.nextAt ? (
+          <div className="mc-level">
+            <div className="mc-level-top">
+              <span className="mc-level-name">{level.emoji} {level.label}</span>
+              <span className="mc-level-next">{ptsToNext} pts para {level.next} →</span>
             </div>
-            <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-              <div className="h-full rounded-full transition-all duration-500"
-                style={{ width: `${progressPct}%`, backgroundColor: level.color }} />
+            <div className="mc-bar-bg">
+              <div className="mc-bar-fill" style={{ width: `${progressPct}%`, background: level.color }} />
             </div>
-            <p className="text-white/30 text-xs mt-1.5">{customer.lifetimePoints} / {level.nextAt} puntos</p>
+            <p className="mc-bar-pts">{customer.lifetimePoints} / {level.nextAt} puntos</p>
           </div>
-        )}
-        {customer.level === 'GOLD' && (
-          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-4 mb-6 text-center">
-            <p className="text-yellow-400 font-bold">🥇 ¡Eres Gold! Nivel máximo alcanzado</p>
-            <p className="text-white/40 text-xs mt-1">Tienes +20% de puntos bonus en cada compra</p>
+        ) : (
+          <div className="mc-gold-badge">
+            <p>🥇 ¡Eres Gold! Nivel máximo alcanzado</p>
+            <p>Tienes +20% de puntos bonus en cada compra</p>
           </div>
         )}
 
+        <hr className="mc-divider" />
+
         {/* TABS */}
-        <div className="flex gap-1 bg-white/5 rounded-xl p-1 mb-6">
+        <div className="mc-tabs">
           {[
-            { key: 'tarjeta', label: '📱 Mi Tarjeta' },
+            { key: 'tarjeta',  label: '📱 Mi Tarjeta' },
             { key: 'historial', label: '📋 Historial' },
           ].map(t => (
-            <button key={t.key} onClick={() => setActiveTab(t.key)}
-              className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${activeTab === t.key ? 'bg-amber-500 text-black' : 'text-white/50 hover:text-white'}`}>
+            <button
+              key={t.key}
+              onClick={() => setActiveTab(t.key)}
+              className={`mc-tab${activeTab === t.key ? ' active' : ''}`}
+            >
               {t.label}
             </button>
           ))}
         </div>
 
-        {/* TAB: TARJETA */}
+        {/* TAB — TARJETA */}
         {activeTab === 'tarjeta' && (
-          <div>
-            {/* Loyalty Card */}
-            <div className={`rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-br ${level.bg} to-[#1a0a00] border`}
-              style={{ borderColor: `${level.color}30` }}>
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-6">
+          <div className="mc-card-wrap">
+            <div className="mc-card">
+              <div className={`mc-card-body ${level.cls}`}>
+                <div className="mc-card-header">
                   <div>
-                    <p className="text-white/30 text-xs uppercase tracking-widest">House of Shake</p>
-                    <h2 className="text-white text-xl font-bold mt-1">{customer.firstName} {customer.lastName}</h2>
-                    <p className="text-white/30 text-xs mt-0.5">{customer.email}</p>
+                    <p className="mc-card-brand">House of Shake</p>
+                    <p className="mc-card-name">{customer.firstName} {customer.lastName}</p>
+                    <p className="mc-card-email">{customer.email}</p>
                   </div>
-                  <div className="text-right">
-                    <span className="text-2xl">{level.emoji}</span>
-                    <p className="text-xs mt-0.5 font-bold" style={{ color: level.color }}>{level.label}</p>
+                  <div className="mc-card-level-badge">
+                    <div className="emoji">{level.emoji}</div>
+                    <div className="lbl" style={{ color: level.color }}>{level.label}</div>
                   </div>
                 </div>
 
-                <div className="flex items-end justify-between">
+                <div className="mc-card-bottom">
                   <div>
-                    <p className="text-white/40 text-xs uppercase tracking-wider">Puntos disponibles</p>
-                    <p className="text-5xl font-black text-amber-400 leading-none mt-1">{customer.availablePoints}</p>
+                    <p className="mc-card-pts-label">Puntos disponibles</p>
+                    <p className="mc-card-pts-value">{customer.availablePoints}</p>
                     {redeemable > 0 && (
-                      <p className="text-green-400 text-xs mt-1 font-semibold">
-                        = ${redeemable} MXN canjeables
-                      </p>
+                      <p className="mc-card-pts-redeem">= ${redeemable} MXN canjeables</p>
                     )}
                   </div>
-                  <div className="bg-white p-3 rounded-2xl shadow-lg">
-                    <QRCodeSVG value={customer.id} size={90} />
+                  <div className="mc-card-qr">
+                    <QRCodeSVG value={customer.id} size={96} />
                   </div>
                 </div>
               </div>
-
-              <div className="bg-black/20 px-6 py-3 text-center">
-                <p className="text-white/40 text-xs">Muestra este código QR al staff para acumular o canjear puntos</p>
+              <div className="mc-card-footer">
+                Muestra este código QR al staff para acumular o canjear puntos
               </div>
             </div>
 
-            {/* Instructions */}
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <div className="bg-white/5 rounded-2xl p-4 text-center">
-                <p className="text-2xl mb-1">📱</p>
-                <p className="text-white text-sm font-semibold">Muestra el QR</p>
-                <p className="text-white/40 text-xs mt-0.5">Al pagar en el mostrador</p>
+            <div className="mc-info-grid">
+              <div className="mc-info-card">
+                <div className="mc-info-icon">📱</div>
+                <p className="mc-info-title">Muestra el QR</p>
+                <p className="mc-info-desc">Al pagar en el mostrador</p>
               </div>
-              <div className="bg-white/5 rounded-2xl p-4 text-center">
-                <p className="text-2xl mb-1">🎁</p>
-                <p className="text-white text-sm font-semibold">100 pts = $5 MXN</p>
-                <p className="text-white/40 text-xs mt-0.5">Descuento en tu compra</p>
+              <div className="mc-info-card">
+                <div className="mc-info-icon">🎁</div>
+                <p className="mc-info-title">100 pts = $5 MXN</p>
+                <p className="mc-info-desc">Descuento en tu compra</p>
               </div>
             </div>
 
             {customer.walletPassUrl && (
-              <a href={customer.walletPassUrl}
-                className="mt-3 flex items-center justify-center gap-2 bg-black border border-white/20 text-white py-3.5 rounded-2xl text-sm font-semibold hover:bg-white/5 transition">
-                <span>🍎</span> Agregar a Apple Wallet
+              <a href={customer.walletPassUrl} className="mc-wallet-btn">
+                🍎 Agregar a Apple Wallet
               </a>
             )}
           </div>
         )}
 
-        {/* TAB: HISTORIAL */}
+        {/* TAB — HISTORIAL */}
         {activeTab === 'historial' && (
           <div>
             {txLoading ? (
-              <div className="text-center py-12 text-white/30">Cargando historial...</div>
+              <div className="mc-empty">
+                <div className="mc-empty-icon">⏳</div>
+                <p className="mc-empty-title">Cargando...</p>
+              </div>
             ) : transactions.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-4xl mb-3">☕</p>
-                <p className="text-white/40">Aún no tienes transacciones.</p>
-                <p className="text-white/25 text-sm mt-1">¡Visita la sucursal y empieza a acumular!</p>
+              <div className="mc-empty">
+                <div className="mc-empty-icon">☕</div>
+                <p className="mc-empty-title">Sin transacciones aún</p>
+                <p className="mc-empty-sub">¡Visita la sucursal y empieza a acumular puntos!</p>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="mc-tx-list">
                 {transactions.map(t => {
-                  const cfg = TX_TYPE_LABEL[t.type] || { label: t.type, color: 'text-white/60', sign: '' };
-                  const isPositive = t.points > 0;
+                  const cfg = TX_TYPE[t.type] || { label: t.type, color: '#8A7B6A' };
+                  const isPos = t.points > 0;
                   return (
-                    <div key={t.id}
-                      className="flex items-center justify-between bg-white/5 border border-white/5 rounded-2xl px-4 py-3.5">
-                      <div className="flex-1 min-w-0 mr-4">
-                        <p className="text-white text-sm font-medium truncate">{t.description}</p>
-                        <p className={`text-xs mt-0.5 ${cfg.color}`}>{cfg.label}</p>
-                        <p className="text-white/25 text-xs mt-0.5">
+                    <div key={t.id} className="mc-tx-row">
+                      <div style={{ flex: 1, marginRight: 16, minWidth: 0 }}>
+                        <p className="mc-tx-desc">{t.description}</p>
+                        <p className="mc-tx-type" style={{ color: cfg.color }}>{cfg.label}</p>
+                        <p className="mc-tx-date">
                           {new Date(t.createdAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </p>
                       </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className={`font-black text-lg ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
-                          {isPositive ? '+' : ''}{t.points}
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <p className={`mc-tx-pts ${isPos ? 'pos' : 'neg'}`}>
+                          {isPos ? '+' : ''}{t.points}
                         </p>
-                        <p className="text-white/30 text-xs">pts</p>
+                        <p className="mc-tx-unit">pts</p>
                       </div>
                     </div>
                   );
@@ -245,6 +238,7 @@ export default function MiCuenta() {
             )}
           </div>
         )}
+
       </div>
     </div>
   );

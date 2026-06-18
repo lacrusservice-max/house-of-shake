@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import '../styles/mi-cuenta.css';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -32,63 +33,131 @@ export default function Register() {
     }
   }
 
-  const field = (key, label, type = 'text', placeholder = '') => (
-    <div>
-      <label className="block text-white/60 text-sm mb-1.5">{label}</label>
-      <input type={type} required={key !== 'phone'}
-        value={form[key]} onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
-        placeholder={placeholder}
-        className="w-full bg-white/8 text-white placeholder-white/25 border border-white/15 rounded-xl px-4 py-3 outline-none focus:border-amber-400 focus:bg-white/10 transition"
-      />
-    </div>
-  );
+  function Field({ name, label, type = 'text', placeholder = '', required = true }) {
+    return (
+      <div>
+        <label style={labelStyle}>{label}</label>
+        <input type={type} required={required}
+          value={form[name]}
+          onChange={e => setForm(p => ({ ...p, [name]: e.target.value }))}
+          placeholder={placeholder}
+          style={inputStyle}
+          onFocus={e => e.target.style.borderColor = 'var(--gold)'}
+          onBlur={e => e.target.style.borderColor = 'rgba(251,247,240,.12)'}
+        />
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-[#120800] flex flex-col">
-      <div className="flex-1 flex items-center justify-center px-4 py-12">
-        <div className="w-full max-w-sm">
+    <div className="mc-root" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
 
-          <div className="text-center mb-8">
-            <Link to="/" className="inline-flex items-center gap-2 mb-6">
-              <span className="text-3xl">☕</span>
-            </Link>
-            <h1 className="text-white text-2xl font-black">Crear cuenta</h1>
-            <p className="text-white/40 text-sm mt-1">Únete y empieza a ganar puntos desde hoy</p>
-            <div className="mt-3 inline-flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs px-3 py-1.5 rounded-full">
-              <span>🎁</span> Recibes 50 puntos de bienvenida
+      {/* NAV */}
+      <nav className="mc-nav">
+        <Link to="/" className="mc-nav-brand">
+          <div className="mc-nav-logo">☕</div>
+          <span className="mc-nav-title">HOUSE OF SHAKE</span>
+        </Link>
+      </nav>
+
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px' }}>
+        <div style={{ width: '100%', maxWidth: 420 }}>
+
+          {/* Header */}
+          <div style={{ textAlign: 'center', marginBottom: 32 }}>
+            <div className="mc-eyebrow" style={{ justifyContent: 'center' }}>
+              <span>Únete al programa</span>
+            </div>
+            <h1 className="mc-heading" style={{ fontSize: 46 }}>
+              Crear <span>cuenta</span>
+            </h1>
+            <p className="mc-sub" style={{ marginTop: 8 }}>Empieza a ganar puntos desde hoy</p>
+
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              background: 'rgba(245,200,66,.08)', border: '1px solid rgba(245,200,66,.2)',
+              color: 'var(--gold)', fontSize: 12, fontWeight: 700, letterSpacing: 1,
+              padding: '8px 16px', borderRadius: 99, marginTop: 14,
+              fontFamily: "'Montserrat', sans-serif",
+            }}>
+              🎁 Recibes 50 puntos de bienvenida
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              {field('firstName', 'Nombre', 'text', 'Juan')}
-              {field('lastName', 'Apellido', 'text', 'García')}
+          {/* Form */}
+          <form onSubmit={handleSubmit}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <Field name="firstName" label="Nombre" placeholder="Juan" />
+              <Field name="lastName"  label="Apellido" placeholder="García" />
             </div>
-            {field('email', 'Email', 'email', 'tu@email.com')}
-            {field('phone', 'Teléfono (opcional)', 'tel', '+52 55 0000 0000')}
-            {field('password', 'Contraseña', 'password', 'Mínimo 6 caracteres')}
-            {field('confirm', 'Confirmar contraseña', 'password', '••••••••')}
+            <div style={{ marginBottom: 12 }}>
+              <Field name="email" label="Email" type="email" placeholder="tu@email.com" />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <Field name="phone" label="Teléfono (opcional)" type="tel" placeholder="+52 55 0000 0000" required={false} />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <Field name="password" label="Contraseña" type="password" placeholder="Mínimo 6 caracteres" />
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <Field name="confirm" label="Confirmar contraseña" type="password" placeholder="••••••••" />
+            </div>
 
             {error && (
-              <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-4 py-3 rounded-xl">
-                {error}
-              </div>
+              <div style={errorStyle}>{error}</div>
             )}
 
             <button type="submit" disabled={loading}
-              className="w-full bg-amber-500 hover:bg-amber-400 text-black py-3.5 rounded-xl font-bold transition disabled:opacity-50 mt-2">
+              className="hs-btn hs-btn-gold"
+              style={{ width: '100%', justifyContent: 'center', padding: '16px', borderRadius: 12, opacity: loading ? .6 : 1 }}>
               {loading ? 'Creando cuenta...' : '¡Crear mi cuenta!'}
             </button>
           </form>
 
-          <p className="text-center text-white/40 text-sm mt-6">
+          <p style={{ textAlign: 'center', marginTop: 24, fontSize: 13, color: 'rgba(251,247,240,.4)' }}>
             ¿Ya tienes cuenta?{' '}
-            <Link to="/login" className="text-amber-400 hover:text-amber-300 font-semibold transition">
+            <Link to="/login" style={{ color: 'var(--gold)', fontWeight: 700, textDecoration: 'none' }}>
               Iniciar sesión
             </Link>
           </p>
+
         </div>
       </div>
     </div>
   );
 }
+
+const labelStyle = {
+  display: 'block',
+  fontSize: 11,
+  fontWeight: 700,
+  letterSpacing: 2,
+  textTransform: 'uppercase',
+  color: 'rgba(251,247,240,.4)',
+  marginBottom: 8,
+  fontFamily: "'Montserrat', sans-serif",
+};
+
+const inputStyle = {
+  width: '100%',
+  background: 'rgba(251,247,240,.04)',
+  color: 'var(--cream)',
+  border: '1px solid rgba(251,247,240,.12)',
+  borderRadius: 12,
+  padding: '14px 16px',
+  outline: 'none',
+  fontSize: 14,
+  fontFamily: "'Montserrat', sans-serif",
+  transition: 'border-color .2s',
+  boxSizing: 'border-box',
+};
+
+const errorStyle = {
+  background: 'rgba(224,92,92,.1)',
+  border: '1px solid rgba(224,92,92,.25)',
+  color: '#E05C5C',
+  fontSize: 13,
+  padding: '12px 16px',
+  borderRadius: 10,
+  marginBottom: 16,
+};
