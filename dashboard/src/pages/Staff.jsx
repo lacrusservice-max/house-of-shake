@@ -1,4 +1,5 @@
 import { useState, lazy, Suspense } from 'react';
+import { useNavigate } from 'react-router-dom';
 import '../styles/mi-cuenta.css';
 
 const QRScanner = lazy(() => import('../components/QRScanner'));
@@ -12,82 +13,22 @@ const LEVEL = {
 };
 
 export default function Staff() {
-  const [token, setToken] = useState(() => localStorage.getItem('hos_staff_token') || '');
-  if (!token) return <StaffLogin onLogin={setToken} />;
-  return <POSView token={token} onLogout={() => { localStorage.removeItem('hos_staff_token'); setToken(''); }} />;
-}
+  const navigate = useNavigate();
+  const token = localStorage.getItem('hos_staff_token') || localStorage.getItem('hos_admin_token') || '';
 
-/* ─── Login ─── */
-function StaffLogin({ onLogin }) {
-  const [form, setForm]     = useState({ email: '', password: '' });
-  const [error, setError]   = useState('');
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setLoading(true); setError('');
-    try {
-      const res = await fetch(`${API}/admin/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Credenciales incorrectas');
-      localStorage.setItem('hos_staff_token', data.token);
-      onLogin(data.token);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+  if (!token) {
+    // Redirect to unified login
+    navigate('/login');
+    return null;
   }
 
-  return (
-    <div className="mc-root" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <nav className="mc-nav">
-        <div className="mc-nav-brand">
-          <div className="mc-nav-logo">☕</div>
-          <span className="mc-nav-title">HOUSE OF SHAKE</span>
-        </div>
-      </nav>
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px' }}>
-        <div style={{ width: '100%', maxWidth: 380 }}>
-          <div style={{ textAlign: 'center', marginBottom: 36 }}>
-            <div className="mc-eyebrow" style={{ justifyContent: 'center' }}>Acceso staff</div>
-            <h1 className="mc-heading" style={{ fontSize: 44 }}>POS <span>Cobrar</span></h1>
-            <p className="mc-sub">Inicia sesión para continuar</p>
-          </div>
-          <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: 14 }}>
-              <label style={S.lbl}>Email</label>
-              <input type="email" required value={form.email}
-                onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-                placeholder="admin@houseofshake.com"
-                style={S.inp}
-                onFocus={e => e.target.style.borderColor = 'var(--gold)'}
-                onBlur={e => e.target.style.borderColor = 'rgba(251,247,240,.12)'}
-              />
-            </div>
-            <div style={{ marginBottom: 20 }}>
-              <label style={S.lbl}>Contraseña</label>
-              <input type="password" required value={form.password}
-                onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
-                placeholder="••••••••"
-                style={S.inp}
-                onFocus={e => e.target.style.borderColor = 'var(--gold)'}
-                onBlur={e => e.target.style.borderColor = 'rgba(251,247,240,.12)'}
-              />
-            </div>
-            {error && <div style={S.err}>{error}</div>}
-            <button type="submit" disabled={loading} style={{ ...S.goldBtn, marginTop: 4 }}>
-              {loading ? 'Entrando…' : 'Entrar al POS →'}
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
+  function handleLogout() {
+    localStorage.removeItem('hos_staff_token');
+    localStorage.removeItem('hos_admin_token');
+    navigate('/login');
+  }
+
+  return <POSView token={token} onLogout={handleLogout} />;
 }
 
 /* ─── POS View ─── */

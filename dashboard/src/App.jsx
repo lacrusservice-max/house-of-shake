@@ -25,7 +25,7 @@ function CustomerRoute({ children }) {
 
 function AdminRoute({ children }) {
   const token = localStorage.getItem('hos_admin_token');
-  return token ? children : <Navigate to="/admin/login" replace />;
+  return token ? children : <Navigate to="/login" replace />;
 }
 
 export default function App() {
