@@ -28,6 +28,8 @@ export default function MiCuenta() {
   const [txLoadingMore, setTxLoadingMore] = useState(false);
   const [activeTab, setActiveTab] = useState('tarjeta');
   const [qrFullscreen, setQrFullscreen] = useState(false);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [walletError, setWalletError]   = useState('');
   const TX_PAGE_SIZE = 10;
 
   const LEVELS_INFO = [
@@ -86,6 +88,34 @@ export default function MiCuenta() {
       setTxPage(nextPage);
     } catch {}
     setTxLoadingMore(false);
+  }
+
+  async function handleAddToWallet() {
+    if (walletLoading) return;
+    setWalletLoading(true);
+    setWalletError('');
+    try {
+      const res = await fetch(`${API}/customers/${customer.id}/wallet-pass`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setWalletError(data.error || 'Apple Wallet no está activado aún en House of Shake');
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'houseofshake.pkpass';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      setWalletError('Error de conexión. Intenta de nuevo.');
+    }
+    setWalletLoading(false);
   }
 
   function handleLogout() {
@@ -252,10 +282,19 @@ export default function MiCuenta() {
               </div>
             </div>
 
-            {customer.walletPassUrl && (
-              <a href={customer.walletPassUrl} className="mc-wallet-btn">
-                🍎 Agregar a Apple Wallet
-              </a>
+            {/* Apple Wallet button — always visible, downloads .pkpass */}
+            <button
+              onClick={handleAddToWallet}
+              disabled={walletLoading}
+              className="mc-wallet-btn"
+              style={{ cursor: walletLoading ? 'not-allowed' : 'pointer', opacity: walletLoading ? .7 : 1, border: 'none', textAlign: 'center', width: '100%' }}
+            >
+              {walletLoading ? '⏳ Descargando pass...' : '🍎 Agregar a Apple Wallet'}
+            </button>
+            {walletError && (
+              <p style={{ fontSize: 12, color: 'rgba(224,92,92,.9)', textAlign: 'center', marginTop: 8, padding: '8px 12px', background: 'rgba(224,92,92,.08)', borderRadius: 10, border: '1px solid rgba(224,92,92,.2)' }}>
+                {walletError}
+              </p>
             )}
           </div>
         )}

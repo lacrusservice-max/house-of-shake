@@ -82,4 +82,9 @@ router.post('/admin/products', authenticateAdmin, productsController.createProdu
 router.put('/admin/products/:id', authenticateAdmin, productsController.updateProduct);
 router.delete('/admin/products/:id', authenticateAdmin, productsController.deleteProduct);
 
+// === ADMIN WALLET SETUP ===
+router.get('/admin/wallet/status', authenticateAdmin, adminController.getWalletStatus);
+router.post('/admin/wallet/download-wwdr', authenticateAdmin, adminController.downloadWwdr);
+router.get('/admin/wallet/test-pass', authenticateAdmin, adminController.testWalletPass);
+
 module.exports = router;

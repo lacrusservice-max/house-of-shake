@@ -7,6 +7,7 @@ const nav = [
   { path: '/admin/customers',   label: 'Clientes',     short: 'Clientes',icon: '👥' },
   { path: '/admin/transactions',label: 'Transacciones',short: 'Movs',   icon: '💳' },
   { path: '/admin/products',    label: 'Productos',    short: 'Menú',   icon: '🍵' },
+  { path: '/admin/wallet',      label: 'Apple Wallet', short: 'Wallet', icon: '🍎' },
   { path: '/admin/config',      label: 'Configuración',short: 'Config', icon: '⚙️' },
 ];
 

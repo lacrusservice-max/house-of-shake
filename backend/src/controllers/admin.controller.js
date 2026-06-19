@@ -1,5 +1,6 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const https = require('https');
 const prisma = require('../config/prisma');
 const { getRedis } = require('../config/redis');
 const pointsService = require('../services/points.service');
@@ -250,6 +251,71 @@ async function setupShopify(req, res, next) {
   }
 }
 
+async function getWalletStatus(req, res, next) {
+  try {
+    const status = walletService.getWalletStatus();
+    res.json(status);
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** Download Apple WWDR G4 certificate from Apple's public server */
+async function downloadWwdr(req, res, next) {
+  try {
+    const WWDR_URL = 'https://www.apple.com/certificateauthority/AppleWWDRCAG4.cer';
+    const buf = await new Promise((resolve, reject) => {
+      https.get(WWDR_URL, (response) => {
+        if (response.statusCode !== 200) {
+          reject(new Error(`Apple server returned ${response.statusCode}`));
+          return;
+        }
+        const chunks = [];
+        response.on('data', c => chunks.push(c));
+        response.on('end',  () => resolve(Buffer.concat(chunks)));
+        response.on('error', reject);
+      }).on('error', reject);
+    });
+    // Return as base64 for env var use OR as PEM-like base64 for file use
+    res.json({
+      success: true,
+      base64: buf.toString('base64'),
+      size: buf.length,
+      instructions: 'Copy the base64 value above and set it as WWDR_CERT_BASE64 environment variable in Railway.',
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** Generate a test pass for the logged-in admin (for validation) */
+async function testWalletPass(req, res, next) {
+  try {
+    const status = walletService.getWalletStatus();
+    if (!status.ready) {
+      return res.status(400).json({
+        error: 'Wallet no configurado',
+        checks: status.checks,
+      });
+    }
+    // Use first customer as test
+    const customer = await prisma.customer.findFirst({ orderBy: { createdAt: 'desc' } });
+    if (!customer) return res.status(404).json({ error: 'No hay clientes registrados aún' });
+
+    const passBuffer = await walletService.generatePass(customer);
+    if (!passBuffer) return res.status(503).json({ error: 'Error generando el pase' });
+
+    res.set({
+      'Content-Type': 'application/vnd.apple.pkpass',
+      'Content-Disposition': `attachment; filename="test_houseofshake.pkpass"`,
+    });
+    res.send(passBuffer);
+  } catch (err) {
+    logger.error('testWalletPass error:', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
 module.exports = {
   login,
   getDashboardStats,
@@ -261,4 +327,7 @@ module.exports = {
   adjustPoints,
   exportCustomersCSV,
   setupShopify,
+  getWalletStatus,
+  downloadWwdr,
+  testWalletPass,
 };
