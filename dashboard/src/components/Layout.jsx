@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 const nav = [
-  { path: '/admin/',            label: 'Dashboard',    short: 'Home',   icon: '📊' },
-  { path: '/admin/pos',         label: 'POS · Cobrar', short: 'Cobrar', icon: '📷' },
+  { path: '/admin/',            label: 'Dashboard',    short: 'Home',    icon: '📊' },
+  { path: '/admin/pos',         label: 'POS · Cobrar', short: 'Cobrar',  icon: '📷' },
   { path: '/admin/customers',   label: 'Clientes',     short: 'Clientes',icon: '👥' },
-  { path: '/admin/transactions',label: 'Transacciones',short: 'Movs',   icon: '💳' },
-  { path: '/admin/products',    label: 'Productos',    short: 'Menú',   icon: '🍵' },
-  { path: '/admin/wallet',      label: 'Apple Wallet', short: 'Wallet', icon: '🍎' },
-  { path: '/admin/config',      label: 'Configuración',short: 'Config', icon: '⚙️' },
+  { path: '/admin/transactions',label: 'Transacciones',short: 'Movs',    icon: '💳' },
+  { path: '/admin/finanzas',    label: 'Finanzas',     short: 'Finanzas',icon: '💰' },
+  { path: '/admin/personal',    label: 'Personal',     short: 'Staff',   icon: '👤' },
+  { path: '/admin/products',    label: 'Productos',    short: 'Menú',    icon: '🍵' },
+  { path: '/admin/wallet',      label: 'Apple Wallet', short: 'Wallet',  icon: '🍎' },
+  { path: '/admin/config',      label: 'Configuración',short: 'Config',  icon: '⚙️' },
 ];
 
 function isActive(item, pathname) {

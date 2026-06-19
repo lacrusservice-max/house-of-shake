@@ -473,9 +473,11 @@ function POSView({ token, onLogout }) {
                   <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 26, letterSpacing: 2, color: 'var(--cream)', lineHeight: 1.1 }}>
                     {customer.firstName} {customer.lastName}
                   </div>
-                  <div style={{ fontSize: 11, color: 'rgba(251,247,240,.35)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {customer.email}
-                  </div>
+                  {customer.email && (
+                    <div style={{ fontSize: 11, color: 'rgba(251,247,240,.35)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {customer.email}
+                    </div>
+                  )}
                 </div>
                 <div style={{ textAlign: 'center', flexShrink: 0, background: lvl.bg, borderRadius: 12, padding: '8px 12px' }}>
                   <div style={{ fontSize: 24 }}>{lvl.emoji}</div>

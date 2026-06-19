@@ -3,39 +3,47 @@ const pointsService = require('../services/points.service');
 const walletService = require('../services/wallet.service');
 const logger = require('../config/logger');
 
-// Staff scans QR code → look up customer by walletPassSerial or id
+// Staff scans QR → look up customer; staff sees limited data, admin sees full data
 async function lookupCustomer(req, res) {
-  const { code } = req.params; // UUID (customer.id) encoded in QR
+  const { code } = req.params;
+  const isAdmin = req.admin?.role === 'admin';
+
   try {
     const customer = await prisma.customer.findFirst({
       where: {
-        OR: [
-          { id: code },
-          { walletPassSerial: code },
-        ],
+        OR: [{ id: code }, { walletPassSerial: code }],
       },
       include: {
         transactions: {
           orderBy: { createdAt: 'desc' },
           take: 5,
+          select: {
+            id: true, type: true, points: true,
+            description: true, createdAt: true,
+          },
         },
       },
     });
 
     if (!customer) return res.status(404).json({ error: 'Cliente no encontrado' });
 
-    res.json({
+    const data = {
       id: customer.id,
       firstName: customer.firstName,
-      lastName: customer.lastName,
-      email: customer.email,
-      phone: customer.phone,
+      lastName: isAdmin ? customer.lastName : customer.lastName[0] + '.',
       availablePoints: customer.availablePoints,
       totalPoints: customer.totalPoints,
       lifetimePoints: customer.lifetimePoints,
       level: customer.level,
       recentTransactions: customer.transactions,
-    });
+    };
+
+    if (isAdmin) {
+      data.email = customer.email;
+      data.phone = customer.phone;
+    }
+
+    res.json(data);
   } catch (err) {
     logger.error('POS lookupCustomer error:', err.message);
     res.status(500).json({ error: err.message });
@@ -60,7 +68,9 @@ async function addPointsForPurchase(req, res) {
       parseFloat(amount),
       null,
       null,
-      description || `Compra física $${parseFloat(amount).toFixed(2)}`
+      description || `Compra física $${parseFloat(amount).toFixed(2)} — ${req.admin?.email || 'POS'}`,
+      req.admin?.id,
+      req.admin?.email,
     );
 
     const updated = await prisma.customer.findUnique({ where: { id: customerId } });
@@ -88,7 +98,12 @@ async function redeemPoints(req, res) {
   }
 
   try {
-    const result = await pointsService.redeemPoints(customerId, parseInt(points));
+    const result = await pointsService.redeemPoints(
+      customerId,
+      parseInt(points),
+      req.admin?.id,
+      req.admin?.email,
+    );
     const updated = await prisma.customer.findUnique({ where: { id: customerId } });
     await walletService.sendPushUpdate(updated).catch(() => {});
 

@@ -1,0 +1,279 @@
+import { useState, useEffect } from 'react';
+
+const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+const ROLE_LABEL = { admin: '👑 Admin', staff: '👤 Staff' };
+const ROLE_COLOR = { admin: '#c85032', staff: '#555' };
+const ROLE_BG    = { admin: '#fff4f2', staff: '#f5f5f5' };
+
+export default function Personal() {
+  const [staff, setStaff]       = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editUser, setEditUser] = useState(null);
+  const [saving, setSaving]     = useState(false);
+  const [error, setError]       = useState('');
+  const [success, setSuccess]   = useState('');
+
+  const token = localStorage.getItem('hos_admin_token');
+  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+
+  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'staff' });
+
+  function loadStaff() {
+    setLoading(true);
+    fetch(`${API}/admin/staff`, { headers })
+      .then(r => r.json())
+      .then(d => { setStaff(d.staff || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }
+
+  useEffect(() => { loadStaff(); }, []);
+
+  async function handleCreate(e) {
+    e.preventDefault();
+    setSaving(true); setError('');
+    try {
+      const res = await fetch(`${API}/admin/staff`, {
+        method: 'POST', headers,
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al crear');
+      setSuccess(`Cuenta creada: ${data.user.email}`);
+      setShowForm(false);
+      setForm({ name: '', email: '', password: '', role: 'staff' });
+      loadStaff();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function toggleActive(user) {
+    if (user.permanent && user.active) {
+      setError('Las cuentas permanentes no se pueden desactivar.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch(`${API}/admin/staff/${user.id}`, {
+        method: 'PUT', headers,
+        body: JSON.stringify({ active: !user.active }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      setSuccess(`${user.email} ${!user.active ? 'activado' : 'desactivado'}`);
+      loadStaff();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function resetPassword(user) {
+    const pwd = prompt(`Nueva contraseña para ${user.email}:`);
+    if (!pwd || pwd.length < 6) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`${API}/admin/staff/${user.id}`, {
+        method: 'PUT', headers,
+        body: JSON.stringify({ password: pwd }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      setSuccess(`Contraseña actualizada para ${user.email}`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div style={{ maxWidth: 860, margin: '0 auto' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 3, color: '#c85032', textTransform: 'uppercase', marginBottom: 6 }}>Gestión de accesos</div>
+          <h1 style={{ fontSize: 30, fontWeight: 900, color: '#111', margin: 0 }}>Personal</h1>
+          <p style={{ color: '#888', fontSize: 13, marginTop: 4 }}>Cuentas de acceso al sistema</p>
+        </div>
+        <button onClick={() => { setShowForm(true); setError(''); setSuccess(''); }} style={{
+          padding: '10px 20px', background: '#c85032', color: '#fff',
+          border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13,
+          cursor: 'pointer', fontFamily: 'inherit',
+        }}>
+          + Nuevo usuario
+        </button>
+      </div>
+
+      {/* Alerts */}
+      {error && (
+        <div style={{ background: '#fff0ee', border: '1px solid #ffd0c8', color: '#c85032', borderRadius: 10, padding: '12px 16px', marginBottom: 16, fontSize: 13 }}>
+          {error}
+          <button onClick={() => setError('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: '#c85032', fontSize: 16, lineHeight: 1 }}>✕</button>
+        </div>
+      )}
+      {success && (
+        <div style={{ background: '#f0fff4', border: '1px solid #c3f0d4', color: '#1a7a40', borderRadius: 10, padding: '12px 16px', marginBottom: 16, fontSize: 13 }}>
+          ✓ {success}
+          <button onClick={() => setSuccess('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: '#1a7a40', fontSize: 16, lineHeight: 1 }}>✕</button>
+        </div>
+      )}
+
+      {/* Create form */}
+      {showForm && (
+        <div style={{ background: '#fff', borderRadius: 16, padding: '24px', marginBottom: 24, border: '2px solid #c85032' }}>
+          <h3 style={{ fontSize: 16, fontWeight: 800, color: '#111', marginBottom: 20 }}>Crear nueva cuenta</h3>
+          <form onSubmit={handleCreate}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+              <div>
+                <label style={S.lbl}>Nombre completo *</label>
+                <input required value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                  placeholder="Juan García" style={S.inp} />
+              </div>
+              <div>
+                <label style={S.lbl}>Email *</label>
+                <input required type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+                  placeholder="juan@houseofshake.com" style={S.inp} />
+              </div>
+              <div>
+                <label style={S.lbl}>Contraseña *</label>
+                <input required type="password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
+                  placeholder="Mínimo 6 caracteres" style={S.inp} />
+              </div>
+              <div>
+                <label style={S.lbl}>Rol *</label>
+                <select value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value }))} style={{ ...S.inp, cursor: 'pointer' }}>
+                  <option value="staff">👤 Staff — Solo POS y fidelización</option>
+                  <option value="admin">👑 Admin — Acceso total</option>
+                </select>
+              </div>
+            </div>
+            <div style={{ background: '#f8f8f8', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#666', marginBottom: 16 }}>
+              <strong>Staff:</strong> puede escanear QR, acumular y canjear puntos. No ve datos privados de clientes.<br/>
+              <strong>Admin:</strong> acceso total al sistema: clientes, transacciones, finanzas, configuración.
+            </div>
+            {error && <div style={{ color: '#c85032', fontSize: 12, marginBottom: 10 }}>{error}</div>}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="submit" disabled={saving} style={{ padding: '10px 24px', background: '#c85032', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+                {saving ? 'Creando…' : 'Crear cuenta'}
+              </button>
+              <button type="button" onClick={() => setShowForm(false)} style={{ padding: '10px 20px', background: '#f5f5f5', color: '#555', border: 'none', borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Staff list */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 60, color: '#aaa', fontSize: 14 }}>Cargando personal…</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {staff.map(user => (
+            <div key={user.id} style={{
+              background: '#fff', borderRadius: 14, padding: '16px 20px',
+              border: '1px solid #f0f0f0',
+              display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
+              opacity: user.active ? 1 : 0.5,
+            }}>
+              {/* Avatar */}
+              <div style={{
+                width: 44, height: 44, borderRadius: '50%',
+                background: ROLE_BG[user.role], flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 20,
+              }}>
+                {user.role === 'admin' ? '👑' : '👤'}
+              </div>
+
+              {/* Info */}
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                  <span style={{ fontWeight: 700, fontSize: 14, color: '#111' }}>{user.name}</span>
+                  {user.permanent && (
+                    <span style={{ fontSize: 9, fontWeight: 700, background: '#2c9e5e', color: '#fff', borderRadius: 4, padding: '2px 6px', letterSpacing: 1 }}>PERMANENTE</span>
+                  )}
+                  {!user.active && (
+                    <span style={{ fontSize: 9, fontWeight: 700, background: '#f5f5f5', color: '#aaa', borderRadius: 4, padding: '2px 6px', letterSpacing: 1 }}>INACTIVO</span>
+                  )}
+                </div>
+                <div style={{ fontSize: 12, color: '#888' }}>{user.email}</div>
+                <div style={{ fontSize: 11, color: '#bbb', marginTop: 2 }}>
+                  Último acceso: {user.lastLogin ? new Date(user.lastLogin).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }) : 'Nunca'}
+                  {' · '}Creado: {new Date(user.createdAt).toLocaleDateString('es-MX')}
+                </div>
+              </div>
+
+              {/* Role badge */}
+              <div style={{
+                padding: '5px 14px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+                background: ROLE_BG[user.role], color: ROLE_COLOR[user.role],
+              }}>
+                {ROLE_LABEL[user.role]}
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                <button onClick={() => resetPassword(user)} style={S.actionBtn} title="Cambiar contraseña">
+                  🔑
+                </button>
+                <button
+                  onClick={() => toggleActive(user)}
+                  disabled={user.permanent && user.active}
+                  title={user.permanent && user.active ? 'Cuenta permanente' : user.active ? 'Desactivar' : 'Activar'}
+                  style={{
+                    ...S.actionBtn,
+                    background: user.active ? '#fff0ee' : '#f0fff4',
+                    color: user.active ? '#c85032' : '#2c9e5e',
+                    opacity: user.permanent && user.active ? 0.4 : 1,
+                    cursor: user.permanent && user.active ? 'not-allowed' : 'pointer',
+                  }}>
+                  {user.active ? '⏸' : '▶'}
+                </button>
+              </div>
+            </div>
+          ))}
+
+          {staff.length === 0 && (
+            <div style={{ textAlign: 'center', padding: 60, color: '#bbb', fontSize: 14 }}>
+              No hay usuarios registrados.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Info box */}
+      <div style={{ background: '#f8f8f8', borderRadius: 14, padding: '16px 20px', marginTop: 24, fontSize: 12, color: '#777' }}>
+        <strong style={{ color: '#555' }}>🔐 Accesos del sistema:</strong>
+        <ul style={{ margin: '8px 0 0 0', paddingLeft: 18, lineHeight: 1.8 }}>
+          <li><strong>Admin</strong> → <code>/admin/login</code> — Acceso al panel completo</li>
+          <li><strong>Staff</strong> → <code>/staff</code> — Solo POS de fidelización</li>
+          <li>Las cuentas <span style={{ background: '#2c9e5e', color: '#fff', borderRadius: 4, padding: '1px 5px' }}>PERMANENTES</span> no se pueden eliminar ni desactivar</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+const S = {
+  lbl: {
+    display: 'block', fontSize: 10, fontWeight: 700, letterSpacing: 1.5,
+    color: '#999', textTransform: 'uppercase', marginBottom: 6,
+  },
+  inp: {
+    width: '100%', padding: '10px 14px', borderRadius: 10,
+    border: '1.5px solid #eee', outline: 'none', fontSize: 13,
+    fontFamily: 'inherit', background: '#fafafa', color: '#111',
+    boxSizing: 'border-box', transition: 'border-color .2s',
+  },
+  actionBtn: {
+    width: 34, height: 34, borderRadius: 8, border: 'none',
+    background: '#f5f5f5', cursor: 'pointer', fontSize: 15,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    transition: 'background .15s',
+  },
+};

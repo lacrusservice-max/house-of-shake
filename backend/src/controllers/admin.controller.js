@@ -14,15 +14,20 @@ async function login(req, res, next) {
     if (!email || !password) return res.status(400).json({ error: 'Email y contraseña requeridos' });
 
     const admin = await prisma.adminUser.findUnique({ where: { email } });
-    if (!admin) return res.status(401).json({ error: 'Credenciales inválidas' });
+    if (!admin || !admin.active) return res.status(401).json({ error: 'Credenciales inválidas' });
 
     const valid = await bcrypt.compare(password, admin.password);
     if (!valid) return res.status(401).json({ error: 'Credenciales inválidas' });
 
+    await prisma.adminUser.update({
+      where: { id: admin.id },
+      data: { lastLogin: new Date() },
+    }).catch(() => {});
+
     const token = jwt.sign(
-      { id: admin.id, email: admin.email, role: admin.role },
+      { id: admin.id, email: admin.email, name: admin.name, role: admin.role },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+      { expiresIn: process.env.JWT_EXPIRES_IN || '12h' }
     );
 
     res.json({ token, admin: { id: admin.id, email: admin.email, name: admin.name, role: admin.role } });
@@ -316,6 +321,154 @@ async function testWalletPass(req, res, next) {
   }
 }
 
+// ── STAFF MANAGEMENT ──────────────────────────────────────────────
+async function listStaff(req, res, next) {
+  try {
+    const staff = await prisma.adminUser.findMany({
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true, email: true, name: true, role: true,
+        active: true, permanent: true, lastLogin: true, createdAt: true,
+      },
+    });
+    res.json({ staff });
+  } catch (err) { next(err); }
+}
+
+async function createStaff(req, res, next) {
+  try {
+    const { email, name, password, role = 'staff' } = req.body;
+    if (!email || !name || !password) {
+      return res.status(400).json({ error: 'Email, nombre y contraseña requeridos' });
+    }
+    if (!['staff', 'admin'].includes(role)) {
+      return res.status(400).json({ error: 'Rol inválido' });
+    }
+    const existing = await prisma.adminUser.findUnique({ where: { email } });
+    if (existing) return res.status(409).json({ error: 'Email ya registrado' });
+
+    const hashed = await bcrypt.hash(password, 12);
+    const user = await prisma.adminUser.create({
+      data: { email, name, password: hashed, role, active: true, permanent: false },
+      select: { id: true, email: true, name: true, role: true, active: true, createdAt: true },
+    });
+    res.status(201).json({ user });
+  } catch (err) { next(err); }
+}
+
+async function updateStaff(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { name, active, password } = req.body;
+
+    const user = await prisma.adminUser.findUnique({ where: { id } });
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+    if (user.permanent && active === false) {
+      return res.status(403).json({ error: 'No se puede desactivar una cuenta permanente' });
+    }
+
+    const data = {};
+    if (name !== undefined) data.name = name;
+    if (active !== undefined) data.active = active;
+    if (password) data.password = await bcrypt.hash(password, 12);
+
+    const updated = await prisma.adminUser.update({
+      where: { id },
+      data,
+      select: { id: true, email: true, name: true, role: true, active: true, permanent: true },
+    });
+    res.json({ user: updated });
+  } catch (err) { next(err); }
+}
+
+// ── FINANCIAL STATS ───────────────────────────────────────────────
+async function getFinancialStats(req, res, next) {
+  try {
+    const { period = 'month' } = req.query;
+    const now = new Date();
+    let startDate;
+
+    if (period === 'today') {
+      startDate = new Date(now); startDate.setHours(0, 0, 0, 0);
+    } else if (period === 'week') {
+      startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    } else if (period === 'month') {
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else if (period === 'year') {
+      startDate = new Date(now.getFullYear(), 0, 1);
+    } else {
+      startDate = new Date(0);
+    }
+
+    const config = await prisma.config.findFirst();
+    const redeemRatio = config ? (config.redeemValueUsd / config.pointsToRedeem) : 0.05;
+
+    const [earnTxs, redeemTxs, monthlyEarn, staffActivity] = await Promise.all([
+      // Ingresos (ventas registradas en POS con orderAmount)
+      prisma.transaction.aggregate({
+        where: { type: 'EARN', createdAt: { gte: startDate }, orderAmount: { not: null } },
+        _sum: { orderAmount: true, points: true },
+        _count: true,
+      }),
+      // Canjes (descuentos otorgados)
+      prisma.transaction.aggregate({
+        where: { type: 'REDEEM', createdAt: { gte: startDate } },
+        _sum: { points: true },
+        _count: true,
+      }),
+      // Ingresos por día (últimos 30 días para gráfica)
+      prisma.$queryRaw`
+        SELECT
+          DATE("createdAt") as fecha,
+          SUM("orderAmount") as ingresos,
+          COUNT(*) as transacciones
+        FROM transactions
+        WHERE type = 'EARN'
+          AND "orderAmount" IS NOT NULL
+          AND "createdAt" >= NOW() - INTERVAL '30 days'
+        GROUP BY DATE("createdAt")
+        ORDER BY fecha ASC
+      `,
+      // Actividad por staff
+      prisma.transaction.groupBy({
+        by: ['staffEmail'],
+        where: {
+          createdAt: { gte: startDate },
+          staffEmail: { not: null },
+          type: { in: ['EARN', 'REDEEM'] },
+        },
+        _count: true,
+        _sum: { orderAmount: true },
+      }),
+    ]);
+
+    const totalIngresos = earnTxs._sum.orderAmount || 0;
+    const totalCanjes = Math.abs(redeemTxs._sum.points || 0);
+    const totalDescuentos = totalCanjes * redeemRatio;
+
+    res.json({
+      period,
+      ingresos: {
+        total: totalIngresos,
+        transacciones: earnTxs._count,
+        puntos_otorgados: earnTxs._sum.points || 0,
+      },
+      canjes: {
+        total_puntos: totalCanjes,
+        total_descuento_mxn: totalDescuentos,
+        transacciones: redeemTxs._count,
+      },
+      balance_neto: totalIngresos - totalDescuentos,
+      grafica_diaria: monthlyEarn,
+      actividad_staff: staffActivity.map(s => ({
+        staff: s.staffEmail,
+        transacciones: s._count,
+        ingresos: s._sum.orderAmount || 0,
+      })),
+    });
+  } catch (err) { next(err); }
+}
+
 module.exports = {
   login,
   getDashboardStats,
@@ -330,4 +483,8 @@ module.exports = {
   getWalletStatus,
   downloadWwdr,
   testWalletPass,
+  listStaff,
+  createStaff,
+  updateStaff,
+  getFinancialStats,
 };

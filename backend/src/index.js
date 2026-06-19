@@ -87,10 +87,33 @@ if (process.env.NODE_ENV !== 'production') {
 app.use(notFound);
 app.use(errorHandler);
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   logger.info(`🚀 House of Shake Loyalty API corriendo en puerto ${PORT}`);
   logger.info(`🏪 Tienda: https://${process.env.SHOPIFY_STORE_URL}`);
   logger.info(`🍎 Apple Wallet: ${require('./services/wallet.service').areCertsAvailable() ? 'CONFIGURADO' : 'PENDIENTE DE CERTIFICADOS'}`);
+
+  // Ensure permanent accounts exist on every startup
+  try {
+    const bcrypt = require('bcrypt');
+    const prisma = require('./config/prisma');
+    const permanentAccounts = [
+      { email: 'admin@houseofshake.com', name: 'Administrador HoS', password: process.env.ADMIN_PASSWORD || 'HoSAdmin2025!', role: 'admin' },
+      { email: 'staff@houseofshake.com', name: 'Personal HoS', password: process.env.STAFF_PASSWORD || 'HoSStaff2025!', role: 'staff' },
+    ];
+    for (const acc of permanentAccounts) {
+      const existing = await prisma.adminUser.findUnique({ where: { email: acc.email } });
+      if (!existing) {
+        await prisma.adminUser.create({
+          data: { ...acc, password: await bcrypt.hash(acc.password, 12), permanent: true, active: true },
+        });
+        logger.info(`✅ Cuenta permanente creada: ${acc.email} (${acc.role})`);
+      } else if (!existing.permanent) {
+        await prisma.adminUser.update({ where: { email: acc.email }, data: { permanent: true } });
+      }
+    }
+  } catch (e) {
+    logger.warn('No se pudieron verificar cuentas permanentes:', e.message);
+  }
 });
 
 module.exports = app;

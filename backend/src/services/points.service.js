@@ -48,7 +48,7 @@ async function invalidateCache(customerId) {
   await redis.del(`${CACHE_PREFIX}${customerId}`);
 }
 
-async function addPoints(customerId, orderAmount, shopifyOrderId, shopifyOrderNum, customDescription) {
+async function addPoints(customerId, orderAmount, shopifyOrderId, shopifyOrderNum, customDescription, staffId, staffEmail) {
   const config = await getConfig();
   const customer = await prisma.customer.findUnique({ where: { id: customerId } });
   if (!customer) throw new Error(`Cliente no encontrado: ${customerId}`);
@@ -82,6 +82,8 @@ async function addPoints(customerId, orderAmount, shopifyOrderId, shopifyOrderNu
         shopifyOrderId,
         shopifyOrderNum,
         orderAmount,
+        staffId: staffId || null,
+        staffEmail: staffEmail || null,
         expiresAt,
       },
     }),
@@ -106,7 +108,7 @@ async function addPoints(customerId, orderAmount, shopifyOrderId, shopifyOrderNu
   };
 }
 
-async function redeemPoints(customerId, pointsToRedeem, description = 'Canje de puntos') {
+async function redeemPoints(customerId, pointsToRedeem, staffId, staffEmail, description = 'Canje de puntos') {
   const config = await getConfig();
   const customer = await prisma.customer.findUnique({ where: { id: customerId } });
   if (!customer) throw new Error('Cliente no encontrado');
@@ -134,7 +136,9 @@ async function redeemPoints(customerId, pointsToRedeem, description = 'Canje de 
         customerId,
         type: 'REDEEM',
         points: -pointsToRedeem,
-        description: `${description} - $${discountUsd.toFixed(2)} USD de descuento`,
+        description: `${description} - $${discountUsd.toFixed(2)} MXN de descuento`,
+        staffId: staffId || null,
+        staffEmail: staffEmail || null,
       },
     }),
   ]);

@@ -9,7 +9,7 @@ const adminController = require('../controllers/admin.controller');
 const walletController = require('../controllers/wallet.controller');
 const posController = require('../controllers/pos.controller');
 const productsController = require('../controllers/products.controller');
-const { authenticateAdmin, authenticateCustomer } = require('../middleware/auth');
+const { authenticateAdmin, authenticateStaff, authenticateCustomer } = require('../middleware/auth');
 const { verifyShopifyWebhook } = require('../middleware/webhook');
 
 const limiter = rateLimit({
@@ -39,7 +39,7 @@ router.post('/auth/login', customerAuthController.login);
 router.get('/me', authenticateCustomer, customerAuthController.getMe);
 router.get('/me/transactions', authenticateCustomer, customerAuthController.getMyTransactions);
 
-// === CUSTOMERS (legacy / POS) ===
+// === CUSTOMERS ===
 router.post('/customers', customerController.getOrCreateCustomer);
 router.get('/customers/email/:email', customerController.getCustomerByEmail);
 router.get('/customers/:id', customerController.getCustomerById);
@@ -56,16 +56,16 @@ router.get(`${walletBase}/devices/:deviceLibraryIdentifier/registrations/:passTy
 router.get(`${walletBase}/passes/:passTypeIdentifier/:serialNumber`, walletController.getLatestPass);
 router.post(`${walletBase}/log`, walletController.logError);
 
-// === PRODUCTS (público — landing page) ===
+// === PRODUCTS (público) ===
 router.get('/products', productsController.listProducts);
 
-// === POS (staff — protegido con JWT) ===
-router.get('/pos/customer/:code', authenticateAdmin, posController.lookupCustomer);
-router.post('/pos/customer/:customerId/add-points', authenticateAdmin, posController.addPointsForPurchase);
-router.post('/pos/customer/:customerId/redeem', authenticateAdmin, posController.redeemPoints);
-router.post('/pos/quick-register', authenticateAdmin, customerController.quickRegisterFromPOS);
+// === POS (staff Y admin pueden usar el POS) ===
+router.get('/pos/customer/:code', authenticateStaff, posController.lookupCustomer);
+router.post('/pos/customer/:customerId/add-points', authenticateStaff, posController.addPointsForPurchase);
+router.post('/pos/customer/:customerId/redeem', authenticateStaff, posController.redeemPoints);
+router.post('/pos/quick-register', authenticateStaff, customerController.quickRegisterFromPOS);
 
-// === ADMIN (protegido con JWT) ===
+// === ADMIN (solo role: admin) ===
 router.post('/admin/login', adminController.login);
 router.get('/admin/stats', authenticateAdmin, adminController.getDashboardStats);
 router.get('/admin/customers', authenticateAdmin, adminController.listCustomers);
@@ -77,12 +77,20 @@ router.post('/admin/customers/:customerId/adjust-points', authenticateAdmin, adm
 router.get('/admin/export/customers', authenticateAdmin, adminController.exportCustomersCSV);
 router.post('/admin/setup-shopify', authenticateAdmin, adminController.setupShopify);
 
-// Products admin CRUD
+// Admin: gestión de personal
+router.get('/admin/staff', authenticateAdmin, adminController.listStaff);
+router.post('/admin/staff', authenticateAdmin, adminController.createStaff);
+router.put('/admin/staff/:id', authenticateAdmin, adminController.updateStaff);
+
+// Admin: finanzas
+router.get('/admin/financials', authenticateAdmin, adminController.getFinancialStats);
+
+// Admin: productos
 router.post('/admin/products', authenticateAdmin, productsController.createProduct);
 router.put('/admin/products/:id', authenticateAdmin, productsController.updateProduct);
 router.delete('/admin/products/:id', authenticateAdmin, productsController.deleteProduct);
 
-// === ADMIN WALLET SETUP ===
+// Admin: Apple Wallet
 router.get('/admin/wallet/status', authenticateAdmin, adminController.getWalletStatus);
 router.post('/admin/wallet/download-wwdr', authenticateAdmin, adminController.downloadWwdr);
 router.get('/admin/wallet/test-pass', authenticateAdmin, adminController.testWalletPass);
