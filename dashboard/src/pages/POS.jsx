@@ -19,6 +19,7 @@ export default function POS() {
   const [amount, setAmount]     = useState('');
   const [redeemPts, setRedeemPts] = useState('');
   const [result, setResult]     = useState(null);
+  const [quickReg, setQuickReg] = useState({ show: false, firstName: '', lastName: '', email: '', loading: false, error: '' });
 
   function extractCode(raw) {
     const uuid = raw?.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
@@ -102,9 +103,37 @@ export default function POS() {
     }
   }
 
+  async function handleQuickRegister(e) {
+    e.preventDefault();
+    setQuickReg(q => ({ ...q, loading: true, error: '' }));
+    try {
+      const { data } = await api.post('/pos/quick-register', {
+        firstName: quickReg.firstName,
+        lastName: quickReg.lastName,
+        email: quickReg.email,
+      });
+      const cust = data.customer;
+      setCustomer(cust);
+      setError('');
+      setQuickReg({ show: false, firstName: '', lastName: '', email: '', loading: false, error: '' });
+      setScreen('customer');
+    } catch (err) {
+      const status = err.response?.status;
+      if (status === 409 && err.response?.data?.customer) {
+        setCustomer(err.response.data.customer);
+        setError('');
+        setQuickReg({ show: false, firstName: '', lastName: '', email: '', loading: false, error: '' });
+        setScreen('customer');
+      } else {
+        setQuickReg(q => ({ ...q, loading: false, error: err.response?.data?.error || 'Error al registrar' }));
+      }
+    }
+  }
+
   function reset() {
     setScreen('home'); setCustomer(null); setError('');
     setResult(null); setCodeInput(''); setEmailInput(''); setAmount(''); setRedeemPts('');
+    setQuickReg({ show: false, firstName: '', lastName: '', email: '', loading: false, error: '' });
   }
 
   const lvl = LEVEL[customer?.level] || LEVEL.BRONZE;
@@ -153,26 +182,60 @@ export default function POS() {
             <button onClick={() => setScreen('home')} style={styles.back}>← Volver</button>
             <h2 style={styles.title}>Escanear QR</h2>
 
-            {isNotFound && (
+            {isNotFound && !quickReg.show && (
               <div style={{ ...styles.errorBox, marginBottom: 14 }}>
                 <p style={{ fontWeight: 800, marginBottom: 6 }}>⚠️ Cliente no encontrado</p>
                 <p style={{ fontSize: 11, opacity: .8, marginBottom: 10 }}>
                   QR escaneado: <code style={{ background: 'rgba(224,92,92,.15)', padding: '2px 6px', borderRadius: 4, fontFamily: 'monospace', fontSize: 10 }}>{scannedId?.substring(0, 16)}...</code>
                 </p>
                 <p style={{ fontSize: 12, opacity: .75, marginBottom: 12, lineHeight: 1.5 }}>
-                  Este cliente no está registrado. Pídele que se registre en:<br/>
+                  Este cliente no está registrado. Regístralo ahora o pídele ir a:<br/>
                   <strong>house-of-shake.vercel.app/registro</strong>
                 </p>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button onClick={() => setQuickReg(q => ({ ...q, show: true }))}
+                    style={{ flex: 1, padding: '9px 12px', background: 'var(--gold)', border: 'none', borderRadius: 8, color: '#2C1A0E', cursor: 'pointer', fontSize: 11, fontWeight: 800, fontFamily: "'Montserrat', sans-serif" }}>
+                    ✚ Registrar aquí
+                  </button>
                   <button onClick={() => { setError(''); setScreen('searchEmail'); }}
-                    style={{ flex: 1, padding: '8px 12px', background: 'none', border: '1px solid rgba(224,92,92,.5)', borderRadius: 8, color: '#E05C5C', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: "'Montserrat', sans-serif" }}>
-                    Buscar por email
+                    style={{ flex: 1, padding: '9px 12px', background: 'none', border: '1px solid rgba(224,92,92,.5)', borderRadius: 8, color: '#E05C5C', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: "'Montserrat', sans-serif" }}>
+                    Buscar email
                   </button>
                   <button onClick={() => setError('')}
-                    style={{ flex: 1, padding: '8px 12px', background: 'none', border: '1px solid rgba(251,247,240,.15)', borderRadius: 8, color: 'rgba(251,247,240,.5)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: "'Montserrat', sans-serif" }}>
-                    Intentar de nuevo
+                    style={{ flex: 1, padding: '9px 12px', background: 'none', border: '1px solid rgba(251,247,240,.15)', borderRadius: 8, color: 'rgba(251,247,240,.5)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: "'Montserrat', sans-serif" }}>
+                    Reintentar
                   </button>
                 </div>
+              </div>
+            )}
+
+            {isNotFound && quickReg.show && (
+              <div style={{ background: 'rgba(245,200,66,.06)', border: '1px solid rgba(245,200,66,.2)', borderRadius: 14, padding: 16, marginBottom: 14 }}>
+                <p style={{ fontWeight: 800, color: 'var(--gold)', marginBottom: 12, fontSize: 14 }}>✚ Registrar cliente rápido</p>
+                <form onSubmit={handleQuickRegister}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                    <input required placeholder="Nombre *" value={quickReg.firstName}
+                      onChange={e => setQuickReg(q => ({ ...q, firstName: e.target.value }))}
+                      style={{ ...styles.input, fontSize: 13, padding: '10px 12px' }} />
+                    <input placeholder="Apellido" value={quickReg.lastName}
+                      onChange={e => setQuickReg(q => ({ ...q, lastName: e.target.value }))}
+                      style={{ ...styles.input, fontSize: 13, padding: '10px 12px' }} />
+                  </div>
+                  <input required type="email" placeholder="Email *" value={quickReg.email}
+                    onChange={e => setQuickReg(q => ({ ...q, email: e.target.value }))}
+                    style={{ ...styles.input, fontSize: 13, padding: '10px 12px', marginBottom: 8 }} />
+                  {quickReg.error && <div style={{ ...styles.errorBox, marginBottom: 8 }}>{quickReg.error}</div>}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button type="submit" disabled={quickReg.loading}
+                      style={{ flex: 1, padding: '10px', background: 'var(--gold)', border: 'none', borderRadius: 10, color: '#2C1A0E', fontWeight: 800, fontSize: 12, cursor: 'pointer', fontFamily: "'Montserrat', sans-serif", opacity: quickReg.loading ? .6 : 1 }}>
+                      {quickReg.loading ? 'Registrando…' : 'Crear cuenta →'}
+                    </button>
+                    <button type="button" onClick={() => setQuickReg(q => ({ ...q, show: false }))}
+                      style={{ padding: '10px 14px', background: 'none', border: '1px solid rgba(251,247,240,.15)', borderRadius: 10, color: 'rgba(251,247,240,.4)', cursor: 'pointer', fontSize: 11, fontFamily: "'Montserrat', sans-serif" }}>
+                      ✕
+                    </button>
+                  </div>
+                </form>
               </div>
             )}
 

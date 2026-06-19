@@ -32,19 +32,43 @@ async function login(req, res, next) {
 
 async function getDashboardStats(req, res, next) {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const now = new Date();
+    const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    const [totalCustomers, totalPoints, redemptionsToday, recentTransactions] = await Promise.all([
+    const [
+      totalCustomers,
+      totalPoints,
+      redemptionsToday,
+      recentTransactions,
+      newCustomersThisMonth,
+      pointsEarnedThisMonth,
+      activeCustomers30d,
+      topCustomers,
+    ] = await Promise.all([
       prisma.customer.count(),
       prisma.customer.aggregate({ _sum: { availablePoints: true } }),
-      prisma.transaction.count({
-        where: { type: 'REDEEM', createdAt: { gte: today } },
-      }),
+      prisma.transaction.count({ where: { type: 'REDEEM', createdAt: { gte: todayStart } } }),
       prisma.transaction.findMany({
         take: 10,
         orderBy: { createdAt: 'desc' },
         include: { customer: { select: { firstName: true, lastName: true, email: true } } },
+      }),
+      prisma.customer.count({ where: { createdAt: { gte: monthStart } } }),
+      prisma.transaction.aggregate({
+        where: { type: 'EARN', createdAt: { gte: monthStart } },
+        _sum: { points: true },
+      }),
+      prisma.transaction.findMany({
+        where: { createdAt: { gte: thirtyDaysAgo } },
+        select: { customerId: true },
+        distinct: ['customerId'],
+      }),
+      prisma.customer.findMany({
+        orderBy: { lifetimePoints: 'desc' },
+        take: 5,
+        select: { firstName: true, lastName: true, lifetimePoints: true, level: true },
       }),
     ]);
 
@@ -59,6 +83,10 @@ async function getDashboardStats(req, res, next) {
       redemptionsToday,
       recentTransactions,
       levelDistribution: levelCounts,
+      newCustomersThisMonth,
+      pointsEarnedThisMonth: pointsEarnedThisMonth._sum.points || 0,
+      activeCustomers30d: activeCustomers30d.length,
+      topCustomers,
     });
   } catch (err) {
     next(err);

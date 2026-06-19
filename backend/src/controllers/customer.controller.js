@@ -40,9 +40,30 @@ async function getOrCreateCustomer(req, res, next) {
 async function getCustomerByEmail(req, res, next) {
   try {
     const { email } = req.params;
-    const customer = await prisma.customer.findUnique({ where: { email: decodeURIComponent(email) } });
+    const customer = await prisma.customer.findUnique({
+      where: { email: decodeURIComponent(email).toLowerCase() },
+      include: {
+        transactions: {
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+        },
+      },
+    });
     if (!customer) return res.status(404).json({ error: 'Cliente no encontrado' });
-    res.json({ customer });
+    res.json({
+      customer: {
+        id: customer.id,
+        firstName: customer.firstName,
+        lastName: customer.lastName,
+        email: customer.email,
+        phone: customer.phone,
+        availablePoints: customer.availablePoints,
+        totalPoints: customer.totalPoints,
+        lifetimePoints: customer.lifetimePoints,
+        level: customer.level,
+        recentTransactions: customer.transactions,
+      },
+    });
   } catch (err) {
     next(err);
   }
@@ -149,6 +170,59 @@ async function getPublicProfile(req, res, next) {
   }
 }
 
+async function quickRegisterFromPOS(req, res, next) {
+  try {
+    const { firstName, lastName, email, phone } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email requerido' });
+    if (!firstName) return res.status(400).json({ error: 'Nombre requerido' });
+
+    const existing = await prisma.customer.findUnique({ where: { email: email.toLowerCase() } });
+    if (existing) {
+      return res.status(409).json({
+        error: 'Ya existe una cuenta con ese email',
+        customer: {
+          id: existing.id,
+          firstName: existing.firstName,
+          lastName: existing.lastName,
+          email: existing.email,
+          availablePoints: existing.availablePoints,
+          lifetimePoints: existing.lifetimePoints,
+          level: existing.level,
+          recentTransactions: [],
+        },
+      });
+    }
+
+    const customer = await prisma.customer.create({
+      data: {
+        shopifyCustomerId: `pos_${Date.now()}`,
+        email: email.toLowerCase(),
+        firstName,
+        lastName: lastName || '',
+        phone: phone || null,
+      },
+    });
+
+    await pointsService.addWelcomeBonus(customer.id);
+    const updated = await prisma.customer.findUnique({ where: { id: customer.id } });
+
+    res.status(201).json({
+      customer: {
+        id: updated.id,
+        firstName: updated.firstName,
+        lastName: updated.lastName,
+        email: updated.email,
+        availablePoints: updated.availablePoints,
+        lifetimePoints: updated.lifetimePoints,
+        level: updated.level,
+        recentTransactions: [],
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getOrCreateCustomer,
   getCustomerByEmail,
@@ -157,4 +231,5 @@ module.exports = {
   redeemPoints,
   downloadWalletPass,
   getPublicProfile,
+  quickRegisterFromPOS,
 };

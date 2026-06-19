@@ -23,8 +23,12 @@ export default function MiCuenta() {
   const [customer, setCustomer] = useState(() => JSON.parse(localStorage.getItem('hos_customer') || 'null'));
   const [transactions, setTransactions] = useState([]);
   const [txLoading, setTxLoading] = useState(true);
+  const [txPage, setTxPage] = useState(1);
+  const [txHasMore, setTxHasMore] = useState(false);
+  const [txLoadingMore, setTxLoadingMore] = useState(false);
   const [activeTab, setActiveTab] = useState('tarjeta');
   const [qrFullscreen, setQrFullscreen] = useState(false);
+  const TX_PAGE_SIZE = 10;
 
   const LEVELS_INFO = [
     {
@@ -58,12 +62,31 @@ export default function MiCuenta() {
       })
       .catch(() => {});
 
-    fetch(`${API}/me/transactions`, { headers })
+    fetch(`${API}/me/transactions?limit=${TX_PAGE_SIZE}&offset=0`, { headers })
       .then(r => r.json())
-      .then(data => setTransactions(data.transactions || []))
+      .then(data => {
+        const txs = data.transactions || [];
+        setTransactions(txs);
+        setTxHasMore(txs.length === TX_PAGE_SIZE);
+      })
       .catch(() => {})
       .finally(() => setTxLoading(false));
   }, []);
+
+  async function loadMoreTransactions() {
+    if (txLoadingMore) return;
+    setTxLoadingMore(true);
+    const nextPage = txPage + 1;
+    try {
+      const res = await fetch(`${API}/me/transactions?limit=${TX_PAGE_SIZE}&offset=${txPage * TX_PAGE_SIZE}`, { headers });
+      const data = await res.json();
+      const more = data.transactions || [];
+      setTransactions(prev => [...prev, ...more]);
+      setTxHasMore(more.length === TX_PAGE_SIZE);
+      setTxPage(nextPage);
+    } catch {}
+    setTxLoadingMore(false);
+  }
 
   function handleLogout() {
     localStorage.removeItem('hos_customer_token');
@@ -300,28 +323,52 @@ export default function MiCuenta() {
                 <p className="mc-empty-sub">¡Visita la sucursal y empieza a acumular puntos!</p>
               </div>
             ) : (
-              <div className="mc-tx-list">
-                {transactions.map(t => {
-                  const cfg = TX_TYPE[t.type] || { label: t.type, color: '#8A7B6A' };
-                  const isPos = t.points > 0;
-                  return (
-                    <div key={t.id} className="mc-tx-row">
-                      <div style={{ flex: 1, marginRight: 16, minWidth: 0 }}>
-                        <p className="mc-tx-desc">{t.description}</p>
-                        <p className="mc-tx-type" style={{ color: cfg.color }}>{cfg.label}</p>
-                        <p className="mc-tx-date">
-                          {new Date(t.createdAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        </p>
+              <div>
+                <div className="mc-tx-list">
+                  {transactions.map(t => {
+                    const cfg = TX_TYPE[t.type] || { label: t.type, color: '#8A7B6A' };
+                    const isPos = t.points > 0;
+                    return (
+                      <div key={t.id} className="mc-tx-row">
+                        <div style={{ flex: 1, marginRight: 16, minWidth: 0 }}>
+                          <p className="mc-tx-desc">{t.description}</p>
+                          <p className="mc-tx-type" style={{ color: cfg.color }}>{cfg.label}</p>
+                          <p className="mc-tx-date">
+                            {new Date(t.createdAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </p>
+                        </div>
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <p className={`mc-tx-pts ${isPos ? 'pos' : 'neg'}`}>
+                            {isPos ? '+' : ''}{t.points}
+                          </p>
+                          <p className="mc-tx-unit">pts</p>
+                        </div>
                       </div>
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <p className={`mc-tx-pts ${isPos ? 'pos' : 'neg'}`}>
-                          {isPos ? '+' : ''}{t.points}
-                        </p>
-                        <p className="mc-tx-unit">pts</p>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+                {txHasMore && (
+                  <button
+                    onClick={loadMoreTransactions}
+                    disabled={txLoadingMore}
+                    style={{
+                      width: '100%', marginTop: 16, padding: '12px',
+                      background: 'rgba(251,247,240,.05)',
+                      border: '1px solid rgba(251,247,240,.12)',
+                      borderRadius: 12, color: 'rgba(251,247,240,.5)',
+                      fontFamily: "'Montserrat', sans-serif",
+                      fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                      letterSpacing: 1,
+                    }}
+                  >
+                    {txLoadingMore ? '⏳ Cargando...' : '↓ Ver más transacciones'}
+                  </button>
+                )}
+                {!txHasMore && transactions.length >= TX_PAGE_SIZE && (
+                  <p style={{ textAlign: 'center', fontSize: 11, color: 'rgba(251,247,240,.2)', marginTop: 16, letterSpacing: 1 }}>
+                    — Todo el historial cargado —
+                  </p>
+                )}
               </div>
             )}
           </div>

@@ -14,5 +14,16 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-charts': ['recharts', 'date-fns'],
+          'vendor-qr': ['qrcode.react'],
+          'vendor-zxing': ['@zxing/browser', '@zxing/library'],
+        },
+      },
+    },
   },
 });

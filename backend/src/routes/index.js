@@ -63,6 +63,7 @@ router.get('/products', productsController.listProducts);
 router.get('/pos/customer/:code', authenticateAdmin, posController.lookupCustomer);
 router.post('/pos/customer/:customerId/add-points', authenticateAdmin, posController.addPointsForPurchase);
 router.post('/pos/customer/:customerId/redeem', authenticateAdmin, posController.redeemPoints);
+router.post('/pos/quick-register', authenticateAdmin, customerController.quickRegisterFromPOS);
 
 // === ADMIN (protegido con JWT) ===
 router.post('/admin/login', adminController.login);
