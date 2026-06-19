@@ -10,14 +10,12 @@ const logger = require('./config/logger');
 const routes = require('./routes/index');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 
-// Crear directorio de logs si no existe
 const logDir = process.env.LOG_DIR || './logs';
 if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS — permite Vercel, Railway, Shopify y localhost
 const allowedOrigins = [
   `https://${process.env.SHOPIFY_STORE_URL}`,
   process.env.SHOPIFY_APP_URL,
@@ -26,13 +24,10 @@ const allowedOrigins = [
   'https://house-of-shake.vercel.app',
 ].filter(Boolean);
 
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: 'cross-origin' },
-}));
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Permitir sin origin (apps móviles, Postman) y subdominios de vercel/railway
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
     if (origin.endsWith('.vercel.app') || origin.endsWith('.railway.app') || origin.endsWith('.up.railway.app')) return callback(null, true);
@@ -43,7 +38,6 @@ app.use(cors({
 
 app.use(compression());
 
-// Capturar raw body ANTES de parsear JSON (necesario para validar webhooks Shopify)
 app.use((req, res, next) => {
   if (req.url.startsWith('/api/webhooks/')) {
     let data = '';
@@ -61,7 +55,6 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Servir el widget estático
 app.use('/widget', express.static(path.join(__dirname, '../../widget/dist'), {
   setHeaders: (res) => {
     res.set('Access-Control-Allow-Origin', '*');
@@ -69,10 +62,8 @@ app.use('/widget', express.static(path.join(__dirname, '../../widget/dist'), {
   },
 }));
 
-// API Routes
 app.use('/api', routes);
 
-// Swagger Docs (solo en desarrollo)
 if (process.env.NODE_ENV !== 'production') {
   try {
     const swaggerUi = require('swagger-ui-express');
@@ -87,33 +78,94 @@ if (process.env.NODE_ENV !== 'production') {
 app.use(notFound);
 app.use(errorHandler);
 
-app.listen(PORT, async () => {
-  logger.info(`🚀 House of Shake Loyalty API corriendo en puerto ${PORT}`);
-  logger.info(`🏪 Tienda: https://${process.env.SHOPIFY_STORE_URL}`);
-  logger.info(`🍎 Apple Wallet: ${require('./services/wallet.service').areCertsAvailable() ? 'CONFIGURADO' : 'PENDIENTE DE CERTIFICADOS'}`);
+app.listen(PORT, () => {
+  logger.info(`🚀 House of Shake API en puerto ${PORT}`);
+  logger.info(`🍎 Apple Wallet: ${require('./services/wallet.service').areCertsAvailable() ? 'CONFIGURADO' : 'PENDIENTE'}`);
 
-  // Ensure permanent accounts exist on every startup
-  try {
-    const bcrypt = require('bcrypt');
-    const prisma = require('./config/prisma');
-    const permanentAccounts = [
-      { email: 'admin@houseofshake.com', name: 'Administrador HoS', password: process.env.ADMIN_PASSWORD || 'HoSAdmin2025!', role: 'admin' },
-      { email: 'staff@houseofshake.com', name: 'Personal HoS', password: process.env.STAFF_PASSWORD || 'HoSStaff2025!', role: 'staff' },
-    ];
-    for (const acc of permanentAccounts) {
-      const existing = await prisma.adminUser.findUnique({ where: { email: acc.email } });
-      if (!existing) {
-        await prisma.adminUser.create({
-          data: { ...acc, password: await bcrypt.hash(acc.password, 12), permanent: true, active: true },
-        });
-        logger.info(`✅ Cuenta permanente creada: ${acc.email} (${acc.role})`);
-      } else if (!existing.permanent) {
-        await prisma.adminUser.update({ where: { email: acc.email }, data: { permanent: true } });
-      }
-    }
-  } catch (e) {
-    logger.warn('No se pudieron verificar cuentas permanentes:', e.message);
-  }
+  // Run DB setup async — does NOT block server startup or healthcheck
+  setImmediate(() => setupDatabase());
 });
+
+async function setupDatabase() {
+  const prisma = require('./config/prisma');
+  const bcrypt = require('bcrypt');
+
+  try {
+    // 1. Add new columns safely with IF NOT EXISTS (idempotent)
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true;
+    `);
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS permanent BOOLEAN NOT NULL DEFAULT false;
+    `);
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS "lastLogin" TIMESTAMP;
+    `);
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE transactions ADD COLUMN IF NOT EXISTS "staffId" TEXT;
+    `);
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE transactions ADD COLUMN IF NOT EXISTS "staffEmail" TEXT;
+    `);
+    logger.info('✅ Schema actualizado');
+  } catch (e) {
+    logger.warn('Schema (puede que ya estén las columnas):', e.message);
+  }
+
+  // 2. Create permanent accounts (upsert — safe to run every deploy)
+  const accounts = [
+    {
+      email: 'admin@houseofshake.com',
+      name: 'Administrador House of Shake',
+      password: process.env.ADMIN_PASSWORD || 'HoSAdmin2025!',
+      role: 'admin',
+    },
+    {
+      email: 'staff@houseofshake.com',
+      name: 'Personal House of Shake',
+      password: process.env.STAFF_PASSWORD || 'HoSStaff2025!',
+      role: 'staff',
+    },
+  ];
+
+  for (const acc of accounts) {
+    try {
+      const existing = await prisma.adminUser.findUnique({ where: { email: acc.email } });
+      const hashed = await bcrypt.hash(acc.password, 10);
+
+      if (!existing) {
+        await prisma.$executeRawUnsafe(
+          `INSERT INTO admin_users (id, email, name, password, role, active, permanent, "createdAt", "updatedAt")
+           VALUES (gen_random_uuid(), $1, $2, $3, $4, true, true, NOW(), NOW())`,
+          acc.email, acc.name, hashed, acc.role,
+        );
+        logger.info(`✅ Cuenta creada: ${acc.email} (${acc.role})`);
+      } else {
+        // Ensure it's marked active and permanent
+        await prisma.$executeRawUnsafe(
+          `UPDATE admin_users SET active = true, permanent = true, "updatedAt" = NOW() WHERE email = $1`,
+          acc.email,
+        );
+        logger.info(`✔ Cuenta ya existe: ${acc.email}`);
+      }
+    } catch (e) {
+      logger.error(`Error con cuenta ${acc.email}:`, e.message);
+    }
+  }
+
+  // 3. Update existing admin account password to match env var if set
+  if (process.env.ADMIN_PASSWORD) {
+    try {
+      const hashed = await bcrypt.hash(process.env.ADMIN_PASSWORD, 10);
+      await prisma.$executeRawUnsafe(
+        `UPDATE admin_users SET password = $1, "updatedAt" = NOW() WHERE email = 'admin@houseofshake.com'`,
+        hashed,
+      );
+      logger.info('✅ Contraseña de admin sincronizada con env var');
+    } catch (e) { /* ignore */ }
+  }
+
+  logger.info('🎉 Base de datos lista');
+}
 
 module.exports = app;

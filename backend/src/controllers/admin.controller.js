@@ -14,7 +14,8 @@ async function login(req, res, next) {
     if (!email || !password) return res.status(400).json({ error: 'Email y contraseña requeridos' });
 
     const admin = await prisma.adminUser.findUnique({ where: { email } });
-    if (!admin || !admin.active) return res.status(401).json({ error: 'Credenciales inválidas' });
+    // active may not exist yet if columns haven't been added — treat null/undefined as active
+    if (!admin || admin.active === false) return res.status(401).json({ error: 'Credenciales inválidas' });
 
     const valid = await bcrypt.compare(password, admin.password);
     if (!valid) return res.status(401).json({ error: 'Credenciales inválidas' });
