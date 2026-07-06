@@ -96,85 +96,19 @@ async function generatePass(customer) {
   const serial    = customer.walletPassSerial || uuidv4();
   const passToken = customer.walletPassToken  || uuidv4();
 
+  const webServiceURL = process.env.WALLET_WEB_SERVICE_URL
+    ? `${process.env.WALLET_WEB_SERVICE_URL}/`
+    : `${process.env.API_BASE_URL}/wallet/`;
+
   const overrides = {
-    passTypeIdentifier: process.env.WALLET_PASS_TYPE_ID,
-    teamIdentifier:     process.env.WALLET_TEAM_ID,
-    serialNumber:       serial,
+    passTypeIdentifier:  process.env.WALLET_PASS_TYPE_ID,
+    teamIdentifier:      process.env.WALLET_TEAM_ID,
+    serialNumber:        serial,
     authenticationToken: passToken,
-    webServiceURL: `${process.env.WALLET_WEB_SERVICE_URL || process.env.API_BASE_URL + '/wallet'}/`,
-    barcode: {
-      format:          'PKBarcodeFormatQR',
-      message:         customer.id,
-      messageEncoding: 'utf-8',
-      altText:         `ID: ${customer.id.substring(0, 8).toUpperCase()}`,
-    },
+    webServiceURL,
     foregroundColor: 'rgb(255, 255, 255)',
     backgroundColor: 'rgb(200, 80, 50)',
     labelColor:      'rgb(255, 220, 200)',
-    storeCard: {
-      headerFields: [
-        {
-          key:            'level',
-          label:          'NIVEL',
-          value:          LEVEL_NAMES[customer.level] || 'BRONCE',
-          textAlignment:  'PKTextAlignmentRight',
-        },
-      ],
-      primaryFields: [
-        {
-          key:           'points',
-          label:         'PUNTOS DISPONIBLES',
-          value:         String(customer.availablePoints || 0),
-          changeMessage: 'Tus puntos cambiaron a %@',
-        },
-      ],
-      secondaryFields: [
-        {
-          key:   'name',
-          label: 'CLIENTE',
-          value: `${customer.firstName} ${customer.lastName}`,
-        },
-        {
-          key:   'lifetime',
-          label: 'PUNTOS TOTALES',
-          value: String(customer.lifetimePoints || 0),
-        },
-      ],
-      auxiliaryFields: [
-        {
-          key:   'next_level',
-          label: 'PRÓXIMO NIVEL',
-          value: getNextLevelInfo(customer.lifetimePoints || 0),
-        },
-      ],
-      backFields: [
-        {
-          key:   'how',
-          label: '¿Cómo funciona?',
-          value: '1 punto por cada $1 MXN gastado. 100 puntos = $5 MXN de descuento en tu próxima compra.',
-        },
-        {
-          key:   'levels',
-          label: 'Niveles',
-          value: 'Bronce: 0–100 pts | Plata: 101–300 pts (+10% bonus) | Oro: 301+ pts (+20% bonus)',
-        },
-        {
-          key:   'redeem',
-          label: 'Canjear',
-          value: 'Muestra tu tarjeta al staff al pagar. El staff escaneará tu QR y aplicará el descuento.',
-        },
-        {
-          key:   'app',
-          label: 'Ver tu saldo online',
-          value: 'house-of-shake.vercel.app/mi-cuenta',
-        },
-        {
-          key:   'id',
-          label: 'ID de Cliente',
-          value: customer.id.substring(0, 8).toUpperCase(),
-        },
-      ],
-    },
   };
 
   const pass = await PKPass.from(
@@ -183,6 +117,50 @@ async function generatePass(customer) {
       certificates: { wwdr: wwdrBuffer, signerCert, signerKey },
     },
     overrides
+  );
+
+  // Set barcode
+  pass.setBarcodes({
+    format:          'PKBarcodeFormatQR',
+    message:         customer.id,
+    messageEncoding: 'utf-8',
+    altText:         `ID: ${customer.id.substring(0, 8).toUpperCase()}`,
+  });
+
+  // Clear template fields and set customer-specific values
+  pass.headerFields.splice(0);
+  pass.primaryFields.splice(0);
+  pass.secondaryFields.splice(0);
+  pass.auxiliaryFields.splice(0);
+  pass.backFields.splice(0);
+
+  pass.headerFields.push({
+    key:           'level',
+    label:         'NIVEL',
+    value:         LEVEL_NAMES[customer.level] || 'BRONCE',
+    textAlignment: 'PKTextAlignmentRight',
+  });
+  pass.primaryFields.push({
+    key:           'points',
+    label:         'PUNTOS DISPONIBLES',
+    value:         String(customer.availablePoints || 0),
+    changeMessage: 'Tus puntos cambiaron a %@',
+  });
+  pass.secondaryFields.push(
+    { key: 'name',     label: 'CLIENTE',        value: `${customer.firstName} ${customer.lastName}` },
+    { key: 'lifetime', label: 'PUNTOS TOTALES',  value: String(customer.lifetimePoints || 0) }
+  );
+  pass.auxiliaryFields.push({
+    key:   'next_level',
+    label: 'PRÓXIMO NIVEL',
+    value: getNextLevelInfo(customer.lifetimePoints || 0),
+  });
+  pass.backFields.push(
+    { key: 'how',    label: '¿Cómo funciona?',   value: '1 punto por cada $1 MXN gastado. 100 puntos = $5 MXN de descuento en tu próxima compra.' },
+    { key: 'levels', label: 'Niveles',            value: 'Bronce: 0–100 pts | Plata: 101–300 pts (+10% bonus) | Oro: 301+ pts (+20% bonus)' },
+    { key: 'redeem', label: 'Canjear',            value: 'Muestra tu tarjeta al staff al pagar. El staff escaneará tu QR y aplicará el descuento.' },
+    { key: 'app',    label: 'Ver tu saldo online', value: 'house-of-shake.vercel.app/mi-cuenta' },
+    { key: 'id',     label: 'ID de Cliente',      value: customer.id.substring(0, 8).toUpperCase() }
   );
 
   // Persist serial + token in DB
