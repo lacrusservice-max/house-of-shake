@@ -1,0 +1,79 @@
+{
+  "formatVersion": 1,
+  "passTypeIdentifier": "pass.com.houseofshake.fidelidad",
+  "teamIdentifier": "XXXXXXXXXX",
+  "organizationName": "House of Shake",
+  "description": "Tarjeta de Fidelización House of Shake",
+  "logoText": "House of Shake",
+  "foregroundColor": "rgb(255, 255, 255)",
+  "backgroundColor": "rgb(200, 80, 50)",
+  "labelColor": "rgb(255, 220, 200)",
+  "serialNumber": "PLACEHOLDER",
+  "webServiceURL": "https://clc-house-of-shake.com/api/wallet/",
+  "authenticationToken": "PLACEHOLDER",
+  "barcode": {
+    "format": "PKBarcodeFormatQR",
+    "message": "PLACEHOLDER",
+    "messageEncoding": "utf-8",
+    "altText": "ID: XXXXXXXX"
+  },
+  "storeCard": {
+    "headerFields": [
+      {
+        "key": "level",
+        "label": "NIVEL",
+        "value": "BRONCE",
+        "textAlignment": "PKTextAlignmentRight"
+      }
+    ],
+    "primaryFields": [
+      {
+        "key": "points",
+        "label": "PUNTOS DISPONIBLES",
+        "value": "0",
+        "changeMessage": "Tus puntos han cambiado a %@"
+      }
+    ],
+    "secondaryFields": [
+      {
+        "key": "name",
+        "label": "CLIENTE",
+        "value": "Nombre Apellido"
+      },
+      {
+        "key": "lifetime",
+        "label": "PUNTOS TOTALES",
+        "value": "0"
+      }
+    ],
+    "auxiliaryFields": [
+      {
+        "key": "next_level",
+        "label": "PRÓXIMO NIVEL",
+        "value": "101 puntos para Plata"
+      }
+    ],
+    "backFields": [
+      {
+        "key": "terms",
+        "label": "Cómo funciona",
+        "value": "Gana 1 punto por cada $1 USD gastado. 100 puntos = $5 USD de descuento. Los puntos expiran a los 12 meses de ser acumulados."
+      },
+      {
+        "key": "levels",
+        "label": "Niveles de Membresía",
+        "value": "Bronce: 0-100 pts | Plata: 101-300 pts (+10% bonus) | Oro: 301+ pts (+20% bonus)"
+      },
+      {
+        "key": "redeem",
+        "label": "Cómo Canjear",
+        "value": "Visita house-of-shake.myshopify.com o preséntate en tienda mostrando tu código QR."
+      },
+      {
+        "key": "contact",
+        "label": "Contacto",
+        "value": "house-of-shake.myshopify.com"
+      }
+    ]
+  }
+}

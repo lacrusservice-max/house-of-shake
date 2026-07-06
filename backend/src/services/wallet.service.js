@@ -179,7 +179,7 @@ async function generatePass(customer) {
 
   const pass = await PKPass.from(
     {
-      model:        path.resolve(__dirname, '../../pass-template'),
+      model:        path.resolve(__dirname, '../../pass-template.pass'),
       certificates: { wwdr: wwdrBuffer, signerCert, signerKey },
     },
     overrides
