@@ -4,17 +4,20 @@
  * Certificados soportados en dos modos (prioridad: base64 > archivo):
  *   Base64 (Railway-safe):  WALLET_CERT_BASE64, WWDR_CERT_BASE64
  *   Archivo local:          WALLET_CERTIFICATE_PATH, WWDR_CERTIFICATE_PATH
+ *
+ * Los certificados se parsean UNA SOLA VEZ al arrancar el servidor
+ * y se cachean en memoria para evitar overhead en cada solicitud.
  */
 const { PKPass } = require('passkit-generator');
-const forge     = require('node-forge');
-const apn       = require('apn');
-const path      = require('path');
-const fs        = require('fs');
+const forge      = require('node-forge');
+const apn        = require('apn');
+const path       = require('path');
+const fs         = require('fs');
 const { v4: uuidv4 } = require('uuid');
-const prisma    = require('../config/prisma');
-const logger    = require('../config/logger');
+const prisma     = require('../config/prisma');
+const logger     = require('../config/logger');
 
-// ─── Certificate loading ──────────────────────────────────────────────────────
+// ─── Certificate loading & cache ─────────────────────────────────────────────
 
 function loadCertBuffer(base64EnvKey, fileEnvKey) {
   if (process.env[base64EnvKey]) {
@@ -27,13 +30,6 @@ function loadCertBuffer(base64EnvKey, fileEnvKey) {
   return null;
 }
 
-function areCertsAvailable() {
-  const p12 = loadCertBuffer('WALLET_CERT_BASE64', 'WALLET_CERTIFICATE_PATH');
-  const wwdr = loadCertBuffer('WWDR_CERT_BASE64', 'WWDR_CERTIFICATE_PATH');
-  return !!(p12 && wwdr && process.env.WALLET_PASS_TYPE_ID && process.env.WALLET_TEAM_ID &&
-            process.env.WALLET_TEAM_ID !== 'PENDIENTE');
-}
-
 /** Parse a .p12 buffer → { signerCert: Buffer (PEM), signerKey: Buffer (PEM) } */
 function parseP12(p12Buffer, password = '') {
   try {
@@ -41,18 +37,15 @@ function parseP12(p12Buffer, password = '') {
     const asn1   = forge.asn1.fromDer(p12Der);
     const p12Obj = forge.pkcs12.pkcs12FromAsn1(asn1, false, password);
 
-    // Extract all certs and pick the leaf (signing cert, not CA)
     const certBags = p12Obj.getBags({ bagType: forge.pki.oids.certBag });
-    const certs = (certBags[forge.pki.oids.certBag] || []).map(b => b.cert);
+    const certs    = (certBags[forge.pki.oids.certBag] || []).map(b => b.cert);
     if (!certs.length) throw new Error('No certificates found in .p12 file');
 
-    // Prefer cert with a CN that isn't WWDR/Apple
     const leaf = certs.find(c => {
       const cn = c.subject.getField('CN')?.value || '';
       return !cn.includes('Apple') && !cn.includes('WWDR');
     }) || certs[0];
 
-    // Extract private key
     const keyBags = p12Obj.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag });
     const keyBag  = (keyBags[forge.pki.oids.pkcs8ShroudedKeyBag] || [])[0];
     if (!keyBag) throw new Error('No private key found in .p12 file');
@@ -66,14 +59,49 @@ function parseP12(p12Buffer, password = '') {
   }
 }
 
-// ─── Pass generation ──────��───────────────────────────────────────────────────
+// Module-level cert cache — parsed ONCE at startup
+let _certCache = null;
 
-const LEVEL_NAMES  = { BRONZE: 'BRONCE', SILVER: 'PLATA', GOLD: 'ORO' };
-const LEVEL_COLORS = {
-  BRONZE: 'rgb(205, 127, 50)',
-  SILVER: 'rgb(192, 192, 192)',
-  GOLD:   'rgb(255, 215, 0)',
-};
+function _loadCerts() {
+  const p12Buffer  = loadCertBuffer('WALLET_CERT_BASE64', 'WALLET_CERTIFICATE_PATH');
+  const wwdrBuffer = loadCertBuffer('WWDR_CERT_BASE64', 'WWDR_CERTIFICATE_PATH');
+  if (!p12Buffer || !wwdrBuffer) return null;
+
+  try {
+    const { signerCert, signerKey } = parseP12(
+      p12Buffer,
+      process.env.WALLET_CERTIFICATE_PASSWORD || ''
+    );
+    _certCache = { signerCert, signerKey, wwdrBuffer };
+    logger.info('Apple Wallet: certificados cargados en memoria ✓');
+    return _certCache;
+  } catch (err) {
+    logger.error('Apple Wallet: error cargando certificados —', err.message);
+    return null;
+  }
+}
+
+/** Returns cached certs, loading them on first call. */
+function getCerts() {
+  return _certCache ?? _loadCerts();
+}
+
+/** Call at server startup to eagerly warm up the cert cache. */
+function initCerts() {
+  if (!areCertsAvailable()) return;
+  _loadCerts();
+}
+
+function areCertsAvailable() {
+  const p12  = loadCertBuffer('WALLET_CERT_BASE64', 'WALLET_CERTIFICATE_PATH');
+  const wwdr = loadCertBuffer('WWDR_CERT_BASE64', 'WWDR_CERTIFICATE_PATH');
+  const team = process.env.WALLET_TEAM_ID;
+  return !!(p12 && wwdr && team && team !== 'PENDIENTE' && process.env.WALLET_PASS_TYPE_ID);
+}
+
+// ─── Pass helpers ─────────────────────────────────────────────────────────────
+
+const LEVEL_NAMES = { BRONZE: 'BRONCE', SILVER: 'PLATA', GOLD: 'ORO' };
 
 function getNextLevelInfo(lifetimePoints) {
   if (lifetimePoints < 101) return `${101 - lifetimePoints} pts para Plata`;
@@ -81,101 +109,123 @@ function getNextLevelInfo(lifetimePoints) {
   return '¡Nivel Oro alcanzado!';
 }
 
-async function generatePass(customer) {
-  if (!areCertsAvailable()) {
-    logger.warn('Certificados Apple Wallet no configurados — modo demo');
-    return null;
+function buildWebServiceURL() {
+  if (process.env.WALLET_WEB_SERVICE_URL) {
+    const u = process.env.WALLET_WEB_SERVICE_URL;
+    return u.endsWith('/') ? u : `${u}/`;
   }
+  const base = (process.env.API_BASE_URL || '').replace(/\/$/, '');
+  return `${base}/wallet/`;
+}
 
-  const p12Buffer = loadCertBuffer('WALLET_CERT_BASE64', 'WALLET_CERTIFICATE_PATH');
-  const wwdrBuffer = loadCertBuffer('WWDR_CERT_BASE64', 'WWDR_CERTIFICATE_PATH');
-  const password  = process.env.WALLET_CERTIFICATE_PASSWORD || '';
+// ─── Core pass builder (no DB writes) ────────────────────────────────────────
 
-  const { signerCert, signerKey } = parseP12(p12Buffer, password);
+/**
+ * Builds and returns a signed .pkpass Buffer for the given customer data.
+ * Does NOT write anything to the database — safe to call for previews/tests.
+ *
+ * @param {{ id, firstName, lastName, availablePoints, lifetimePoints, level,
+ *           walletPassSerial?, walletPassToken? }} customerData
+ * @returns {Promise<Buffer>}
+ */
+async function generatePassBuffer(customerData) {
+  const certs = getCerts();
+  if (!certs) throw new Error('Certificados Apple Wallet no configurados');
 
-  const serial    = customer.walletPassSerial || uuidv4();
-  const passToken = customer.walletPassToken  || uuidv4();
-
-  const webServiceURL = process.env.WALLET_WEB_SERVICE_URL
-    ? `${process.env.WALLET_WEB_SERVICE_URL}/`
-    : `${process.env.API_BASE_URL}/wallet/`;
-
-  const overrides = {
-    passTypeIdentifier:  process.env.WALLET_PASS_TYPE_ID,
-    teamIdentifier:      process.env.WALLET_TEAM_ID,
-    serialNumber:        serial,
-    authenticationToken: passToken,
-    webServiceURL,
-    foregroundColor: 'rgb(255, 255, 255)',
-    backgroundColor: 'rgb(200, 80, 50)',
-    labelColor:      'rgb(255, 220, 200)',
-  };
+  const { signerCert, signerKey, wwdrBuffer } = certs;
+  const serial    = customerData.walletPassSerial || uuidv4();
+  const passToken = customerData.walletPassToken  || uuidv4().replace(/-/g, '');
 
   const pass = await PKPass.from(
     {
       model:        path.resolve(__dirname, '../../pass-template.pass'),
       certificates: { wwdr: wwdrBuffer, signerCert, signerKey },
     },
-    overrides
+    {
+      passTypeIdentifier:  process.env.WALLET_PASS_TYPE_ID,
+      teamIdentifier:      process.env.WALLET_TEAM_ID,
+      serialNumber:        serial,
+      authenticationToken: passToken,
+      webServiceURL:       buildWebServiceURL(),
+      foregroundColor:     'rgb(255, 255, 255)',
+      backgroundColor:     'rgb(200, 80, 50)',
+      labelColor:          'rgb(255, 220, 200)',
+    }
   );
 
-  // Set barcode
   pass.setBarcodes({
     format:          'PKBarcodeFormatQR',
-    message:         customer.id,
+    message:         customerData.id,
     messageEncoding: 'utf-8',
-    altText:         `ID: ${customer.id.substring(0, 8).toUpperCase()}`,
+    altText:         `ID: ${customerData.id.substring(0, 8).toUpperCase()}`,
   });
-
-  // Clear template fields and set customer-specific values
-  pass.headerFields.splice(0);
-  pass.primaryFields.splice(0);
-  pass.secondaryFields.splice(0);
-  pass.auxiliaryFields.splice(0);
-  pass.backFields.splice(0);
 
   pass.headerFields.push({
     key:           'level',
     label:         'NIVEL',
-    value:         LEVEL_NAMES[customer.level] || 'BRONCE',
+    value:         LEVEL_NAMES[customerData.level] || 'BRONCE',
     textAlignment: 'PKTextAlignmentRight',
   });
   pass.primaryFields.push({
     key:           'points',
     label:         'PUNTOS DISPONIBLES',
-    value:         String(customer.availablePoints || 0),
+    value:         String(customerData.availablePoints || 0),
     changeMessage: 'Tus puntos cambiaron a %@',
   });
   pass.secondaryFields.push(
-    { key: 'name',     label: 'CLIENTE',        value: `${customer.firstName} ${customer.lastName}` },
-    { key: 'lifetime', label: 'PUNTOS TOTALES',  value: String(customer.lifetimePoints || 0) }
+    { key: 'name',     label: 'CLIENTE',       value: `${customerData.firstName} ${customerData.lastName}` },
+    { key: 'lifetime', label: 'PUNTOS TOTALES', value: String(customerData.lifetimePoints || 0) }
   );
   pass.auxiliaryFields.push({
     key:   'next_level',
     label: 'PRÓXIMO NIVEL',
-    value: getNextLevelInfo(customer.lifetimePoints || 0),
+    value: getNextLevelInfo(customerData.lifetimePoints || 0),
   });
   pass.backFields.push(
-    { key: 'how',    label: '¿Cómo funciona?',   value: '1 punto por cada $1 MXN gastado. 100 puntos = $5 MXN de descuento en tu próxima compra.' },
-    { key: 'levels', label: 'Niveles',            value: 'Bronce: 0–100 pts | Plata: 101–300 pts (+10% bonus) | Oro: 301+ pts (+20% bonus)' },
-    { key: 'redeem', label: 'Canjear',            value: 'Muestra tu tarjeta al staff al pagar. El staff escaneará tu QR y aplicará el descuento.' },
-    { key: 'app',    label: 'Ver tu saldo online', value: 'house-of-shake.vercel.app/mi-cuenta' },
-    { key: 'id',     label: 'ID de Cliente',      value: customer.id.substring(0, 8).toUpperCase() }
+    { key: 'how',    label: '¿Cómo funciona?',    value: '1 punto por cada $1 MXN gastado. 100 puntos = $5 MXN de descuento en tu próxima compra.' },
+    { key: 'levels', label: 'Niveles',             value: 'Bronce: 0–100 pts | Plata: 101–300 pts (+10% bonus) | Oro: 301+ pts (+20% bonus)' },
+    { key: 'redeem', label: 'Canjear',             value: 'Muestra tu tarjeta al staff al pagar. El staff escaneará tu QR y aplicará el descuento.' },
+    { key: 'app',    label: 'Ver tu saldo online',  value: 'house-of-shake.vercel.app/mi-cuenta' },
+    { key: 'id',     label: 'ID de Cliente',        value: customerData.id.substring(0, 8).toUpperCase() }
   );
 
-  // Persist serial + token in DB
-  await prisma.customer.update({
-    where: { id: customer.id },
-    data:  { walletPassSerial: serial, walletPassToken: passToken },
-  });
-
-  return pass.getAsBuffer();
+  return { buffer: pass.getAsBuffer(), serial, passToken };
 }
 
-// ─── APNs push update ───��─────────────────────────────────────────────────────
+// ─── Pass generation with DB persistence ─────────────────────────────────────
+
+/**
+ * Generates a signed .pkpass for an existing DB customer,
+ * persisting the serial + token if they weren't set yet.
+ */
+async function generatePass(customer) {
+  if (!areCertsAvailable()) {
+    logger.warn('Certificados Apple Wallet no configurados — modo demo');
+    return null;
+  }
+
+  const data = {
+    ...customer,
+    walletPassSerial: customer.walletPassSerial || uuidv4(),
+    walletPassToken:  customer.walletPassToken  || uuidv4().replace(/-/g, ''),
+  };
+
+  const { buffer, serial, passToken } = await generatePassBuffer(data);
+
+  // Only write to DB if serial/token changed
+  if (!customer.walletPassSerial || !customer.walletPassToken) {
+    await prisma.customer.update({
+      where: { id: customer.id },
+      data:  { walletPassSerial: serial, walletPassToken: passToken },
+    });
+  }
+
+  return buffer;
+}
+
+// ─── APNs push update ─────────────────────────────────────────────────────────
 
 async function sendPushUpdate(customer) {
-  // Support base64 APN key too
   const apnKeyBuffer = process.env.APN_KEY_BASE64
     ? Buffer.from(process.env.APN_KEY_BASE64, 'base64')
     : (process.env.APN_KEY_PATH && fs.existsSync(process.env.APN_KEY_PATH))
@@ -200,10 +250,10 @@ async function sendPushUpdate(customer) {
     production: process.env.APN_PRODUCTION === 'true',
   });
 
-  const notification      = new apn.Notification();
-  notification.topic      = process.env.WALLET_PASS_TYPE_ID;
-  notification.pushType   = 'background';
-  notification.expiry     = Math.floor(Date.now() / 1000) + 3600;
+  const notification    = new apn.Notification();
+  notification.topic    = process.env.WALLET_PASS_TYPE_ID;
+  notification.pushType = 'background';
+  notification.expiry   = Math.floor(Date.now() / 1000) + 3600;
 
   for (const reg of registrations) {
     try {
@@ -216,7 +266,7 @@ async function sendPushUpdate(customer) {
   apnProvider.shutdown();
 }
 
-// ─── Config status (for admin UI) ─���───────────────────────────────────────────
+// ─── Config status (for admin UI) ────────────────────────────────────────────
 
 function getWalletStatus() {
   const p12    = loadCertBuffer('WALLET_CERT_BASE64', 'WALLET_CERTIFICATE_PATH');
@@ -229,15 +279,24 @@ function getWalletStatus() {
   return {
     ready:  !!(p12 && wwdr && teamId && teamId !== 'PENDIENTE' && passId),
     checks: {
-      p12_certificate: !!p12,
-      wwdr_certificate: !!wwdr,
-      team_id:    !!(teamId && teamId !== 'PENDIENTE'),
-      pass_type_id: !!passId,
-      apns_key:   !!apnKey,
+      p12_certificate:    !!p12,
+      wwdr_certificate:   !!wwdr,
+      team_id:            !!(teamId && teamId !== 'PENDIENTE'),
+      pass_type_id:       !!passId,
+      apns_key:           !!apnKey,
+      cert_cached:        !!_certCache,
       pass_type_id_value: passId || null,
       team_id_value:      (teamId && teamId !== 'PENDIENTE') ? teamId : null,
+      web_service_url:    buildWebServiceURL(),
     },
   };
 }
 
-module.exports = { generatePass, sendPushUpdate, areCertsAvailable, getWalletStatus };
+module.exports = {
+  initCerts,
+  generatePass,
+  generatePassBuffer,
+  sendPushUpdate,
+  areCertsAvailable,
+  getWalletStatus,
+};

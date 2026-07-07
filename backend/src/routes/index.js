@@ -91,8 +91,9 @@ router.put('/admin/products/:id', authenticateAdmin, productsController.updatePr
 router.delete('/admin/products/:id', authenticateAdmin, productsController.deleteProduct);
 
 // Admin: Apple Wallet
-router.get('/admin/wallet/status', authenticateAdmin, adminController.getWalletStatus);
+router.get('/admin/wallet/status',        authenticateAdmin, adminController.getWalletStatus);
 router.post('/admin/wallet/download-wwdr', authenticateAdmin, adminController.downloadWwdr);
-router.get('/admin/wallet/test-pass', authenticateAdmin, adminController.testWalletPass);
+router.get('/admin/wallet/test-pass',     authenticateAdmin, adminController.testWalletPass);
+router.get('/admin/wallet/test-generate', authenticateAdmin, adminController.testGeneratePass);
 
 module.exports = router;

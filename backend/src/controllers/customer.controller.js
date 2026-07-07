@@ -137,7 +137,7 @@ async function downloadWalletPass(req, res, next) {
       });
     }
 
-    const passBuffer = await walletService.generatePass(customer, {});
+    const passBuffer = await walletService.generatePass(customer);
     res.set({
       'Content-Type': 'application/vnd.apple.pkpass',
       'Content-Disposition': `attachment; filename="houseofshake.pkpass"`,

@@ -119,7 +119,7 @@ async function getLatestPass(req, res, next) {
 
     if (!customer) return res.status(401).json({ error: 'No autorizado' });
 
-    const passBuffer = await walletService.generatePass(customer, {});
+    const passBuffer = await walletService.generatePass(customer);
     res.set({
       'Content-Type': 'application/vnd.apple.pkpass',
       'Last-Modified': customer.updatedAt.toUTCString(),

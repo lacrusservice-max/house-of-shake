@@ -294,17 +294,13 @@ async function downloadWwdr(req, res, next) {
   }
 }
 
-/** Generate a test pass for the logged-in admin (for validation) */
+/** Generate a test pass using the most recent customer (for validation). */
 async function testWalletPass(req, res, next) {
   try {
     const status = walletService.getWalletStatus();
     if (!status.ready) {
-      return res.status(400).json({
-        error: 'Wallet no configurado',
-        checks: status.checks,
-      });
+      return res.status(400).json({ error: 'Wallet no configurado', checks: status.checks });
     }
-    // Use first customer as test
     const customer = await prisma.customer.findFirst({ orderBy: { createdAt: 'desc' } });
     if (!customer) return res.status(404).json({ error: 'No hay clientes registrados aún' });
 
@@ -313,11 +309,47 @@ async function testWalletPass(req, res, next) {
 
     res.set({
       'Content-Type': 'application/vnd.apple.pkpass',
-      'Content-Disposition': `attachment; filename="test_houseofshake.pkpass"`,
+      'Content-Disposition': 'attachment; filename="test_houseofshake.pkpass"',
     });
     res.send(passBuffer);
   } catch (err) {
     logger.error('testWalletPass error:', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+/**
+ * Generate a test pass with fake data — does NOT touch the DB.
+ * Useful for validating cert config before having any real customers.
+ * GET /api/admin/wallet/test-generate
+ */
+async function testGeneratePass(req, res, next) {
+  try {
+    const status = walletService.getWalletStatus();
+    if (!status.ready) {
+      return res.status(400).json({ error: 'Wallet no configurado', checks: status.checks });
+    }
+
+    const fakeCustomer = {
+      id:              '00000000-0000-0000-0000-000000000001',
+      firstName:       'Cliente',
+      lastName:        'Prueba',
+      availablePoints: 150,
+      lifetimePoints:  250,
+      level:           'SILVER',
+      walletPassSerial: `TEST-${Date.now()}`,
+      walletPassToken:  `testtoken${Date.now()}00000000`,
+    };
+
+    const { buffer } = await walletService.generatePassBuffer(fakeCustomer);
+
+    res.set({
+      'Content-Type': 'application/vnd.apple.pkpass',
+      'Content-Disposition': 'attachment; filename="test_demo_houseofshake.pkpass"',
+    });
+    res.send(buffer);
+  } catch (err) {
+    logger.error('testGeneratePass error:', err);
     res.status(500).json({ error: err.message });
   }
 }
@@ -484,6 +516,7 @@ module.exports = {
   getWalletStatus,
   downloadWwdr,
   testWalletPass,
+  testGeneratePass,
   listStaff,
   createStaff,
   updateStaff,

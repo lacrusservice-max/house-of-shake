@@ -80,7 +80,11 @@ app.use(errorHandler);
 
 app.listen(PORT, () => {
   logger.info(`🚀 House of Shake API en puerto ${PORT}`);
-  logger.info(`🍎 Apple Wallet: ${require('./services/wallet.service').areCertsAvailable() ? 'CONFIGURADO' : 'PENDIENTE'}`);
+
+  const walletService = require('./services/wallet.service');
+  const walletReady = walletService.areCertsAvailable();
+  logger.info(`🍎 Apple Wallet: ${walletReady ? 'CONFIGURADO' : 'PENDIENTE'}`);
+  if (walletReady) walletService.initCerts(); // warm up cert cache at startup
 
   // Run DB setup async — does NOT block server startup or healthcheck
   setImmediate(() => setupDatabase());
