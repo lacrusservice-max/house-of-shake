@@ -502,6 +502,57 @@ async function getFinancialStats(req, res, next) {
   } catch (err) { next(err); }
 }
 
+async function getBirthdayCustomers(req, res, next) {
+  try {
+    const rows = await prisma.$queryRawUnsafe(`
+      SELECT c.id, c."firstName", c."lastName", c.email, c.level,
+             c."availablePoints", c."lifetimePoints",
+             ext.birthday, ext.birthday_reward_year, ext.visit_count
+      FROM customers c
+      JOIN LATERAL (
+        SELECT birthday, birthday_reward_year, visit_count
+        FROM customers WHERE id = c.id
+      ) ext ON TRUE
+      WHERE EXTRACT(MONTH FROM ext.birthday) = EXTRACT(MONTH FROM NOW())
+        AND EXTRACT(DAY FROM ext.birthday) = EXTRACT(DAY FROM NOW())
+      ORDER BY c."firstName"
+    `).catch(() => []);
+
+    res.json({ customers: rows, count: rows.length });
+  } catch (err) { next(err); }
+}
+
+async function toggleDoublePoints(req, res, next) {
+  try {
+    const { enabled, hours = 24 } = req.body;
+    if (enabled) {
+      const expiry = new Date(Date.now() + hours * 60 * 60 * 1000);
+      await prisma.$executeRawUnsafe(
+        `UPDATE config SET double_points_enabled = true, double_points_expiry = $1`,
+        expiry.toISOString()
+      );
+      res.json({ success: true, enabled: true, expiresAt: expiry, message: `Puntos dobles activados por ${hours}h 🔥` });
+    } else {
+      await prisma.$executeRawUnsafe(`UPDATE config SET double_points_enabled = false, double_points_expiry = NULL`);
+      res.json({ success: true, enabled: false, message: 'Puntos dobles desactivados' });
+    }
+    // Invalidate config cache
+    const redis = getRedis();
+    await redis.del('config:points').catch(() => {});
+  } catch (err) { next(err); }
+}
+
+async function getDoublePointsStatus(req, res, next) {
+  try {
+    const rows = await prisma.$queryRawUnsafe(
+      `SELECT double_points_enabled, double_points_expiry FROM config LIMIT 1`
+    ).catch(() => [{}]);
+    const r = rows[0] || {};
+    const active = r.double_points_enabled && (!r.double_points_expiry || new Date(r.double_points_expiry) > new Date());
+    res.json({ enabled: !!active, expiresAt: r.double_points_expiry || null });
+  } catch (err) { next(err); }
+}
+
 module.exports = {
   login,
   getDashboardStats,
@@ -521,4 +572,7 @@ module.exports = {
   createStaff,
   updateStaff,
   getFinancialStats,
+  getBirthdayCustomers,
+  toggleDoublePoints,
+  getDoublePointsStatus,
 };

@@ -20,7 +20,7 @@ function safeCustomer(c) {
 }
 
 async function register(req, res) {
-  const { firstName, lastName, email, phone, password } = req.body;
+  const { firstName, lastName, email, phone, password, birthday } = req.body;
   if (!firstName || !lastName || !email || !password) {
     return res.status(400).json({ error: 'Nombre, apellido, email y contraseña son requeridos' });
   }
@@ -41,6 +41,16 @@ async function register(req, res) {
 
     await pointsService.addWelcomeBonus(customer.id);
     customer = await prisma.customer.findUnique({ where: { id: customer.id } });
+
+    if (birthday) {
+      const bd = new Date(birthday);
+      if (!isNaN(bd.getTime())) {
+        await prisma.$executeRawUnsafe(
+          `UPDATE customers SET birthday = $1 WHERE id = $2`,
+          bd.toISOString().split('T')[0], customer.id
+        ).catch(() => {});
+      }
+    }
 
     const token = signToken(customer);
     logger.info(`Nuevo cliente registrado: ${email}`);
@@ -80,7 +90,97 @@ async function getMe(req, res) {
   try {
     const customer = await prisma.customer.findUnique({ where: { id: req.customer.id } });
     if (!customer) return res.status(404).json({ error: 'Cliente no encontrado' });
-    res.json({ customer: safeCustomer(customer) });
+
+    const extras = await prisma.$queryRawUnsafe(
+      `SELECT birthday, visit_count, last_visit_at, birthday_reward_year FROM customers WHERE id = $1`,
+      customer.id
+    ).catch(() => [{}]);
+    const ext = extras[0] || {};
+
+    const today = new Date();
+    const bd = ext.birthday ? new Date(ext.birthday) : null;
+    const isBirthday = bd && bd.getMonth() === today.getMonth() && bd.getDate() === today.getDate();
+    const birthdayRewardAvailable = isBirthday && ext.birthday_reward_year !== today.getFullYear();
+
+    const doublePoints = await pointsService.isDoublePointsActive().catch(() => false);
+
+    res.json({ customer: {
+      ...safeCustomer(customer),
+      birthday: ext.birthday || null,
+      visitCount: Number(ext.visit_count) || 0,
+      lastVisitAt: ext.last_visit_at || null,
+      isBirthday: !!isBirthday,
+      birthdayRewardAvailable: !!birthdayRewardAvailable,
+      doublePointsActive: doublePoints,
+    }});
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+async function updateProfile(req, res) {
+  try {
+    const { birthday, firstName, lastName, phone } = req.body;
+    const updates = {};
+    if (firstName) updates.firstName = firstName.trim();
+    if (lastName !== undefined) updates.lastName = lastName.trim();
+    if (phone !== undefined) updates.phone = phone || null;
+
+    if (Object.keys(updates).length > 0) {
+      await prisma.customer.update({ where: { id: req.customer.id }, data: updates });
+    }
+
+    if (birthday) {
+      const b = new Date(birthday);
+      if (!isNaN(b.getTime())) {
+        await prisma.$executeRawUnsafe(
+          `UPDATE customers SET birthday = $1 WHERE id = $2`,
+          b.toISOString().split('T')[0], req.customer.id
+        );
+      }
+    }
+
+    const customer = await prisma.customer.findUnique({ where: { id: req.customer.id } });
+    const extras = await prisma.$queryRawUnsafe(
+      `SELECT birthday, visit_count FROM customers WHERE id = $1`, req.customer.id
+    ).catch(() => [{}]);
+    const ext = extras[0] || {};
+
+    res.json({ customer: { ...safeCustomer(customer), birthday: ext.birthday || null, visitCount: Number(ext.visit_count) || 0 } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+async function claimBirthdayReward(req, res) {
+  try {
+    const extras = await prisma.$queryRawUnsafe(
+      `SELECT birthday, birthday_reward_year FROM customers WHERE id = $1`,
+      req.customer.id
+    ).catch(() => [{}]);
+    const ext = extras[0] || {};
+
+    if (!ext.birthday) return res.status(400).json({ error: 'No tienes fecha de cumpleaños registrada. Agrégala en tu perfil.' });
+
+    const today = new Date();
+    const bd = new Date(ext.birthday);
+    if (bd.getMonth() !== today.getMonth() || bd.getDate() !== today.getDate()) {
+      return res.status(400).json({ error: 'Hoy no es tu cumpleaños 😊' });
+    }
+
+    const thisYear = today.getFullYear();
+    if (Number(ext.birthday_reward_year) === thisYear) {
+      return res.status(400).json({ error: 'Ya reclamaste tu regalo de cumpleaños este año 🎉' });
+    }
+
+    const result = await pointsService.addBirthdayBonus(req.customer.id, 200);
+
+    await prisma.$executeRawUnsafe(
+      `UPDATE customers SET birthday_reward_year = $1 WHERE id = $2`,
+      thisYear, req.customer.id
+    );
+
+    res.json({ success: true, pointsAdded: result.pointsAdded, newBalance: result.newBalance, message: '¡Feliz cumpleaños! 🎂 +200 puntos de regalo' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -102,4 +202,4 @@ async function getMyTransactions(req, res) {
   }
 }
 
-module.exports = { register, login, getMe, getMyTransactions };
+module.exports = { register, login, getMe, getMyTransactions, updateProfile, claimBirthdayReward };

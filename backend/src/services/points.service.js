@@ -48,12 +48,25 @@ async function invalidateCache(customerId) {
   await redis.del(`${CACHE_PREFIX}${customerId}`);
 }
 
+async function isDoublePointsActive() {
+  try {
+    const rows = await prisma.$queryRawUnsafe(
+      `SELECT double_points_enabled, double_points_expiry FROM config LIMIT 1`
+    );
+    const r = rows[0];
+    if (!r?.double_points_enabled) return false;
+    if (r.double_points_expiry && new Date(r.double_points_expiry) < new Date()) return false;
+    return true;
+  } catch { return false; }
+}
+
 async function addPoints(customerId, orderAmount, shopifyOrderId, shopifyOrderNum, customDescription, staffId, staffEmail) {
   const config = await getConfig();
   const customer = await prisma.customer.findUnique({ where: { id: customerId } });
   if (!customer) throw new Error(`Cliente no encontrado: ${customerId}`);
 
-  const basePoints = Math.floor(orderAmount * config.pointsPerDollar);
+  const doublePoints = await isDoublePointsActive();
+  const basePoints = Math.floor(orderAmount * config.pointsPerDollar) * (doublePoints ? 2 : 1);
   const pointsWithBonus = applyLevelBonus(basePoints, customer.level, config);
 
   const expiresAt = new Date();
@@ -98,14 +111,51 @@ async function addPoints(customerId, orderAmount, shopifyOrderId, shopifyOrderNu
     logger.info(`Cliente ${customerId} subió a nivel ${newLevel}`);
   }
 
+  // Track visit count and last visit
+  await prisma.$executeRawUnsafe(
+    `UPDATE customers SET visit_count = visit_count + 1, last_visit_at = NOW() WHERE id = $1`,
+    customerId
+  ).catch(() => {});
+
   await invalidateCache(customerId);
-  logger.info(`+${pointsWithBonus} puntos para cliente ${customerId} (orden ${shopifyOrderNum})`);
+  logger.info(`+${pointsWithBonus} puntos para cliente ${customerId} (orden ${shopifyOrderNum})${doublePoints ? ' [2x]' : ''}`);
 
   return {
     pointsAdded: pointsWithBonus,
     newBalance: updatedCustomer.availablePoints + pointsWithBonus,
     level: newLevel || updatedCustomer.level,
+    doublePoints,
   };
+}
+
+async function addBirthdayBonus(customerId, bonusPoints = 200) {
+  const config = await getConfig();
+  const expiresAt = new Date();
+  expiresAt.setMonth(expiresAt.getMonth() + config.expiryMonths);
+
+  const [updatedCustomer] = await prisma.$transaction([
+    prisma.customer.update({
+      where: { id: customerId },
+      data: {
+        totalPoints: { increment: bonusPoints },
+        availablePoints: { increment: bonusPoints },
+        lifetimePoints: { increment: bonusPoints },
+      },
+    }),
+    prisma.transaction.create({
+      data: {
+        customerId,
+        type: 'BIRTHDAY',
+        points: bonusPoints,
+        description: `🎂 ¡Feliz cumpleaños! Premio de ${bonusPoints} puntos`,
+        expiresAt,
+      },
+    }),
+  ]);
+
+  await invalidateCache(customerId);
+  logger.info(`🎂 Bono de cumpleaños (${bonusPoints} puntos) para cliente ${customerId}`);
+  return { pointsAdded: bonusPoints, newBalance: updatedCustomer.availablePoints + bonusPoints };
 }
 
 async function redeemPoints(customerId, pointsToRedeem, staffId, staffEmail, description = 'Canje de puntos') {
@@ -218,4 +268,4 @@ async function addWelcomeBonus(customerId) {
   logger.info(`Bono de bienvenida (${config.welcomeBonus} puntos) para cliente ${customerId}`);
 }
 
-module.exports = { addPoints, redeemPoints, reversePoints, addWelcomeBonus, getCustomerPoints, getConfig };
+module.exports = { addPoints, redeemPoints, reversePoints, addWelcomeBonus, addBirthdayBonus, getCustomerPoints, getConfig, isDoublePointsActive };

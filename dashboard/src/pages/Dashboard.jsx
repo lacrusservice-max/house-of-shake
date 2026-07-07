@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { statsApi, setupApi } from '../services/api';
+import { statsApi, setupApi, loyaltyApi } from '../services/api';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -53,12 +53,24 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [setupResult, setSetupResult] = useState(null);
   const [setupLoading, setSetupLoading] = useState(false);
+  const [birthdayCustomers, setBirthdayCustomers] = useState([]);
+  const [dpStatus, setDpStatus] = useState({ enabled: false, expiry: null });
+  const [dpHours, setDpHours] = useState(24);
+  const [dpLoading, setDpLoading] = useState(false);
 
   useEffect(() => {
     statsApi.getDashboard()
       .then(({ data }) => setStats(data))
       .catch(console.error)
       .finally(() => setLoading(false));
+
+    loyaltyApi.getBirthdayCustomers()
+      .then(({ data }) => setBirthdayCustomers(data.customers || []))
+      .catch(() => {});
+
+    loyaltyApi.getDoublePointsStatus()
+      .then(({ data }) => setDpStatus(data))
+      .catch(() => {});
   }, []);
 
   async function handleSetupShopify() {
@@ -71,6 +83,18 @@ export default function Dashboard() {
       alert(err.response?.data?.error || 'Error en setup');
     } finally {
       setSetupLoading(false);
+    }
+  }
+
+  async function handleToggleDoublePoints(enable) {
+    setDpLoading(true);
+    try {
+      const { data } = await loyaltyApi.toggleDoublePoints(enable, dpHours);
+      setDpStatus(data);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al cambiar puntos dobles');
+    } finally {
+      setDpLoading(false);
     }
   }
 
@@ -130,6 +154,103 @@ export default function Dashboard() {
         <StatCard icon="🆕" title="Nuevos este mes" value={stats?.newCustomersThisMonth || 0} subtitle="clientes registrados" gradient="linear-gradient(135deg,#7c3aed,#6d28d9)" />
         <StatCard icon="⚡" title="Puntos ganados (mes)" value={(stats?.pointsEarnedThisMonth || 0).toLocaleString()} subtitle="pts acumulados" gradient="linear-gradient(135deg,#0284c7,#0369a1)" />
         <StatCard icon="🔥" title="Activos 30 días" value={stats?.activeCustomers30d || 0} subtitle={`${engagementRate}% engagement`} gradient="linear-gradient(135deg,#db2777,#be185d)" />
+      </div>
+
+      {/* Birthday customers today + Double Points toggle */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, marginBottom: 20 }}>
+
+        {/* 🎂 Birthday customers */}
+        <div style={{ background: '#fff', borderRadius: 18, padding: '20px 24px', boxShadow: '0 1px 8px rgba(0,0,0,.06)' }}>
+          <h2 style={{ fontSize: 15, fontWeight: 800, color: '#111', marginBottom: 4, marginTop: 0 }}>🎂 Cumpleaños hoy</h2>
+          <p style={{ fontSize: 11, color: '#aaa', margin: '0 0 14px' }}>{birthdayCustomers.length} cliente(s) celebra(n) hoy</p>
+          {birthdayCustomers.length === 0 ? (
+            <p style={{ color: '#ccc', fontSize: 13, textAlign: 'center', padding: '12px 0' }}>Sin cumpleaños hoy</p>
+          ) : (
+            <div style={{ maxHeight: 180, overflowY: 'auto' }}>
+              {birthdayCustomers.map(c => (
+                <div key={c.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f3f4f6' }}>
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: '#111', margin: 0 }}>{c.firstName} {c.lastName}</p>
+                    <p style={{ fontSize: 11, color: '#aaa', margin: 0 }}>{c.email} · {levelLabels[c.level] || c.level}</p>
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: Number(c.birthday_reward_year) === new Date().getFullYear() ? '#16a34a' : '#f59e0b', flexShrink: 0 }}>
+                    {Number(c.birthday_reward_year) === new Date().getFullYear() ? '✓ Reclamado' : 'Pendiente'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ⚡ Double points toggle */}
+        <div style={{ background: '#fff', borderRadius: 18, padding: '20px 24px', boxShadow: '0 1px 8px rgba(0,0,0,.06)' }}>
+          <h2 style={{ fontSize: 15, fontWeight: 800, color: '#111', marginBottom: 4, marginTop: 0 }}>⚡ Puntos Dobles</h2>
+          <p style={{ fontSize: 11, color: '#aaa', margin: '0 0 16px' }}>
+            {dpStatus.enabled
+              ? dpStatus.expiry ? `Activo hasta ${new Date(dpStatus.expiry).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}` : 'Activo sin límite'
+              : 'Desactivado'}
+          </p>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+            <div style={{
+              width: 52, height: 28, borderRadius: 99, cursor: 'pointer',
+              background: dpStatus.enabled ? '#f59e0b' : '#e5e7eb',
+              position: 'relative', transition: 'background .2s', flexShrink: 0,
+            }} onClick={() => !dpLoading && handleToggleDoublePoints(!dpStatus.enabled)}>
+              <div style={{
+                width: 22, height: 22, borderRadius: 99, background: '#fff',
+                position: 'absolute', top: 3,
+                left: dpStatus.enabled ? 27 : 3,
+                transition: 'left .2s', boxShadow: '0 1px 4px rgba(0,0,0,.2)',
+              }} />
+            </div>
+            <span style={{ fontSize: 13, fontWeight: 700, color: dpStatus.enabled ? '#f59e0b' : '#6b7280' }}>
+              {dpStatus.enabled ? '🔥 ACTIVO' : 'Inactivo'}
+            </span>
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', display: 'block', marginBottom: 6, letterSpacing: .5 }}>DURACIÓN (horas)</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {[4, 8, 12, 24].map(h => (
+                <button key={h} onClick={() => setDpHours(h)} style={{
+                  flex: 1, padding: '8px 4px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                  background: dpHours === h ? '#fef3c7' : '#f9fafb',
+                  border: `1px solid ${dpHours === h ? '#f59e0b' : '#e5e7eb'}`,
+                  color: dpHours === h ? '#92400e' : '#6b7280',
+                }}>
+                  {h}h
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <button
+              onClick={() => handleToggleDoublePoints(true)}
+              disabled={dpLoading || dpStatus.enabled}
+              style={{
+                padding: '10px', background: '#fef3c7', border: '1px solid #fbbf24',
+                borderRadius: 10, fontSize: 12, fontWeight: 800, cursor: 'pointer',
+                color: '#92400e', opacity: (dpLoading || dpStatus.enabled) ? .5 : 1,
+              }}
+            >
+              ⚡ Activar {dpHours}h
+            </button>
+            <button
+              onClick={() => handleToggleDoublePoints(false)}
+              disabled={dpLoading || !dpStatus.enabled}
+              style={{
+                padding: '10px', background: '#f3f4f6', border: '1px solid #e5e7eb',
+                borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                color: '#6b7280', opacity: (dpLoading || !dpStatus.enabled) ? .5 : 1,
+              }}
+            >
+              ✕ Desactivar
+            </button>
+          </div>
+        </div>
+
       </div>
 
       {/* Charts grid */}

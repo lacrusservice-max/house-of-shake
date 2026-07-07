@@ -5,7 +5,7 @@ import '../styles/mi-cuenta.css';
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 export default function Register() {
-  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', password: '', confirm: '' });
+  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', birthday: '', password: '', confirm: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -19,7 +19,7 @@ export default function Register() {
       const res = await fetch(`${API}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ firstName: form.firstName, lastName: form.lastName, email: form.email, phone: form.phone, password: form.password }),
+        body: JSON.stringify({ firstName: form.firstName, lastName: form.lastName, email: form.email, phone: form.phone, password: form.password, birthday: form.birthday || undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al registrar');
@@ -95,6 +95,19 @@ export default function Register() {
             </div>
             <div style={{ marginBottom: 12 }}>
               <Field name="phone" label="Teléfono (opcional)" type="tel" placeholder="+52 55 0000 0000" required={false} />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={labelStyle}>🎂 Fecha de cumpleaños (opcional)</label>
+              <input type="date"
+                value={form.birthday}
+                onChange={e => setForm(p => ({ ...p, birthday: e.target.value }))}
+                style={inputStyle}
+                onFocus={e => e.target.style.borderColor = 'var(--gold)'}
+                onBlur={e => e.target.style.borderColor = 'rgba(251,247,240,.12)'}
+              />
+              <p style={{ fontSize: 10, color: 'rgba(251,247,240,.3)', marginTop: 4, fontFamily: "'Montserrat', sans-serif", letterSpacing: .5 }}>
+                Recibirás +200 puntos de regalo el día de tu cumpleaños
+              </p>
             </div>
             <div style={{ marginBottom: 12 }}>
               <Field name="password" label="Contraseña" type="password" placeholder="Mínimo 6 caracteres" />

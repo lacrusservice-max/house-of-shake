@@ -402,6 +402,34 @@ function POSView({ token, onLogout }) {
           <div>
             <button onClick={reset} style={S.back}>← Nueva búsqueda</button>
 
+            {/* Birthday banner */}
+            {customer.isBirthday && (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(255,128,176,.15), rgba(245,200,66,.08))',
+                border: '1px solid rgba(255,128,176,.4)',
+                borderRadius: 14, padding: '14px 18px', marginBottom: 14,
+                display: 'flex', alignItems: 'center', gap: 12,
+              }}>
+                <span style={{ fontSize: 26 }}>🎂</span>
+                <div>
+                  <p style={{ fontWeight: 800, fontSize: 14, color: '#FF80B0', margin: 0 }}>¡Hoy es el cumpleaños de {customer.firstName}!</p>
+                  <p style={{ fontSize: 12, color: 'rgba(251,247,240,.55)', margin: '2px 0 0' }}>Pídele que reclame su regalo de +200 puntos en su app</p>
+                </div>
+              </div>
+            )}
+
+            {/* Double points banner */}
+            {customer.doublePointsActive && (
+              <div style={{
+                background: 'rgba(245,200,66,.1)', border: '1px solid rgba(245,200,66,.3)',
+                borderRadius: 12, padding: '10px 16px', marginBottom: 14,
+                display: 'flex', alignItems: 'center', gap: 10,
+              }}>
+                <span style={{ fontSize: 20 }}>⚡</span>
+                <p style={{ fontWeight: 800, fontSize: 13, color: 'var(--gold)', margin: 0 }}>¡Puntos dobles activos! Los puntos de esta compra se duplican automáticamente</p>
+              </div>
+            )}
+
             {/* Customer card */}
             <div style={{
               background: `linear-gradient(135deg, #2C1A0E 0%, #1a0e06 100%)`,
@@ -426,7 +454,7 @@ function POSView({ token, onLogout }) {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                 <div style={{ background: 'rgba(251,247,240,.06)', borderRadius: 12, padding: '12px', textAlign: 'center' }}>
                   <div style={{ fontSize: 9, letterSpacing: 2, color: 'rgba(251,247,240,.35)', textTransform: 'uppercase', marginBottom: 4 }}>Disponibles</div>
                   <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 36, color: 'var(--gold)', lineHeight: 1 }}>{customer.availablePoints}</div>
@@ -436,6 +464,11 @@ function POSView({ token, onLogout }) {
                   <div style={{ fontSize: 9, letterSpacing: 2, color: 'rgba(251,247,240,.35)', textTransform: 'uppercase', marginBottom: 4 }}>Canjeable</div>
                   <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 36, color: '#5EC97A', lineHeight: 1 }}>${redeemable}</div>
                   <div style={{ fontSize: 9, color: 'rgba(251,247,240,.25)', marginTop: 2 }}>MXN desc.</div>
+                </div>
+                <div style={{ background: 'rgba(251,247,240,.06)', borderRadius: 12, padding: '12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 9, letterSpacing: 2, color: 'rgba(251,247,240,.35)', textTransform: 'uppercase', marginBottom: 4 }}>Visita</div>
+                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: 'rgba(251,247,240,.7)', lineHeight: 1 }}>#{(customer.visitCount || 0) + 1}</div>
+                  <div style={{ fontSize: 9, color: 'rgba(251,247,240,.25)', marginTop: 2 }}>hoy</div>
                 </div>
               </div>
             </div>
@@ -502,7 +535,7 @@ function POSView({ token, onLogout }) {
             </p>
 
             <div style={{ background: 'rgba(245,200,66,.06)', border: '1px solid rgba(245,200,66,.2)', borderRadius: 12, padding: '10px 16px', textAlign: 'center', color: 'var(--gold)', fontSize: 12, fontWeight: 700, letterSpacing: 1, marginBottom: 20 }}>
-              1 punto por cada $1 MXN · {lvl.label} tiene bonus extra
+              {customer.doublePointsActive ? '⚡ PUNTOS DOBLES ACTIVOS — gana el doble hoy' : `1 punto por cada $1 MXN · ${lvl.label} tiene bonus extra`}
             </div>
 
             <form onSubmit={handleAddPoints}>

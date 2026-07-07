@@ -38,6 +38,8 @@ router.post('/auth/register', customerAuthController.register);
 router.post('/auth/login', customerAuthController.login);
 router.get('/me', authenticateCustomer, customerAuthController.getMe);
 router.get('/me/transactions', authenticateCustomer, customerAuthController.getMyTransactions);
+router.put('/me/profile', authenticateCustomer, customerAuthController.updateProfile);
+router.post('/me/birthday-reward', authenticateCustomer, customerAuthController.claimBirthdayReward);
 
 // === CUSTOMERS ===
 router.post('/customers', customerController.getOrCreateCustomer);
@@ -89,6 +91,11 @@ router.get('/admin/financials', authenticateAdmin, adminController.getFinancialS
 router.post('/admin/products', authenticateAdmin, productsController.createProduct);
 router.put('/admin/products/:id', authenticateAdmin, productsController.updateProduct);
 router.delete('/admin/products/:id', authenticateAdmin, productsController.deleteProduct);
+
+// Admin: cumpleaños y puntos dobles
+router.get('/admin/birthday-customers', authenticateAdmin, adminController.getBirthdayCustomers);
+router.post('/admin/double-points', authenticateAdmin, adminController.toggleDoublePoints);
+router.get('/admin/double-points/status', authenticateAdmin, adminController.getDoublePointsStatus);
 
 // Admin: Apple Wallet
 router.get('/admin/wallet/status',        authenticateAdmin, adminController.getWalletStatus);

@@ -15,9 +15,36 @@ const TX_TYPE = {
   EARN:          { label: 'Puntos ganados',    color: '#5EC97A' },
   REDEEM:        { label: 'Canje',             color: '#4a9fd4' },
   WELCOME_BONUS: { label: 'Bono bienvenida',   color: '#F5C842' },
+  BIRTHDAY:      { label: 'Regalo cumpleaños', color: '#FF80B0' },
   REVERSAL:      { label: 'Reversión',         color: '#E05C5C' },
   ADJUSTMENT:    { label: 'Ajuste',            color: '#b07bff' },
 };
+
+const REWARDS = [
+  { pts: 50,  icon: '⬆️', title: 'Upgrade gratis',       desc: 'Sube tu bebida al siguiente tamaño' },
+  { pts: 100, icon: '💵', title: '$5 MXN de descuento',   desc: 'Descuento directo en tu próxima compra' },
+  { pts: 150, icon: '🥤', title: 'Bebida fría mediana',   desc: 'Cualquier bebida fría tamaño mediano' },
+  { pts: 200, icon: '☕', title: 'Bebida especialidad',    desc: 'Bebida de especialidad a tu elección' },
+  { pts: 300, icon: '🎁', title: 'Pack Combo',            desc: 'Bebida + snack de la casa' },
+];
+
+const LEVELS_INFO = [
+  {
+    key: 'BRONZE', emoji: '🥉', label: 'Bronze', color: '#cd7f32',
+    range: '0 – 100 pts', pts: 0,
+    perks: ['1 pto por cada $1 MXN', 'Bono de bienvenida', 'Acceso al programa de lealtad'],
+  },
+  {
+    key: 'SILVER', emoji: '🥈', label: 'Silver', color: '#c0c0c0',
+    range: '101 – 300 pts', pts: 101,
+    perks: ['1 pto por cada $1 MXN', '+10% bonus de puntos', 'Acceso prioritario', 'Canjes exclusivos'],
+  },
+  {
+    key: 'GOLD', emoji: '🥇', label: 'Gold', color: '#ffd700',
+    range: '301+ pts', pts: 301,
+    perks: ['1 pto por cada $1 MXN', '+20% bonus de puntos', 'Beneficios exclusivos', 'Sorpresas especiales', 'Atención VIP'],
+  },
+];
 
 export default function MiCuenta() {
   const [customer, setCustomer] = useState(() => JSON.parse(localStorage.getItem('hos_customer') || 'null'));
@@ -29,26 +56,18 @@ export default function MiCuenta() {
   const [activeTab, setActiveTab] = useState('tarjeta');
   const [qrFullscreen, setQrFullscreen] = useState(false);
   const [walletLoading, setWalletLoading] = useState(false);
-  const [walletError, setWalletError]   = useState('');
-  const TX_PAGE_SIZE = 10;
+  const [walletError, setWalletError] = useState('');
 
-  const LEVELS_INFO = [
-    {
-      key: 'BRONZE', emoji: '🥉', label: 'Bronze', color: '#cd7f32',
-      range: '0 – 100 pts', pts: 0,
-      perks: ['1 pto por cada $1 MXN', 'Bono de bienvenida', 'Acceso al programa de lealtad'],
-    },
-    {
-      key: 'SILVER', emoji: '🥈', label: 'Silver', color: '#c0c0c0',
-      range: '101 – 300 pts', pts: 101,
-      perks: ['1 pto por cada $1 MXN', '+10% bonus de puntos', 'Acceso prioritario', 'Canjes exclusivos'],
-    },
-    {
-      key: 'GOLD', emoji: '🥇', label: 'Gold', color: '#ffd700',
-      range: '301+ pts', pts: 301,
-      perks: ['1 pto por cada $1 MXN', '+20% bonus de puntos', 'Beneficios exclusivos', 'Sorpresas especiales', 'Atención VIP'],
-    },
-  ];
+  // Profile editing
+  const [profile, setProfile] = useState({ firstName: '', lastName: '', phone: '', birthday: '' });
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileMsg, setProfileMsg] = useState('');
+
+  // Birthday reward
+  const [claimingBd, setClaimingBd] = useState(false);
+  const [bdMsg, setBdMsg] = useState('');
+
+  const TX_PAGE_SIZE = 10;
   const navigate = useNavigate();
 
   const token = localStorage.getItem('hos_customer_token');
@@ -61,6 +80,12 @@ export default function MiCuenta() {
         if (!data) return;
         setCustomer(data.customer);
         localStorage.setItem('hos_customer', JSON.stringify(data.customer));
+        setProfile({
+          firstName: data.customer.firstName || '',
+          lastName: data.customer.lastName || '',
+          phone: data.customer.phone || '',
+          birthday: data.customer.birthday ? data.customer.birthday.split('T')[0] : '',
+        });
       })
       .catch(() => {});
 
@@ -88,6 +113,43 @@ export default function MiCuenta() {
       setTxPage(nextPage);
     } catch {}
     setTxLoadingMore(false);
+  }
+
+  async function handleSaveProfile(e) {
+    e.preventDefault();
+    setProfileSaving(true);
+    setProfileMsg('');
+    try {
+      const res = await fetch(`${API}/me/profile`, {
+        method: 'PUT',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify(profile),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al guardar');
+      const updated = { ...customer, ...data.customer };
+      setCustomer(updated);
+      localStorage.setItem('hos_customer', JSON.stringify(updated));
+      setProfileMsg('¡Perfil actualizado! ✓');
+    } catch (err) {
+      setProfileMsg(err.message);
+    }
+    setProfileSaving(false);
+  }
+
+  async function handleClaimBirthday() {
+    setClaimingBd(true);
+    setBdMsg('');
+    try {
+      const res = await fetch(`${API}/me/birthday-reward`, { method: 'POST', headers });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al reclamar');
+      setCustomer(prev => ({ ...prev, availablePoints: data.newBalance, birthdayRewardAvailable: false }));
+      setBdMsg(data.message || '¡+200 puntos de cumpleaños! 🎂');
+    } catch (err) {
+      setBdMsg(err.message);
+    }
+    setClaimingBd(false);
   }
 
   async function handleAddToWallet() {
@@ -132,6 +194,8 @@ export default function MiCuenta() {
     : 100;
   const ptsToNext = level.nextAt ? Math.max(0, level.nextAt - customer.lifetimePoints) : 0;
   const redeemable = Math.floor(customer.availablePoints / 100) * 5;
+  const nextReward = REWARDS.find(r => r.pts > customer.availablePoints);
+  const ptsToNextReward = nextReward ? nextReward.pts - customer.availablePoints : 0;
 
   return (
     <div className="mc-root">
@@ -150,12 +214,50 @@ export default function MiCuenta() {
 
       <div className="mc-wrap">
 
+        {/* BIRTHDAY BANNER */}
+        {customer.isBirthday && (
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(255,128,176,.15), rgba(245,200,66,.08))',
+            border: '1px solid rgba(255,128,176,.35)',
+            borderRadius: 14, padding: '14px 18px', marginBottom: 14,
+            display: 'flex', alignItems: 'center', gap: 12,
+          }}>
+            <span style={{ fontSize: 28 }}>🎂</span>
+            <div>
+              <p style={{ fontWeight: 800, fontSize: 14, color: '#FF80B0', margin: 0 }}>¡Feliz cumpleaños, {customer.firstName}!</p>
+              <p style={{ fontSize: 12, color: 'rgba(251,247,240,.55)', margin: '2px 0 0' }}>
+                {customer.birthdayRewardAvailable
+                  ? 'Ve a tu Perfil para reclamar tu regalo de +200 puntos 🎁'
+                  : '¡Que lo disfrutes mucho! 🎉'}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* DOUBLE POINTS BANNER */}
+        {customer.doublePointsActive && (
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(245,200,66,.12), rgba(245,200,66,.04))',
+            border: '1px solid rgba(245,200,66,.3)',
+            borderRadius: 14, padding: '14px 18px', marginBottom: 14,
+            display: 'flex', alignItems: 'center', gap: 12,
+          }}>
+            <span style={{ fontSize: 28 }}>⚡</span>
+            <div>
+              <p style={{ fontWeight: 800, fontSize: 14, color: 'var(--gold)', margin: 0 }}>¡Puntos dobles activos hoy!</p>
+              <p style={{ fontSize: 12, color: 'rgba(251,247,240,.55)', margin: '2px 0 0' }}>
+                Ganas el doble de puntos en cada compra ahora mismo
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* WELCOME */}
         <div className="mc-eyebrow">Mi cuenta</div>
         <h1 className="mc-heading">
           Hola, <span>{customer.firstName}</span> {level.emoji}
         </h1>
-        <p className="mc-sub">Miembro {level.label}</p>
+        <p className="mc-sub">Miembro {level.label}{customer.visitCount > 0 ? ` · ${customer.visitCount} visitas` : ''}</p>
 
         {/* STATS */}
         <div className="mc-stats">
@@ -175,6 +277,27 @@ export default function MiCuenta() {
             <p className="mc-stat-unit">MXN</p>
           </div>
         </div>
+
+        {/* NEXT REWARD HINT */}
+        {nextReward && (
+          <div style={{
+            background: 'rgba(245,200,66,.05)', border: '1px solid rgba(245,200,66,.14)',
+            borderRadius: 12, padding: '10px 16px', marginBottom: 14,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 20 }}>{nextReward.icon}</span>
+              <div>
+                <p style={{ fontSize: 10, color: 'rgba(251,247,240,.4)', margin: 0, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 700 }}>Próximo canje</p>
+                <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--cream)', margin: 0 }}>{nextReward.title}</p>
+              </div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <p style={{ fontSize: 20, fontFamily: "'Bebas Neue', sans-serif", color: 'var(--gold)', margin: 0, lineHeight: 1 }}>+{ptsToNextReward}</p>
+              <p style={{ fontSize: 9, color: 'rgba(251,247,240,.3)', margin: 0 }}>pts necesarios</p>
+            </div>
+          </div>
+        )}
 
         {/* LEVEL PROGRESS */}
         {level.nextAt ? (
@@ -203,6 +326,7 @@ export default function MiCuenta() {
             { key: 'tarjeta',  label: '📱 Tarjeta' },
             { key: 'historial', label: '📋 Historial' },
             { key: 'lealtad', label: '🏆 Lealtad' },
+            { key: 'perfil', label: '👤 Perfil' },
           ].map(t => (
             <button
               key={t.key}
@@ -217,11 +341,8 @@ export default function MiCuenta() {
         {/* TAB — TARJETA */}
         {activeTab === 'tarjeta' && (
           <div className="mc-card-wrap">
-
-            {/* ── QR HERO ── tappable, opens fullscreen */}
             <div className="mc-qr-hero" onClick={() => setQrFullscreen(true)}>
               <div className="mc-qr-hero-inner" style={{ borderColor: `${level.color}55` }}>
-                {/* Header */}
                 <div className="mc-qr-hero-header">
                   <div>
                     <p className="mc-qr-hero-brand">House of Shake</p>
@@ -232,23 +353,12 @@ export default function MiCuenta() {
                     <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 15, letterSpacing: 2, color: level.color, lineHeight: 1 }}>{level.label}</p>
                   </div>
                 </div>
-
-                {/* QR Code — center stage */}
                 <div className="mc-qr-center">
                   <div className="mc-qr-box">
-                    <QRCodeSVG
-                      value={customer.id}
-                      size={180}
-                      bgColor="#ffffff"
-                      fgColor="#0B1509"
-                      level="H"
-                      includeMargin={true}
-                    />
+                    <QRCodeSVG value={customer.id} size={180} bgColor="#ffffff" fgColor="#0B1509" level="H" includeMargin={true} />
                   </div>
                   <p className="mc-qr-tap-hint">Toca para ampliar</p>
                 </div>
-
-                {/* Points footer */}
                 <div className="mc-qr-hero-footer" style={{ borderTopColor: `${level.color}20` }}>
                   <div>
                     <p className="mc-qr-pts-label">Puntos disponibles</p>
@@ -262,13 +372,9 @@ export default function MiCuenta() {
                   )}
                 </div>
               </div>
-
-              <p className="mc-qr-instruction">
-                📷 Muestra este QR al staff al momento de pagar
-              </p>
+              <p className="mc-qr-instruction">📷 Muestra este QR al staff al momento de pagar</p>
             </div>
 
-            {/* Info tiles */}
             <div className="mc-info-grid">
               <div className="mc-info-card">
                 <div className="mc-info-icon">⚡</div>
@@ -282,7 +388,6 @@ export default function MiCuenta() {
               </div>
             </div>
 
-            {/* Apple Wallet button — always visible, downloads .pkpass */}
             <button
               onClick={handleAddToWallet}
               disabled={walletLoading}
@@ -299,7 +404,7 @@ export default function MiCuenta() {
           </div>
         )}
 
-        {/* ── QR FULLSCREEN OVERLAY ── */}
+        {/* QR FULLSCREEN */}
         {qrFullscreen && (
           <div
             onClick={() => setQrFullscreen(false)}
@@ -315,14 +420,7 @@ export default function MiCuenta() {
               House of Shake
             </p>
             <div style={{ background: '#fff', padding: 20, borderRadius: 20, boxShadow: '0 0 80px rgba(245,200,66,.3)' }}>
-              <QRCodeSVG
-                value={customer.id}
-                size={Math.min(280, window.innerWidth - 100)}
-                bgColor="#ffffff"
-                fgColor="#0B1509"
-                level="H"
-                includeMargin={false}
-              />
+              <QRCodeSVG value={customer.id} size={Math.min(280, window.innerWidth - 100)} bgColor="#ffffff" fgColor="#0B1509" level="H" includeMargin={false} />
             </div>
             <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 36, letterSpacing: 2, color: '#F5C842' }}>
               {customer.availablePoints.toLocaleString()} pts
@@ -417,16 +515,41 @@ export default function MiCuenta() {
         {activeTab === 'lealtad' && (
           <div className="mc-loyalty">
 
+            {/* Rewards catalog */}
+            <p className="mc-loyalty-section-title">Catálogo de recompensas</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
+              {REWARDS.map(r => {
+                const unlocked = customer.availablePoints >= r.pts;
+                return (
+                  <div key={r.pts} style={{
+                    display: 'flex', alignItems: 'center', gap: 14,
+                    background: unlocked ? 'rgba(94,201,122,.07)' : 'rgba(251,247,240,.03)',
+                    border: `1px solid ${unlocked ? 'rgba(94,201,122,.25)' : 'rgba(251,247,240,.07)'}`,
+                    borderRadius: 14, padding: '14px 16px',
+                  }}>
+                    <span style={{ fontSize: 26, flexShrink: 0 }}>{r.icon}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontWeight: 800, fontSize: 14, color: unlocked ? '#5EC97A' : 'var(--cream)', margin: 0 }}>{r.title}</p>
+                      <p style={{ fontSize: 11, color: 'rgba(251,247,240,.4)', margin: '2px 0 0' }}>{r.desc}</p>
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: unlocked ? '#5EC97A' : 'var(--gold)', margin: 0, lineHeight: 1 }}>{r.pts}</p>
+                      <p style={{ fontSize: 9, color: 'rgba(251,247,240,.3)', margin: 0 }}>pts</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
             {/* Current level highlight */}
             <div className="mc-loyalty-hero" style={{ borderColor: `${level.color}40`, background: `${level.color}0d` }}>
               <div className="mc-loyalty-hero-emoji">{level.emoji}</div>
               <div>
                 <p className="mc-loyalty-hero-label">Tu nivel actual</p>
                 <p className="mc-loyalty-hero-name" style={{ color: level.color }}>{level.label}</p>
-                {level.nextAt && (
+                {level.nextAt ? (
                   <p className="mc-loyalty-hero-hint">{ptsToNext} pts para alcanzar {level.next}</p>
-                )}
-                {!level.nextAt && (
+                ) : (
                   <p className="mc-loyalty-hero-hint" style={{ color: '#ffd700' }}>¡Nivel máximo! 🎉</p>
                 )}
               </div>
@@ -462,35 +585,179 @@ export default function MiCuenta() {
             {/* How it works */}
             <p className="mc-loyalty-section-title" style={{ marginTop: 28 }}>¿Cómo funciona?</p>
             <div className="mc-loyalty-how">
-              <div className="mc-loyalty-step">
-                <div className="mc-loyalty-step-icon">☕</div>
-                <div>
-                  <p className="mc-loyalty-step-title">Compra en sucursal</p>
-                  <p className="mc-loyalty-step-desc">Muestra tu tarjeta QR al pagar en el mostrador</p>
+              {[
+                { icon: '☕', title: 'Compra en sucursal', desc: 'Muestra tu tarjeta QR al pagar en el mostrador' },
+                { icon: '⚡', title: 'Gana puntos al instante', desc: '1 punto por cada $1 MXN (más bonus por nivel)' },
+                { icon: '🎁', title: 'Canjea recompensas', desc: 'Desde 50 puntos — upgrades, descuentos y bebidas gratis' },
+                { icon: '🏆', title: 'Sube de nivel', desc: 'Acumula puntos de por vida para desbloquear beneficios exclusivos' },
+              ].map(s => (
+                <div key={s.icon} className="mc-loyalty-step">
+                  <div className="mc-loyalty-step-icon">{s.icon}</div>
+                  <div>
+                    <p className="mc-loyalty-step-title">{s.title}</p>
+                    <p className="mc-loyalty-step-desc">{s.desc}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="mc-loyalty-step">
-                <div className="mc-loyalty-step-icon">⚡</div>
-                <div>
-                  <p className="mc-loyalty-step-title">Gana puntos al instante</p>
-                  <p className="mc-loyalty-step-desc">1 punto por cada $1 MXN gastado (más bonus por nivel)</p>
-                </div>
-              </div>
-              <div className="mc-loyalty-step">
-                <div className="mc-loyalty-step-icon">🎁</div>
-                <div>
-                  <p className="mc-loyalty-step-title">Canjea tu saldo</p>
-                  <p className="mc-loyalty-step-desc">100 puntos = $5 MXN de descuento en tu próxima compra</p>
-                </div>
-              </div>
-              <div className="mc-loyalty-step">
-                <div className="mc-loyalty-step-icon">🏆</div>
-                <div>
-                  <p className="mc-loyalty-step-title">Sube de nivel</p>
-                  <p className="mc-loyalty-step-desc">Acumula puntos de por vida para desbloquear beneficios exclusivos</p>
-                </div>
-              </div>
+              ))}
             </div>
+
+          </div>
+        )}
+
+        {/* TAB — PERFIL */}
+        {activeTab === 'perfil' && (
+          <div>
+
+            {/* Birthday reward card */}
+            {customer.birthdayRewardAvailable && (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(255,128,176,.12), rgba(245,200,66,.08))',
+                border: '1px solid rgba(255,128,176,.4)',
+                borderRadius: 18, padding: '22px', marginBottom: 20,
+                textAlign: 'center',
+              }}>
+                <div style={{ fontSize: 48, marginBottom: 8 }}>🎂</div>
+                <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, letterSpacing: 2, color: '#FF80B0', margin: '0 0 4px' }}>
+                  ¡Feliz cumpleaños!
+                </p>
+                <p style={{ fontSize: 12, color: 'rgba(251,247,240,.5)', margin: '0 0 14px' }}>
+                  Tienes un regalo especial esperándote
+                </p>
+                <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 42, color: 'var(--gold)', margin: '0 0 16px', letterSpacing: 2 }}>
+                  +200 puntos
+                </p>
+                <button
+                  onClick={handleClaimBirthday}
+                  disabled={claimingBd}
+                  style={{
+                    padding: '14px 32px', background: '#FF80B0', border: 'none',
+                    borderRadius: 12, color: '#2C1A0E', fontWeight: 900, fontSize: 14,
+                    cursor: 'pointer', fontFamily: "'Montserrat', sans-serif",
+                    letterSpacing: 1, opacity: claimingBd ? .7 : 1,
+                  }}
+                >
+                  {claimingBd ? '⏳ Reclamando...' : '🎁 ¡Reclamar mi regalo!'}
+                </button>
+                {bdMsg && (
+                  <p style={{ marginTop: 12, fontSize: 13, fontWeight: 700, color: bdMsg.includes('ya') || bdMsg.includes('no') ? '#E05C5C' : '#5EC97A' }}>
+                    {bdMsg}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Birthday claim result (if not available but has a msg) */}
+            {!customer.birthdayRewardAvailable && bdMsg && (
+              <div style={{
+                background: 'rgba(94,201,122,.08)', border: '1px solid rgba(94,201,122,.25)',
+                borderRadius: 12, padding: '12px 16px', marginBottom: 16,
+              }}>
+                <p style={{ fontSize: 14, fontWeight: 800, color: '#5EC97A', margin: 0 }}>{bdMsg}</p>
+              </div>
+            )}
+
+            {/* Profile form */}
+            <div style={{ background: 'rgba(251,247,240,.03)', border: '1px solid rgba(251,247,240,.08)', borderRadius: 18, padding: '20px' }}>
+              <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, letterSpacing: 2, margin: '0 0 18px', color: 'var(--cream)' }}>
+                Mis datos
+              </p>
+              <form onSubmit={handleSaveProfile}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                  <div>
+                    <label style={pLbl}>Nombre</label>
+                    <input
+                      value={profile.firstName}
+                      onChange={e => setProfile(p => ({ ...p, firstName: e.target.value }))}
+                      style={pInp}
+                      onFocus={e => e.target.style.borderColor = 'var(--gold)'}
+                      onBlur={e => e.target.style.borderColor = 'rgba(251,247,240,.12)'}
+                    />
+                  </div>
+                  <div>
+                    <label style={pLbl}>Apellido</label>
+                    <input
+                      value={profile.lastName}
+                      onChange={e => setProfile(p => ({ ...p, lastName: e.target.value }))}
+                      style={pInp}
+                      onFocus={e => e.target.style.borderColor = 'var(--gold)'}
+                      onBlur={e => e.target.style.borderColor = 'rgba(251,247,240,.12)'}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: 12 }}>
+                  <label style={pLbl}>Email (no editable)</label>
+                  <input value={customer.email} disabled style={{ ...pInp, opacity: .35, cursor: 'not-allowed' }} />
+                </div>
+
+                <div style={{ marginBottom: 12 }}>
+                  <label style={pLbl}>Teléfono (opcional)</label>
+                  <input
+                    type="tel"
+                    value={profile.phone}
+                    onChange={e => setProfile(p => ({ ...p, phone: e.target.value }))}
+                    placeholder="+52 55 0000 0000"
+                    style={pInp}
+                    onFocus={e => e.target.style.borderColor = 'var(--gold)'}
+                    onBlur={e => e.target.style.borderColor = 'rgba(251,247,240,.12)'}
+                  />
+                </div>
+
+                <div style={{ marginBottom: 18 }}>
+                  <label style={pLbl}>🎂 Fecha de cumpleaños</label>
+                  <input
+                    type="date"
+                    value={profile.birthday}
+                    onChange={e => setProfile(p => ({ ...p, birthday: e.target.value }))}
+                    style={pInp}
+                    onFocus={e => e.target.style.borderColor = 'var(--gold)'}
+                    onBlur={e => e.target.style.borderColor = 'rgba(251,247,240,.12)'}
+                  />
+                  <p style={{ fontSize: 10, color: 'rgba(251,247,240,.3)', marginTop: 4, letterSpacing: .5, fontFamily: "'Montserrat', sans-serif" }}>
+                    Recibirás +200 puntos de regalo el día de tu cumpleaños
+                  </p>
+                </div>
+
+                {profileMsg && (
+                  <p style={{
+                    fontSize: 13, fontWeight: 700, textAlign: 'center', marginBottom: 12,
+                    color: profileMsg.includes('✓') ? '#5EC97A' : '#E05C5C',
+                  }}>
+                    {profileMsg}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={profileSaving}
+                  style={{
+                    width: '100%', padding: '14px', background: 'var(--gold)',
+                    color: '#2C1A0E', border: 'none', borderRadius: 12,
+                    fontWeight: 900, fontSize: 14, cursor: 'pointer',
+                    fontFamily: "'Montserrat', sans-serif", letterSpacing: 1,
+                    opacity: profileSaving ? .7 : 1,
+                  }}
+                >
+                  {profileSaving ? '⏳ Guardando...' : 'Guardar cambios'}
+                </button>
+              </form>
+            </div>
+
+            {/* Visit stats */}
+            {(customer.visitCount > 0 || customer.lastVisitAt) && (
+              <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div style={{ background: 'rgba(251,247,240,.03)', border: '1px solid rgba(251,247,240,.07)', borderRadius: 14, padding: '16px', textAlign: 'center' }}>
+                  <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 40, color: 'var(--gold)', margin: 0, lineHeight: 1 }}>{customer.visitCount || 0}</p>
+                  <p style={{ fontSize: 10, color: 'rgba(251,247,240,.35)', margin: '4px 0 0', letterSpacing: 1, textTransform: 'uppercase', fontWeight: 700 }}>Visitas totales</p>
+                </div>
+                <div style={{ background: 'rgba(251,247,240,.03)', border: '1px solid rgba(251,247,240,.07)', borderRadius: 14, padding: '16px', textAlign: 'center' }}>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--cream)', margin: 0, paddingTop: 8 }}>
+                    {customer.lastVisitAt ? new Date(customer.lastVisitAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : '—'}
+                  </p>
+                  <p style={{ fontSize: 10, color: 'rgba(251,247,240,.35)', margin: '4px 0 0', letterSpacing: 1, textTransform: 'uppercase', fontWeight: 700 }}>Última visita</p>
+                </div>
+              </div>
+            )}
 
           </div>
         )}
@@ -499,3 +766,18 @@ export default function MiCuenta() {
     </div>
   );
 }
+
+const pLbl = {
+  display: 'block', fontSize: 10, fontWeight: 700, letterSpacing: 2,
+  textTransform: 'uppercase', color: 'rgba(251,247,240,.4)', marginBottom: 6,
+  fontFamily: "'Montserrat', sans-serif",
+};
+
+const pInp = {
+  width: '100%', background: 'rgba(251,247,240,.05)', color: 'var(--cream)',
+  border: '1px solid rgba(251,247,240,.12)', borderRadius: 12,
+  padding: '12px 14px', outline: 'none',
+  fontFamily: "'Montserrat', sans-serif", fontSize: 14,
+  transition: 'border-color .2s', boxSizing: 'border-box',
+  WebkitAppearance: 'none',
+};

@@ -27,6 +27,24 @@ async function lookupCustomer(req, res) {
 
     if (!customer) return res.status(404).json({ error: 'Cliente no encontrado' });
 
+    // Extended fields (added via raw SQL)
+    const extras = await prisma.$queryRawUnsafe(
+      `SELECT birthday, visit_count, last_visit_at FROM customers WHERE id = $1`,
+      customer.id
+    ).catch(() => [{}]);
+    const ext = extras[0] || {};
+
+    const today = new Date();
+    const bd = ext.birthday ? new Date(ext.birthday) : null;
+    const isBirthday = bd && bd.getMonth() === today.getMonth() && bd.getDate() === today.getDate();
+
+    // Check double points
+    const dpRows = await prisma.$queryRawUnsafe(
+      `SELECT double_points_enabled, double_points_expiry FROM config LIMIT 1`
+    ).catch(() => [{}]);
+    const dp = dpRows[0] || {};
+    const doublePointsActive = dp.double_points_enabled && (!dp.double_points_expiry || new Date(dp.double_points_expiry) > new Date());
+
     const data = {
       id: customer.id,
       firstName: customer.firstName,
@@ -36,6 +54,10 @@ async function lookupCustomer(req, res) {
       lifetimePoints: customer.lifetimePoints,
       level: customer.level,
       recentTransactions: customer.transactions,
+      isBirthday: !!isBirthday,
+      visitCount: Number(ext.visit_count) || 0,
+      lastVisitAt: ext.last_visit_at || null,
+      doublePointsActive: !!doublePointsActive,
     };
 
     if (isAdmin) {

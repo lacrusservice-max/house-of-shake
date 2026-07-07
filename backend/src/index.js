@@ -111,6 +111,13 @@ async function setupDatabase() {
     await prisma.$executeRawUnsafe(`
       ALTER TABLE transactions ADD COLUMN IF NOT EXISTS "staffEmail" TEXT;
     `);
+    // Loyalty extended columns
+    await prisma.$executeRawUnsafe(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS birthday DATE;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS visit_count INTEGER NOT NULL DEFAULT 0;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS last_visit_at TIMESTAMPTZ;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS birthday_reward_year INTEGER;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE config ADD COLUMN IF NOT EXISTS double_points_enabled BOOLEAN NOT NULL DEFAULT false;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE config ADD COLUMN IF NOT EXISTS double_points_expiry TIMESTAMPTZ;`);
     logger.info('✅ Schema actualizado');
   } catch (e) {
     logger.warn('Schema (puede que ya estén las columnas):', e.message);

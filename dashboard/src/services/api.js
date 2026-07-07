@@ -56,4 +56,11 @@ export const posApi = {
   redeem:    (id, points)      => api.post(`/pos/customer/${id}/redeem`, { points }),
 };
 
+
+export const loyaltyApi = {
+  getBirthdayCustomers: () => api.get('/admin/birthday-customers'),
+  toggleDoublePoints: (enabled, hours = 24) => api.post('/admin/double-points', { enabled, hours }),
+  getDoublePointsStatus: () => api.get('/admin/double-points/status'),
+};
+
 export default api;
