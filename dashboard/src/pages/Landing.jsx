@@ -4,17 +4,7 @@ import '../styles/landing.css';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-const LOGO_SVG = (
-  <svg width="42" height="42" viewBox="0 0 44 44" fill="none">
-    <circle cx="22" cy="22" r="22" fill="#1A4DB3"/>
-    <path d="M16.5 13a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" fill="white"/>
-    <path d="M27.5 13a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" fill="white"/>
-    <path d="M22 11c-6.075 0-11 4.925-11 11v3c0 2.2 1.8 4 4 4h2v4c0 1.1.9 2 2 2h6c1.1 0 2-.9 2-2v-4h2c2.2 0 4-1.8 4-4v-3c0-6.075-4.925-11-11-11z" fill="white"/>
-    <circle cx="19" cy="22" r="1.5" fill="#1A4DB3"/>
-    <circle cx="25" cy="22" r="1.5" fill="#1A4DB3"/>
-    <path d="M20 26q2 2 4 0" stroke="#1A4DB3" strokeWidth="1.2" strokeLinecap="round" fill="none"/>
-  </svg>
-);
+const LOGO_IMG = <img src="/logo-white.png" alt="House of Shake" width="42" height="42" style={{ objectFit: "contain" }} />;
 
 const REVIEWS = [
   [
@@ -144,7 +134,7 @@ export default function Landing() {
   };
 
   return (
-    <div style={{ background: '#0B1509', fontFamily: "'Montserrat', sans-serif", cursor: 'none' }}>
+    <div style={{ background: '#071E3D', fontFamily: "'Montserrat', sans-serif", cursor: 'none' }}>
       {/* Cursor + Progress */}
       <div id="hs-cur" />
       <div id="hs-prog" />
@@ -152,7 +142,7 @@ export default function Landing() {
       {/* ── NAVBAR ── */}
       <nav id="hs-nav" className={navScrolled ? 'sc' : ''}>
         <a className="hs-nav-logo" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-          {LOGO_SVG}
+          {LOGO_IMG}
           <span className="hs-nav-logo-txt">HOUSE OF SHAKE</span>
         </a>
         <ul className="hs-nav-links">
@@ -496,7 +486,7 @@ export default function Landing() {
         <div className="hs-ftgrid">
           <div>
             <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
-              {LOGO_SVG}
+              {LOGO_IMG}
               <p className="hs-ft-logo-txt">HOUSE OF SHAKE</p>
             </div>
             <p className="hs-ft-p">Specialty coffee & cold shakes.<br />Av. Teziutlán Nte. 42, La Paz,<br />Puebla, Pue. México.</p>

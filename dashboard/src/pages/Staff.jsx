@@ -432,7 +432,7 @@ function POSView({ token, onLogout }) {
 
             {/* Customer card */}
             <div style={{
-              background: `linear-gradient(135deg, #2C1A0E 0%, #1a0e06 100%)`,
+              background: `linear-gradient(135deg, #0A2850 0%, #071E3D 100%)`,
               border: `2px solid ${lvl.color}40`,
               borderRadius: 20, padding: '20px 22px', marginBottom: 16,
             }}>

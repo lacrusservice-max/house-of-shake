@@ -203,7 +203,7 @@ export default function MiCuenta() {
       {/* NAV */}
       <nav className="mc-nav">
         <Link to="/" className="mc-nav-brand">
-          <div className="mc-nav-logo">☕</div>
+          <img src="/logo-white.png" alt="House of Shake" width="32" height="32" style={{ objectFit: "contain", borderRadius: 6 }} />
           <span className="mc-nav-title">HOUSE OF SHAKE</span>
         </Link>
         <div className="mc-nav-right">
@@ -355,7 +355,7 @@ export default function MiCuenta() {
                 </div>
                 <div className="mc-qr-center">
                   <div className="mc-qr-box">
-                    <QRCodeSVG value={customer.id} size={180} bgColor="#ffffff" fgColor="#0B1509" level="H" includeMargin={true} />
+                    <QRCodeSVG value={customer.id} size={180} bgColor="#ffffff" fgColor="#071E3D" level="H" includeMargin={true} />
                   </div>
                   <p className="mc-qr-tap-hint">Toca para ampliar</p>
                 </div>
@@ -420,7 +420,7 @@ export default function MiCuenta() {
               House of Shake
             </p>
             <div style={{ background: '#fff', padding: 20, borderRadius: 20, boxShadow: '0 0 80px rgba(245,200,66,.3)' }}>
-              <QRCodeSVG value={customer.id} size={Math.min(280, window.innerWidth - 100)} bgColor="#ffffff" fgColor="#0B1509" level="H" includeMargin={false} />
+              <QRCodeSVG value={customer.id} size={Math.min(280, window.innerWidth - 100)} bgColor="#ffffff" fgColor="#071E3D" level="H" includeMargin={false} />
             </div>
             <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 36, letterSpacing: 2, color: '#F5C842' }}>
               {customer.availablePoints.toLocaleString()} pts

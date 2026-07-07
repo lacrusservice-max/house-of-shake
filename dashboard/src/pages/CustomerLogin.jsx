@@ -56,7 +56,7 @@ export default function CustomerLogin() {
 
       <nav className="mc-nav">
         <Link to="/" className="mc-nav-brand">
-          <div className="mc-nav-logo">☕</div>
+          <img src="/logo-white.png" alt="House of Shake" width="32" height="32" style={{ objectFit: 'contain', borderRadius: 6 }} />
           <span className="mc-nav-title">HOUSE OF SHAKE</span>
         </Link>
       </nav>

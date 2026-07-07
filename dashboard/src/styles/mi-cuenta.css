@@ -2,11 +2,11 @@
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;600;700;800&display=swap');
 
 :root {
-  --blue: #1A4DB3; --blue-dark: #0D2D6B; --blue-light: #2261D4;
+  --blue: #0F448A; --blue-dark: #071E3D; --blue-light: #1A5BB5;
   --white: #FFFFFF; --cream: #FBF7F0; --gold: #F5C842;
-  --bark: #2C1A0E; --bark2: #3D2A1A; --wood: #6B4226; --wood-lt: #8B6340;
-  --pine: #0B1509; --pine2: #142010; --pine3: #1E3018; --pine4: #2D4A20;
-  --moss: #4A6741; --stone: #4A4A3A; --muted: #8A7B6A;
+  --bark: #071E3D; --bark2: #0A2850; --wood: #0F448A; --wood-lt: #1A5BB5;
+  --pine: #071E3D; --pine2: #0A2850; --pine3: #0D3570; --pine4: #0F448A;
+  --moss: #2261D4; --stone: #2C3E6B; --muted: #6B82A0;
 }
 
 /* ── base ── */
@@ -19,7 +19,7 @@
 
 /* ── nav ── */
 .mc-nav {
-  background: rgba(11,21,9,.95);
+  background: rgba(7,30,61,.95);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(245,200,66,.12);
   padding: 0 24px;
@@ -265,7 +265,7 @@
   box-shadow: 0 24px 60px rgba(0,0,0,.5);
 }
 .mc-card-body {
-  background: linear-gradient(135deg, #2C1A0E 0%, #1a0e06 60%, #0B1509 100%);
+  background: linear-gradient(135deg, #0A2850 0%, #071E3D 60%, #071E3D 100%);
   border: 1px solid rgba(245,200,66,.2);
   border-bottom: none;
   border-radius: 24px 24px 0 0;
@@ -276,7 +276,7 @@
   border-color: rgba(192,192,192,.25);
 }
 .mc-card-body.gold {
-  background: linear-gradient(135deg, #3d2e00 0%, #2a1e00 60%, #0B1509 100%);
+  background: linear-gradient(135deg, #3d2e00 0%, #2a1e00 60%, #071E3D 100%);
   border-color: rgba(255,215,0,.3);
 }
 .mc-card-header {
@@ -447,7 +447,7 @@
 /* ── QR hero card ── */
 .mc-qr-hero { margin-top: 20px; cursor: pointer; }
 .mc-qr-hero-inner {
-  background: linear-gradient(160deg, #1a1208 0%, #0B1509 100%);
+  background: linear-gradient(160deg, #0D2650 0%, #071E3D 100%);
   border: 1px solid;
   border-radius: 24px;
   padding: 22px;

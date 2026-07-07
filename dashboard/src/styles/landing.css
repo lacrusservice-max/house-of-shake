@@ -2,11 +2,11 @@
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;600;700;800&display=swap');
 
 :root {
-  --blue: #1A4DB3; --blue-dark: #0D2D6B; --blue-light: #2261D4;
+  --blue: #0F448A; --blue-dark: #071E3D; --blue-light: #1A5BB5;
   --white: #FFFFFF; --cream: #FBF7F0; --gold: #F5C842;
-  --bark: #2C1A0E; --bark2: #3D2A1A; --wood: #6B4226; --wood-lt: #8B6340;
-  --pine: #0B1509; --pine2: #142010; --pine3: #1E3018; --pine4: #2D4A20;
-  --moss: #4A6741; --stone: #4A4A3A; --muted: #8A7B6A;
+  --bark: #071E3D; --bark2: #0A2850; --wood: #0F448A; --wood-lt: #1A5BB5;
+  --pine: #071E3D; --pine2: #0A2850; --pine3: #0D3570; --pine4: #0F448A;
+  --moss: #2261D4; --stone: #2C3E6B; --muted: #6B82A0;
   --tr: cubic-bezier(.4,0,.2,1);
 }
 
@@ -73,7 +73,7 @@
 /* ── NAVBAR ── */
 #hs-nav { position:fixed;top:0;left:0;right:0;z-index:1000;padding:20px 48px;
   display:flex;align-items:center;justify-content:space-between;transition:all .4s var(--tr) }
-#hs-nav.sc { background:rgba(11,21,9,.92);backdrop-filter:blur(20px);
+#hs-nav.sc { background:rgba(7,30,61,.92);backdrop-filter:blur(20px);
   padding:13px 48px;border-bottom:1px solid rgba(245,200,66,.1);box-shadow:0 2px 30px rgba(0,0,0,.6) }
 .hs-nav-logo { display:flex;align-items:center;gap:12px;text-decoration:none;cursor:pointer }
 .hs-nav-logo-txt { font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:3px;color:var(--cream) }
@@ -91,7 +91,7 @@
 #hs-hero { position:relative;height:100vh;min-height:620px;overflow:hidden;
   display:flex;align-items:center;justify-content:center;font-family:'Montserrat',sans-serif }
 .hs-hero-img { position:absolute;inset:0;background-size:cover;background-position:center top;transition:transform .12s linear }
-.hs-hero-ov1 { position:absolute;inset:0;background:linear-gradient(180deg,rgba(11,21,9,.55) 0%,rgba(13,45,107,.35) 45%,rgba(11,21,9,.88) 100%) }
+.hs-hero-ov1 { position:absolute;inset:0;background:linear-gradient(180deg,rgba(7,30,61,.55) 0%,rgba(15,68,138,.35) 45%,rgba(7,30,61,.88) 100%) }
 .hs-hero-ov2 { position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 25%,rgba(0,0,0,.45) 100%) }
 .hs-hero-body { position:relative;z-index:10;text-align:center;display:flex;flex-direction:column;align-items:center;padding:0 20px }
 .hs-camp-badge { display:inline-flex;align-items:center;gap:8px;background:rgba(245,200,66,.1);
@@ -160,8 +160,8 @@
 .hs-ap-img { position:absolute;inset:0;background-size:cover;background-position:center;transition:transform .6s var(--tr) }
 .hs-ap:hover .hs-ap-img { transform:scale(1.04) }
 .hs-ap-tint { position:absolute;inset:0;transition:background .4s }
-.hs-ap:not(.apon) .hs-ap-tint { background:rgba(11,21,9,.62) }
-.hs-ap.apon .hs-ap-tint { background:linear-gradient(180deg,rgba(0,0,0,.05) 0%,rgba(13,45,107,.65) 55%,rgba(11,21,9,.92) 100%) }
+.hs-ap:not(.apon) .hs-ap-tint { background:rgba(7,30,61,.62) }
+.hs-ap.apon .hs-ap-tint { background:linear-gradient(180deg,rgba(0,0,0,.05) 0%,rgba(15,68,138,.65) 55%,rgba(7,30,61,.92) 100%) }
 .hs-ap-lbl { position:absolute;right:16px;top:50%;writing-mode:vertical-rl;
   font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:4px;
   color:rgba(255,255,255,.55);transform:translateY(-50%) rotate(180deg);transition:opacity .3s;z-index:5;white-space:nowrap }

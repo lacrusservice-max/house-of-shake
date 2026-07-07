@@ -148,8 +148,8 @@ async function generatePassBuffer(customerData) {
       authenticationToken: passToken,
       webServiceURL:       buildWebServiceURL(),
       foregroundColor:     'rgb(255, 255, 255)',
-      backgroundColor:     'rgb(200, 80, 50)',
-      labelColor:          'rgb(255, 220, 200)',
+      backgroundColor:     'rgb(7, 30, 61)',
+      labelColor:          'rgb(160, 200, 240)',
     }
   );
 
