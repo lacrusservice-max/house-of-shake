@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState, lazy, Suspense, useEffect } from 'react';
 import api from '../services/api';
 
 const QRScanner = lazy(() => import('../components/QRScanner'));
@@ -10,9 +10,11 @@ const LEVEL = {
 };
 
 export default function POS() {
-  const [screen, setScreen]     = useState('home');  // home | scan | camera | searchEmail | customer | addPoints | redeem | success
+  const [screen, setScreen]     = useState('home');  // home | scan | camera | searchEmail | searchName | customer | addPoints | redeem | success
   const [codeInput, setCodeInput] = useState('');
   const [emailInput, setEmailInput] = useState('');
+  const [nameInput, setNameInput] = useState('');
+  const [nameResults, setNameResults] = useState([]);
   const [customer, setCustomer] = useState(null);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState('');
@@ -132,9 +134,24 @@ export default function POS() {
     }
   }
 
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+  const token = localStorage.getItem('hos_admin_token');
+  const authHeaders = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+
+  async function searchByName(q) {
+    setNameInput(q);
+    if (q.trim().length < 2) { setNameResults([]); return; }
+    try {
+      const res = await fetch(`${API_URL}/pos/search?q=${encodeURIComponent(q.trim())}`, { headers: authHeaders });
+      const data = await res.json();
+      setNameResults(data.customers || []);
+    } catch { setNameResults([]); }
+  }
+
   function reset() {
     setScreen('home'); setCustomer(null); setError('');
     setResult(null); setCodeInput(''); setEmailInput(''); setAmount(''); setRedeemPts('');
+    setNameInput(''); setNameResults([]);
     setQuickReg({ show: false, firstName: '', lastName: '', email: '', loading: false, error: '' });
   }
 
@@ -162,6 +179,13 @@ export default function POS() {
               <div>
                 <div style={styles.bigBtnTitle}>Buscar por email</div>
                 <div style={{ ...styles.bigBtnSub, opacity: .7 }}>Escribe el correo del cliente</div>
+              </div>
+            </button>
+            <button onClick={() => { setScreen('searchName'); setNameInput(''); setNameResults([]); setError(''); }} style={{ ...styles.bigBtn, background: 'rgba(74,159,212,.08)', color: '#4a9fd4', border: '1px solid rgba(74,159,212,.2)' }}>
+              <span style={{ fontSize: 28 }}>🔍</span>
+              <div>
+                <div style={styles.bigBtnTitle}>Buscar por nombre</div>
+                <div style={{ ...styles.bigBtnSub, opacity: .7 }}>Sin teléfono, sin email</div>
               </div>
             </button>
             <button onClick={() => setScreen('scan')} style={{ ...styles.bigBtn, background: 'rgba(251,247,240,.06)', color: 'var(--cream)', border: '1px solid rgba(251,247,240,.12)' }}>
@@ -284,6 +308,47 @@ export default function POS() {
               {loading ? 'Buscando…' : 'Buscar cliente'}
             </button>
           </form>
+        </div>
+      )}
+
+      {/* ── SEARCH BY NAME ── */}
+      {screen === 'searchName' && (
+        <div>
+          <button onClick={() => setScreen('home')} style={styles.back}>← Volver</button>
+          <h2 style={styles.title}>Buscar por nombre</h2>
+          <p style={styles.sub}>Escribe el nombre o apellido del cliente</p>
+          <input
+            type="text" autoFocus
+            value={nameInput}
+            onChange={e => searchByName(e.target.value)}
+            placeholder="Ej: Juan, García..."
+            style={{ ...styles.input, marginTop: 16 }}
+          />
+          {error && <div style={styles.errorBox}>{error}</div>}
+          {nameResults.length > 0 && (
+            <div style={{ marginTop: 14, display: 'grid', gap: 8 }}>
+              {nameResults.map(c => (
+                <button key={c.id} onClick={() => lookupByCode(c.id)} style={{
+                  background: 'rgba(251,247,240,.05)', border: '1px solid rgba(251,247,240,.1)',
+                  borderRadius: 12, padding: '14px 16px', cursor: 'pointer',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  color: 'var(--cream)', fontFamily: 'inherit', textAlign: 'left',
+                }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{c.firstName} {c.lastName}</div>
+                    {c.phone && <div style={{ fontSize: 11, color: 'rgba(251,247,240,.35)', marginTop: 2 }}>Tel: {c.phone}</div>}
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: 'var(--gold)' }}>{c.availablePoints} pts</div>
+                    <div style={{ fontSize: 10, color: 'rgba(251,247,240,.3)' }}>{c.level}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+          {nameInput.length >= 2 && nameResults.length === 0 && (
+            <div style={{ textAlign: 'center', color: 'rgba(251,247,240,.3)', fontSize: 13, marginTop: 20 }}>Sin resultados para "{nameInput}"</div>
+          )}
         </div>
       )}
 
@@ -480,62 +545,69 @@ export default function POS() {
 
       {/* ── SUCCESS ── */}
       {screen === 'success' && result && (
-        <div style={{ textAlign: 'center', padding: '24px 0' }}>
-          <div style={{ fontSize: 72, marginBottom: 16 }}>{result.type === 'earn' ? '🎉' : '🎁'}</div>
-
-          {result.type === 'earn' ? (
-            <>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, letterSpacing: 2, color: '#5EC97A' }}>
-                +{result.pointsAdded} puntos
-              </div>
-              <p style={{ color: 'rgba(251,247,240,.6)', marginBottom: 12 }}>
-                agregados a <strong style={{ color: 'var(--cream)' }}>{customer?.firstName}</strong>
-              </p>
-              {result.levelChanged && (
-                <div style={{ background: 'rgba(255,215,0,.12)', border: '1px solid rgba(255,215,0,.3)', borderRadius: 12, padding: '10px 16px', marginBottom: 12 }}>
-                  <span style={{ fontWeight: 800, color: '#FFD700', fontSize: 13 }}>¡Subió de nivel! 🎖 {result.level}</span>
-                </div>
-              )}
-            </>
-          ) : (
-            <>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, letterSpacing: 2, color: '#4a9fd4' }}>
-                -${result.discountMxn || (result.discountUsd * 20)?.toFixed(0)} MXN
-              </div>
-              <p style={{ color: 'rgba(251,247,240,.6)', marginBottom: 12 }}>
-                descuento aplicado a <strong style={{ color: 'var(--cream)' }}>{customer?.firstName}</strong>
-              </p>
-            </>
-          )}
-
-          <div style={styles.statBox2}>
-            <div style={styles.statLabel}>Saldo actualizado</div>
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: 'var(--gold)', letterSpacing: 2 }}>
-              {result.newBalance}
-            </div>
-            <div style={{ fontSize: 11, color: 'rgba(251,247,240,.3)', letterSpacing: 1 }}>puntos disponibles</div>
-          </div>
-
-          {/* Productos asequibles post-transacción */}
-          <div style={{ textAlign: 'left', marginTop: 4 }}>
-            <AffordableSection
-              affordable={result.affordableProducts}
-              almost={result.almostAffordableProducts}
-              points={result.newBalance}
-              title={result.type === 'earn' ? 'Ahora puede canjear:' : 'Todavía puede canjear:'}
-            />
-          </div>
-
-          <div style={{ display: 'grid', gap: 10, marginTop: 20 }}>
-            <button onClick={() => { setScreen('customer'); setResult(null); }} style={{ ...styles.goldBtn, background: 'rgba(251,247,240,.08)', color: 'var(--cream)' }}>
-              Ver perfil del cliente
-            </button>
-            <button onClick={reset} style={styles.goldBtn}>
-              Nueva transacción
-            </button>
-          </div>
-        </div>
+        <POSSuccessScreen result={result} customer={customer} onViewProfile={() => { setScreen('customer'); setResult(null); }} onReset={reset} />
       )}
+    </div>
+  );
+}
+
+/* ── POS Success Screen with Confetti ── */
+function POSSuccessScreen({ result, customer, onViewProfile, onReset }) {
+  useEffect(() => {
+    if (result.type !== 'earn') return;
+    import('canvas-confetti').then(m => {
+      m.default({ particleCount: 120, spread: 80, origin: { y: 0.6 }, colors: ['#C8961E', '#5EC97A', '#FBF7F0', '#1B2F56'] });
+    }).catch(() => {});
+  }, [result.type]);
+
+  return (
+    <div style={{ textAlign: 'center', padding: '24px 0' }}>
+      <div style={{ fontSize: 72, marginBottom: 16 }}>{result.type === 'earn' ? '🎉' : '🎁'}</div>
+      {result.type === 'earn' ? (
+        <>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, letterSpacing: 2, color: '#5EC97A' }}>
+            +{result.pointsAdded} puntos
+          </div>
+          <p style={{ color: 'rgba(251,247,240,.6)', marginBottom: 12 }}>
+            agregados a <strong style={{ color: 'var(--cream)' }}>{customer?.firstName}</strong>
+          </p>
+          {result.levelChanged && (
+            <div style={{ background: 'rgba(255,215,0,.12)', border: '1px solid rgba(255,215,0,.3)', borderRadius: 12, padding: '10px 16px', marginBottom: 12 }}>
+              <span style={{ fontWeight: 800, color: '#FFD700', fontSize: 13 }}>¡Subió de nivel! 🎖 {result.level}</span>
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, letterSpacing: 2, color: '#4a9fd4' }}>
+            -${result.discountMxn || (result.discountUsd * 20)?.toFixed(0)} MXN
+          </div>
+          <p style={{ color: 'rgba(251,247,240,.6)', marginBottom: 12 }}>
+            descuento aplicado a <strong style={{ color: 'var(--cream)' }}>{customer?.firstName}</strong>
+          </p>
+        </>
+      )}
+      <div style={{ background: 'rgba(251,247,240,.04)', border: '1px solid rgba(251,247,240,.08)', borderRadius: 16, padding: '20px', textAlign: 'center', margin: '12px 0' }}>
+        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 3, textTransform: 'uppercase', color: 'rgba(251,247,240,.35)', marginBottom: 4, fontFamily: "'Montserrat', sans-serif" }}>Saldo actualizado</div>
+        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: 'var(--gold)', letterSpacing: 2 }}>{result.newBalance}</div>
+        <div style={{ fontSize: 11, color: 'rgba(251,247,240,.3)', letterSpacing: 1 }}>puntos disponibles</div>
+      </div>
+      <div style={{ textAlign: 'left', marginTop: 4 }}>
+        <AffordableSection
+          affordable={result.affordableProducts}
+          almost={result.almostAffordableProducts}
+          points={result.newBalance}
+          title={result.type === 'earn' ? 'Ahora puede canjear:' : 'Todavía puede canjear:'}
+        />
+      </div>
+      <div style={{ display: 'grid', gap: 10, marginTop: 20 }}>
+        <button onClick={onViewProfile} style={{ width: '100%', padding: '16px', background: 'rgba(251,247,240,.08)', color: 'var(--cream)', border: 'none', borderRadius: 12, fontFamily: "'Montserrat', sans-serif", fontWeight: 800, fontSize: 13, letterSpacing: 1.5, textTransform: 'uppercase', cursor: 'pointer', marginTop: 12, display: 'block' }}>
+          Ver perfil del cliente
+        </button>
+        <button onClick={onReset} style={{ width: '100%', padding: '16px', background: 'var(--gold)', color: '#2C1A0E', border: 'none', borderRadius: 12, fontFamily: "'Montserrat', sans-serif", fontWeight: 800, fontSize: 13, letterSpacing: 1.5, textTransform: 'uppercase', cursor: 'pointer', marginTop: 12, display: 'block' }}>
+          Nueva transacción
+        </button>
+      </div>
     </div>
   );
 }

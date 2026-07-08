@@ -1,0 +1,33 @@
+{
+  "name": "House of Shake — Mi Cuenta",
+  "short_name": "House of Shake",
+  "description": "Acumula y canjea puntos en House of Shake, Puebla",
+  "start_url": "/mi-cuenta",
+  "display": "standalone",
+  "background_color": "#1B2F56",
+  "theme_color": "#1B2F56",
+  "orientation": "portrait",
+  "lang": "es-MX",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["food", "lifestyle", "shopping"],
+  "shortcuts": [
+    {
+      "name": "Mi saldo de puntos",
+      "url": "/mi-cuenta",
+      "icons": [{ "src": "/logo.png", "sizes": "96x96" }]
+    }
+  ]
+}

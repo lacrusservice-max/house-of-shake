@@ -25,13 +25,14 @@ async function login(req, res, next) {
       data: { lastLogin: new Date() },
     }).catch(() => {});
 
+    const expiry = admin.role === 'admin' ? '8h' : '12h';
     const token = jwt.sign(
       { id: admin.id, email: admin.email, name: admin.name, role: admin.role },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '12h' }
+      { expiresIn: process.env.JWT_EXPIRES_IN || expiry }
     );
 
-    res.json({ token, admin: { id: admin.id, email: admin.email, name: admin.name, role: admin.role } });
+    res.json({ token, expiresIn: process.env.JWT_EXPIRES_IN || expiry, admin: { id: admin.id, email: admin.email, name: admin.name, role: admin.role } });
   } catch (err) {
     next(err);
   }
@@ -553,8 +554,128 @@ async function getDoublePointsStatus(req, res, next) {
   } catch (err) { next(err); }
 }
 
+async function refreshToken(req, res, next) {
+  try {
+    // req.admin already validated by authenticateAdmin middleware
+    const { id, email, name, role } = req.admin;
+    const expiry = role === 'admin' ? '8h' : '12h';
+    const token = jwt.sign({ id, email, name, role }, process.env.JWT_SECRET, { expiresIn: expiry });
+    res.json({ token, expiresIn: expiry });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function exportTransactionsCSV(req, res, next) {
+  try {
+    const { from, to, type } = req.query;
+    const where = {};
+    if (type) where.type = type;
+    if (from || to) {
+      where.createdAt = {};
+      if (from) where.createdAt.gte = new Date(from);
+      if (to) where.createdAt.lte = new Date(to + 'T23:59:59');
+    }
+
+    const txns = await prisma.transaction.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: { customer: { select: { firstName: true, lastName: true, email: true } } },
+    });
+
+    const header = 'Fecha,Cliente,Email,Tipo,Puntos,Descripción,Staff,Monto MXN\n';
+    const rows = txns.map(t => {
+      const typeLbl = { EARN: 'Acumulación', REDEEM: 'Canje', ADJUSTMENT: 'Ajuste', WELCOME_BONUS: 'Bienvenida', BIRTHDAY: 'Cumpleaños', REVERSAL: 'Reversión' }[t.type] || t.type;
+      const mxn = t.orderAmount ? (parseFloat(t.orderAmount) * 1).toFixed(2) : '';
+      return [
+        `"${new Date(t.createdAt).toLocaleString('es-MX')}"`,
+        `"${t.customer?.firstName || ''} ${t.customer?.lastName || ''}"`,
+        `"${t.customer?.email || ''}"`,
+        `"${typeLbl}"`,
+        t.points,
+        `"${(t.description || '').replace(/"/g, "'")}"`,
+        `"${t.staffEmail || ''}"`,
+        mxn,
+      ].join(',');
+    }).join('\n');
+
+    res.set({
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="transacciones_${Date.now()}.csv"`,
+    });
+    res.send('﻿' + header + rows);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function getStaffStats(req, res, next) {
+  try {
+    const { period = 'week' } = req.query;
+    const now = new Date();
+    let startDate;
+    if (period === 'today') { startDate = new Date(now); startDate.setHours(0, 0, 0, 0); }
+    else if (period === 'week') { startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); }
+    else if (period === 'month') { startDate = new Date(now.getFullYear(), now.getMonth(), 1); }
+    else { startDate = new Date(0); }
+
+    const stats = await prisma.$queryRaw`
+      SELECT
+        "staffEmail",
+        COUNT(*) FILTER (WHERE type = 'EARN') AS earn_count,
+        COUNT(*) FILTER (WHERE type = 'REDEEM') AS redeem_count,
+        COALESCE(SUM(points) FILTER (WHERE type = 'EARN'), 0) AS pts_earned,
+        COALESCE(SUM(ABS(points)) FILTER (WHERE type = 'REDEEM'), 0) AS pts_redeemed,
+        COALESCE(SUM("orderAmount") FILTER (WHERE type = 'EARN'), 0) AS amount_mxn,
+        MAX("createdAt") AS last_action
+      FROM transactions
+      WHERE "staffEmail" IS NOT NULL AND "createdAt" >= ${startDate}
+      GROUP BY "staffEmail"
+      ORDER BY earn_count DESC
+    `;
+
+    res.json({ period, stats: stats.map(s => ({
+      email: s.staffEmail,
+      earnCount: Number(s.earn_count),
+      redeemCount: Number(s.redeem_count),
+      ptsEarned: Number(s.pts_earned),
+      ptsRedeemed: Number(s.pts_redeemed),
+      amountMxn: parseFloat(s.amount_mxn || 0),
+      lastAction: s.last_action,
+    })) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function getPublicStats(req, res, next) {
+  try {
+    const redis = getRedis();
+    const cached = await redis.get('public:stats').catch(() => null);
+    if (cached) return res.json(JSON.parse(cached));
+
+    const [totalCustomers, totalRedeemed, totalEarned] = await Promise.all([
+      prisma.customer.count(),
+      prisma.transaction.aggregate({ where: { type: 'REDEEM' }, _sum: { points: true } }),
+      prisma.transaction.aggregate({ where: { type: 'EARN' }, _sum: { points: true } }),
+    ]);
+
+    const data = {
+      totalCustomers,
+      totalPointsRedeemed: Math.abs(totalRedeemed._sum.points || 0),
+      totalPointsEarned: totalEarned._sum.points || 0,
+    };
+
+    await redis.setex('public:stats', 300, JSON.stringify(data)).catch(() => {});
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   login,
+  refreshToken,
   getDashboardStats,
   listCustomers,
   listTransactions,
@@ -563,6 +684,9 @@ module.exports = {
   forceUpdateWalletPass,
   adjustPoints,
   exportCustomersCSV,
+  exportTransactionsCSV,
+  getStaffStats,
+  getPublicStats,
   setupShopify,
   getWalletStatus,
   downloadWwdr,

@@ -174,4 +174,39 @@ async function redeemPoints(req, res) {
   }
 }
 
-module.exports = { lookupCustomer, addPointsForPurchase, redeemPoints };
+async function searchCustomers(req, res) {
+  const { q = '' } = req.query;
+  const term = q.trim();
+  if (term.length < 2) return res.json({ customers: [] });
+
+  try {
+    const customers = await prisma.customer.findMany({
+      where: {
+        OR: [
+          { firstName: { contains: term, mode: 'insensitive' } },
+          { lastName: { contains: term, mode: 'insensitive' } },
+        ],
+      },
+      take: 6,
+      select: {
+        id: true, firstName: true, lastName: true,
+        availablePoints: true, level: true, phone: true,
+      },
+      orderBy: { firstName: 'asc' },
+    });
+
+    // Mask phone — show last 4 digits only for privacy
+    const masked = customers.map(c => ({
+      ...c,
+      phone: c.phone ? '···' + c.phone.slice(-4) : null,
+      lastName: c.lastName[0] + '.',
+    }));
+
+    res.json({ customers: masked });
+  } catch (err) {
+    logger.error('POS searchCustomers error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+module.exports = { lookupCustomer, addPointsForPurchase, redeemPoints, searchCustomers };

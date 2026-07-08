@@ -2,6 +2,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/prisma');
 const pointsService = require('../services/points.service');
+const emailService = require('../services/email.service');
 const logger = require('../config/logger');
 
 const SALT_ROUNDS = 10;
@@ -54,6 +55,15 @@ async function register(req, res) {
 
     const token = signToken(customer);
     logger.info(`Nuevo cliente registrado: ${email}`);
+
+    setImmediate(() => {
+      emailService.sendWelcome({
+        to: customer.email,
+        firstName: customer.firstName,
+        availablePoints: customer.availablePoints || 0,
+      }).catch(e => logger.warn('Email welcome error:', e.message));
+    });
+
     res.status(201).json({ token, customer: safeCustomer(customer) });
   } catch (err) {
     logger.error('Register error:', err.message);

@@ -11,6 +11,7 @@
     "@zxing/browser": "^0.2.0",
     "@zxing/library": "^0.22.0",
     "axios": "^1.6.7",
+    "canvas-confetti": "^1.9.4",
     "date-fns": "^3.3.1",
     "lucide-react": "^0.344.0",
     "qrcode.react": "^4.2.0",

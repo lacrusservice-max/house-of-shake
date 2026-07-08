@@ -48,14 +48,16 @@ export default function Landing() {
   const [reviewSlide, setReviewSlide] = useState(0);
   const [openSched, setOpenSched] = useState(null);
   const [counts, setCounts] = useState({ ratings: 0, stars: 0, ig: 0, months: 0 });
+  const [publicStats, setPublicStats] = useState({ totalCustomers: 0, totalPointsRedeemed: 0 });
   const statsRef = useRef(null);
   const statsAnimated = useRef(false);
   const navigate = useNavigate();
   const isLoggedIn = !!localStorage.getItem('hos_customer_token');
 
-  // Load products
+  // Load products + public stats
   useEffect(() => {
     fetch(`${API}/products`).then(r => r.json()).then(setProducts).catch(() => {});
+    fetch(`${API}/stats/public`).then(r => r.json()).then(d => setPublicStats(d)).catch(() => {});
   }, []);
 
   // Navbar scroll + progress bar + reveal
@@ -325,6 +327,15 @@ export default function Landing() {
               </div>
             ))}
           </div>
+          {publicStats.totalCustomers > 0 && (
+            <div className="hs-rev" style={{ display:'inline-flex', alignItems:'center', gap:10, background:'rgba(245,200,66,.08)', border:'1px solid rgba(245,200,66,.2)', borderRadius:40, padding:'10px 24px', marginBottom:28 }}>
+              <span style={{ fontSize:20 }}>👥</span>
+              <span style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:'1.5rem', color:'#F5C842', letterSpacing:2 }}>
+                {publicStats.totalCustomers.toLocaleString()}
+              </span>
+              <span style={{ fontSize:13, color:'rgba(251,247,240,.55)', fontWeight:600 }}>clientes en el programa</span>
+            </div>
+          )}
           <div className="hs-rev" style={{ display:'flex', gap:12, justifyContent:'center', flexWrap:'wrap' }}>
             <Link to="/registro" className="hs-btn hs-btn-gold">CREAR MI CUENTA GRATIS</Link>
             {isLoggedIn && <Link to="/mi-cuenta" className="hs-btn hs-btn-ghost">VER MIS PUNTOS</Link>}

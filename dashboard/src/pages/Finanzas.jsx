@@ -19,13 +19,34 @@ function fmt(n) {
 }
 
 export default function Finanzas() {
-  const [period, setPeriod]   = useState('month');
-  const [data, setData]       = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState('');
+  const [period, setPeriod]     = useState('month');
+  const [data, setData]         = useState(null);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState('');
+  const [exporting, setExporting] = useState(false);
 
   const token = localStorage.getItem('hos_admin_token');
   const headers = { Authorization: `Bearer ${token}` };
+  const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+  async function exportTransactionsCSV() {
+    setExporting(true);
+    try {
+      const res = await fetch(`${API}/admin/export/transactions?period=${period}`, { headers });
+      if (!res.ok) throw new Error('Error al exportar');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `transacciones_${period}_${Date.now()}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   useEffect(() => {
     setLoading(true);
@@ -45,10 +66,20 @@ export default function Finanzas() {
   return (
     <div style={{ maxWidth: 960, margin: '0 auto' }}>
       {/* Header */}
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 3, color: '#c85032', textTransform: 'uppercase', marginBottom: 6 }}>Panel financiero</div>
-        <h1 style={{ fontSize: 30, fontWeight: 900, color: '#111', margin: 0 }}>Finanzas</h1>
-        <p style={{ color: '#888', fontSize: 13, marginTop: 4 }}>Ingresos, canjes y actividad del personal</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 3, color: '#c85032', textTransform: 'uppercase', marginBottom: 6 }}>Panel financiero</div>
+          <h1 style={{ fontSize: 30, fontWeight: 900, color: '#111', margin: 0 }}>Finanzas</h1>
+          <p style={{ color: '#888', fontSize: 13, marginTop: 4 }}>Ingresos, canjes y actividad del personal</p>
+        </div>
+        <button onClick={exportTransactionsCSV} disabled={exporting} style={{
+          padding: '10px 20px', background: '#2c9e5e', color: '#fff',
+          border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 12,
+          cursor: exporting ? 'not-allowed' : 'pointer', opacity: exporting ? .6 : 1,
+          fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6, height: 'fit-content',
+        }}>
+          {exporting ? '⏳ Exportando...' : '⬇️ Exportar CSV'}
+        </button>
       </div>
 
       {/* Period selector */}

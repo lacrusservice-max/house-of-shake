@@ -1,6 +1,7 @@
 const prisma = require('../config/prisma');
 const { getRedis } = require('../config/redis');
 const logger = require('../config/logger');
+const emailService = require('./email.service');
 
 const CACHE_PREFIX = 'customer:points:';
 const CACHE_TTL = 300; // 5 minutos
@@ -103,7 +104,8 @@ async function addPoints(customerId, orderAmount, shopifyOrderId, shopifyOrderNu
   ]);
 
   const newLevel = calculateLevel(updatedCustomer.lifetimePoints, config);
-  if (newLevel !== updatedCustomer.level) {
+  const levelChanged = newLevel !== updatedCustomer.level;
+  if (levelChanged) {
     await prisma.customer.update({
       where: { id: customerId },
       data: { level: newLevel },
@@ -120,12 +122,29 @@ async function addPoints(customerId, orderAmount, shopifyOrderId, shopifyOrderNu
   await invalidateCache(customerId);
   logger.info(`+${pointsWithBonus} puntos para cliente ${customerId} (orden ${shopifyOrderNum})${doublePoints ? ' [2x]' : ''}`);
 
-  return {
-    pointsAdded: pointsWithBonus,
-    newBalance: updatedCustomer.availablePoints + pointsWithBonus,
-    level: newLevel || updatedCustomer.level,
-    doublePoints,
-  };
+  const newBalance = updatedCustomer.availablePoints + pointsWithBonus;
+  const finalLevel = newLevel || updatedCustomer.level;
+
+  // Send emails async — never block the POS flow
+  setImmediate(async () => {
+    try {
+      const fullCustomer = await prisma.customer.findUnique({ where: { id: customerId } });
+      if (fullCustomer?.email) {
+        await emailService.sendPointsEarned({
+          to: fullCustomer.email,
+          firstName: fullCustomer.firstName,
+          pointsAdded: pointsWithBonus,
+          newBalance,
+          level: finalLevel,
+        });
+        if (levelChanged) {
+          await emailService.sendLevelUp({ to: fullCustomer.email, firstName: fullCustomer.firstName, newLevel: finalLevel, newBalance });
+        }
+      }
+    } catch (e) { logger.warn('Email error (addPoints):', e.message); }
+  });
+
+  return { pointsAdded: pointsWithBonus, newBalance, level: finalLevel, doublePoints };
 }
 
 async function addBirthdayBonus(customerId, bonusPoints = 200) {
@@ -196,11 +215,25 @@ async function redeemPoints(customerId, pointsToRedeem, staffId, staffEmail, des
   await invalidateCache(customerId);
   logger.info(`-${pointsToRedeem} puntos canjeados por cliente ${customerId}`);
 
-  return {
-    pointsRedeemed: pointsToRedeem,
-    discountUsd,
-    newBalance: updatedCustomer.availablePoints,
-  };
+  const redeemedBalance = updatedCustomer.availablePoints;
+  const discountMxn = parseFloat((discountUsd * 20).toFixed(2));
+
+  setImmediate(async () => {
+    try {
+      const fullCustomer = await prisma.customer.findUnique({ where: { id: customerId } });
+      if (fullCustomer?.email) {
+        await emailService.sendPointsRedeemed({
+          to: fullCustomer.email,
+          firstName: fullCustomer.firstName,
+          pointsRedeemed: pointsToRedeem,
+          discountMxn,
+          newBalance: redeemedBalance,
+        });
+      }
+    } catch (e) { logger.warn('Email error (redeemPoints):', e.message); }
+  });
+
+  return { pointsRedeemed: pointsToRedeem, discountUsd, discountMxn, newBalance: redeemedBalance };
 }
 
 async function reversePoints(shopifyOrderId) {

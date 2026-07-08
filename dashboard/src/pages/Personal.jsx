@@ -2,6 +2,13 @@ import { useState, useEffect } from 'react';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
+const PERIODS = [
+  { value: 'today', label: 'Hoy' },
+  { value: 'week',  label: '7 días' },
+  { value: 'month', label: 'Este mes' },
+  { value: 'all',   label: 'Todo' },
+];
+
 const ROLE_LABEL = { admin: '👑 Admin', staff: '👤 Staff' };
 const ROLE_COLOR = { admin: '#c85032', staff: '#555' };
 const ROLE_BG    = { admin: '#fff4f2', staff: '#f5f5f5' };
@@ -19,6 +26,17 @@ export default function Personal() {
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'staff' });
+  const [statsData, setStatsData]   = useState(null);
+  const [statsPeriod, setStatsPeriod] = useState('week');
+  const [statsLoading, setStatsLoading] = useState(false);
+
+  function loadStaffStats(period) {
+    setStatsLoading(true);
+    fetch(`${API}/admin/staff/stats?period=${period}`, { headers })
+      .then(r => r.json())
+      .then(d => { setStatsData(d); setStatsLoading(false); })
+      .catch(() => setStatsLoading(false));
+  }
 
   function loadStaff() {
     setLoading(true);
@@ -28,7 +46,10 @@ export default function Personal() {
       .catch(() => setLoading(false));
   }
 
-  useEffect(() => { loadStaff(); }, []);
+  useEffect(() => {
+    loadStaff();
+    loadStaffStats('week');
+  }, []);
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -245,6 +266,70 @@ export default function Personal() {
           )}
         </div>
       )}
+
+      {/* Staff activity stats */}
+      <div style={{ background: '#fff', borderRadius: 16, padding: '20px 24px', marginTop: 28, border: '1px solid #f0f0f0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 800, color: '#111', margin: 0 }}>Actividad del personal</h3>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {PERIODS.map(p => (
+              <button key={p.value} onClick={() => { setStatsPeriod(p.value); loadStaffStats(p.value); }} style={{
+                padding: '5px 12px', borderRadius: 20, border: 'none', cursor: 'pointer',
+                fontWeight: 700, fontSize: 11, fontFamily: 'inherit',
+                background: statsPeriod === p.value ? '#c85032' : '#f5f5f5',
+                color: statsPeriod === p.value ? '#fff' : '#555',
+              }}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {statsLoading ? (
+          <div style={{ textAlign: 'center', padding: 24, color: '#aaa', fontSize: 13 }}>Cargando estadísticas…</div>
+        ) : !statsData?.stats?.length ? (
+          <div style={{ textAlign: 'center', padding: 24, color: '#ccc', fontSize: 13 }}>Sin actividad en este período</div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #f5f5f5' }}>
+                  {['Empleado', 'Acumulaciones', 'Canjes', 'Pts otorgados', 'Pts canjeados', 'Ingresos', 'Última acción'].map(h => (
+                    <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: 1, whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {statsData.stats.map((s, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid #f8f8f8' }}>
+                    <td style={{ padding: '10px 10px' }}>
+                      <span style={{ fontWeight: 600, color: '#333' }}>{s.email}</span>
+                    </td>
+                    <td style={{ padding: '10px 10px' }}>
+                      <span style={{ background: '#f0fff4', color: '#2c9e5e', borderRadius: 6, padding: '3px 10px', fontWeight: 700 }}>{s.earnCount}</span>
+                    </td>
+                    <td style={{ padding: '10px 10px' }}>
+                      <span style={{ background: '#fff8f0', color: '#e8a020', borderRadius: 6, padding: '3px 10px', fontWeight: 700 }}>{s.redeemCount}</span>
+                    </td>
+                    <td style={{ padding: '10px 10px', color: '#2c9e5e', fontWeight: 700 }}>+{s.ptsEarned.toLocaleString()}</td>
+                    <td style={{ padding: '10px 10px', color: '#e8a020', fontWeight: 700 }}>-{s.ptsRedeemed.toLocaleString()}</td>
+                    <td style={{ padding: '10px 10px', color: '#c85032', fontWeight: 700 }}>
+                      {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(s.amountMxn)}
+                    </td>
+                    <td style={{ padding: '10px 10px', color: '#aaa', fontSize: 11 }}>
+                      {s.lastAction ? new Date(s.lastAction).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div style={{ marginTop: 12, fontSize: 11, color: '#bbb' }}>
+          * Si un empleado suma más de 500 pts en menos de 1 hora, se recomienda revisar manualmente.
+        </div>
+      </div>
 
       {/* Info box */}
       <div style={{ background: '#f8f8f8', borderRadius: 14, padding: '16px 20px', marginTop: 24, fontSize: 12, color: '#777' }}>

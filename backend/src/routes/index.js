@@ -16,6 +16,26 @@ const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000'),
   max: parseInt(process.env.RATE_LIMIT_MAX || '100'),
   message: { error: 'Demasiadas peticiones, intenta más tarde' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Strict limiter for auth endpoints — 10 attempts per 15 min
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Demasiados intentos de inicio de sesión. Intenta en 15 minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// POS operations — 60 per minute per IP (a busy shift: ~1/sec max)
+const posLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  message: { error: 'Demasiadas operaciones POS. Espera un momento.' },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 router.use(limiter);
@@ -34,8 +54,8 @@ router.post('/webhooks/shopify/orders-cancelled', verifyShopifyWebhook, webhookC
 router.post('/webhooks/shopify/customers-create', verifyShopifyWebhook, webhookController.handleCustomerCreate);
 
 // === CUSTOMER AUTH ===
-router.post('/auth/register', customerAuthController.register);
-router.post('/auth/login', customerAuthController.login);
+router.post('/auth/register', authLimiter, customerAuthController.register);
+router.post('/auth/login', authLimiter, customerAuthController.login);
 router.get('/me', authenticateCustomer, customerAuthController.getMe);
 router.get('/me/transactions', authenticateCustomer, customerAuthController.getMyTransactions);
 router.put('/me/profile', authenticateCustomer, customerAuthController.updateProfile);
@@ -85,13 +105,15 @@ router.get('/wallet/demo-pass', async (req, res) => {
 });
 
 // === POS (staff Y admin pueden usar el POS) ===
+router.get('/pos/search', authenticateStaff, posController.searchCustomers);
 router.get('/pos/customer/:code', authenticateStaff, posController.lookupCustomer);
-router.post('/pos/customer/:customerId/add-points', authenticateStaff, posController.addPointsForPurchase);
-router.post('/pos/customer/:customerId/redeem', authenticateStaff, posController.redeemPoints);
+router.post('/pos/customer/:customerId/add-points', authenticateStaff, posLimiter, posController.addPointsForPurchase);
+router.post('/pos/customer/:customerId/redeem', authenticateStaff, posLimiter, posController.redeemPoints);
 router.post('/pos/quick-register', authenticateStaff, customerController.quickRegisterFromPOS);
 
 // === ADMIN (solo role: admin) ===
-router.post('/admin/login', adminController.login);
+router.post('/admin/login', authLimiter, adminController.login);
+router.post('/admin/refresh-token', authenticateAdmin, adminController.refreshToken);
 router.get('/admin/stats', authenticateAdmin, adminController.getDashboardStats);
 router.get('/admin/customers', authenticateAdmin, adminController.listCustomers);
 router.get('/admin/transactions', authenticateAdmin, adminController.listTransactions);
@@ -102,13 +124,18 @@ router.post('/admin/customers/:customerId/adjust-points', authenticateAdmin, adm
 router.get('/admin/export/customers', authenticateAdmin, adminController.exportCustomersCSV);
 router.post('/admin/setup-shopify', authenticateAdmin, adminController.setupShopify);
 
-// Admin: gestión de personal
+// Admin: gestión de personal + stats
 router.get('/admin/staff', authenticateAdmin, adminController.listStaff);
 router.post('/admin/staff', authenticateAdmin, adminController.createStaff);
 router.put('/admin/staff/:id', authenticateAdmin, adminController.updateStaff);
+router.get('/admin/staff/stats', authenticateAdmin, adminController.getStaffStats);
 
-// Admin: finanzas
+// Admin: finanzas + exports
 router.get('/admin/financials', authenticateAdmin, adminController.getFinancialStats);
+router.get('/admin/export/transactions', authenticateAdmin, adminController.exportTransactionsCSV);
+
+// Public stats (no auth — solo totales, sin datos personales)
+router.get('/stats/public', adminController.getPublicStats);
 
 // Admin: productos
 router.post('/admin/products', authenticateAdmin, productsController.createProduct);

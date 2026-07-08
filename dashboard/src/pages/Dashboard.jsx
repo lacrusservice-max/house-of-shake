@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { statsApi, setupApi, loyaltyApi } from '../services/api';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -57,12 +57,18 @@ export default function Dashboard() {
   const [dpStatus, setDpStatus] = useState({ enabled: false, expiry: null });
   const [dpHours, setDpHours] = useState(24);
   const [dpLoading, setDpLoading] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const pollRef = useRef(null);
+
+  function loadStats() {
+    statsApi.getDashboard()
+      .then(({ data }) => { setStats(data); setLastUpdated(new Date()); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }
 
   useEffect(() => {
-    statsApi.getDashboard()
-      .then(({ data }) => setStats(data))
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    loadStats();
 
     loyaltyApi.getBirthdayCustomers()
       .then(({ data }) => setBirthdayCustomers(data.customers || []))
@@ -71,6 +77,10 @@ export default function Dashboard() {
     loyaltyApi.getDoublePointsStatus()
       .then(({ data }) => setDpStatus(data))
       .catch(() => {});
+
+    // Auto-refresh stats every 30 seconds
+    pollRef.current = setInterval(loadStats, 30000);
+    return () => clearInterval(pollRef.current);
   }, []);
 
   async function handleSetupShopify() {
@@ -123,7 +133,14 @@ export default function Dashboard() {
     <div style={{ maxWidth: 1200 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 900, color: '#111', margin: 0 }}>Dashboard</h1>
+        <div>
+          <h1 style={{ fontSize: 24, fontWeight: 900, color: '#111', margin: 0 }}>Dashboard</h1>
+          {lastUpdated && (
+            <div style={{ fontSize: 11, color: '#bbb', marginTop: 3 }}>
+              Actualizado {lastUpdated.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} · Auto-refresh cada 30s
+            </div>
+          )}
+        </div>
         <button onClick={handleSetupShopify} disabled={setupLoading}
           style={{
             padding: '9px 18px', background: '#16a34a', color: '#fff',

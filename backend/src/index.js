@@ -1,4 +1,11 @@
 require('dotenv').config();
+
+// Sentry — init before anything else so it captures all errors
+if (process.env.SENTRY_DSN) {
+  const Sentry = require('@sentry/node');
+  Sentry.init({ dsn: process.env.SENTRY_DSN, tracesSampleRate: 0.1 });
+}
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -85,6 +92,12 @@ app.listen(PORT, () => {
   const walletReady = walletService.areCertsAvailable();
   logger.info(`🍎 Apple Wallet: ${walletReady ? 'CONFIGURADO' : 'PENDIENTE'}`);
   if (walletReady) walletService.initCerts(); // warm up cert cache at startup
+
+  // Start background jobs
+  const { startInactiveCustomersJob } = require('./jobs/inactive-customers.job');
+  const { startBackupJob } = require('./jobs/backup.job');
+  startInactiveCustomersJob();
+  startBackupJob();
 
   // Run DB setup async — does NOT block server startup or healthcheck
   setImmediate(() => setupDatabase());

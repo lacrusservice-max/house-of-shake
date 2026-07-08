@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState, lazy, Suspense, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/mi-cuenta.css';
 
@@ -34,9 +34,11 @@ export default function Staff() {
 /* ─── POS View ─── */
 function POSView({ token, onLogout }) {
   const [screen, setScreen]     = useState('home');
-  const [searchMode, setSearchMode] = useState('qr'); // qr | manual | email
+  const [searchMode, setSearchMode] = useState('qr'); // qr | manual | email | name
   const [codeInput, setCodeInput] = useState('');
   const [emailInput, setEmailInput] = useState('');
+  const [nameInput, setNameInput] = useState('');
+  const [nameResults, setNameResults] = useState([]);
   const [customer, setCustomer] = useState(null);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState('');
@@ -105,6 +107,16 @@ function POSView({ token, onLogout }) {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function searchByName(q) {
+    setNameInput(q);
+    if (q.trim().length < 2) { setNameResults([]); return; }
+    try {
+      const res = await fetch(`${API}/pos/search?q=${encodeURIComponent(q.trim())}`, { headers });
+      const data = await res.json();
+      setNameResults(data.customers || []);
+    } catch { setNameResults([]); }
   }
 
   async function handleAddPoints(e) {
@@ -222,6 +234,16 @@ function POSView({ token, onLogout }) {
                 <div style={{ textAlign: 'left' }}>
                   <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 2 }}>Buscar por email</div>
                   <div style={{ fontSize: 11, opacity: .5 }}>El cliente dice su correo</div>
+                </div>
+                <span style={{ marginLeft: 'auto', fontSize: 18, opacity: .4 }}>›</span>
+              </button>
+
+              {/* Search by name */}
+              <button onClick={() => { setSearchMode('name'); setNameInput(''); setNameResults([]); setScreen('searchName'); }} style={S.bigBtn('rgba(74,159,212,.08)', 'var(--cream)', '1px solid rgba(74,159,212,.2)')}>
+                <div style={{ fontSize: 32 }}>🔍</div>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 2 }}>Buscar por nombre</div>
+                  <div style={{ fontSize: 11, opacity: .5 }}>El cliente no trae su teléfono</div>
                 </div>
                 <span style={{ marginLeft: 'auto', fontSize: 18, opacity: .4 }}>›</span>
               </button>
@@ -361,6 +383,57 @@ function POSView({ token, onLogout }) {
                 {loading ? 'Buscando…' : 'Buscar cliente →'}
               </button>
             </form>
+          </div>
+        )}
+
+        {/* ── SEARCH BY NAME ── */}
+        {screen === 'searchName' && (
+          <div>
+            <button onClick={() => setScreen('home')} style={S.back}>← Volver</button>
+            <h2 className="mc-heading" style={{ fontSize: 34, marginBottom: 6 }}>
+              Buscar por <span>nombre</span>
+            </h2>
+            <p style={{ color: 'rgba(251,247,240,.4)', fontSize: 13, fontWeight: 600, marginBottom: 20 }}>
+              Escribe el nombre o apellido del cliente
+            </p>
+            <label style={S.lbl}>Nombre del cliente</label>
+            <input
+              type="text" autoFocus
+              value={nameInput}
+              onChange={e => searchByName(e.target.value)}
+              placeholder="Ej: Juan, García..."
+              style={S.inp}
+              onFocus={e => e.target.style.borderColor = 'var(--gold)'}
+              onBlur={e => e.target.style.borderColor = 'rgba(251,247,240,.12)'}
+            />
+            {error && <div style={S.err}>{error}</div>}
+            {nameResults.length > 0 && (
+              <div style={{ marginTop: 14, display: 'grid', gap: 8 }}>
+                {nameResults.map(c => (
+                  <button key={c.id} onClick={() => lookupByCode(c.id)} style={{
+                    background: 'rgba(251,247,240,.05)', border: '1px solid rgba(251,247,240,.1)',
+                    borderRadius: 12, padding: '14px 16px', cursor: 'pointer',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    color: 'var(--cream)', fontFamily: 'inherit',
+                    transition: 'background .15s',
+                  }}>
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>{c.firstName} {c.lastName}</div>
+                      {c.phone && <div style={{ fontSize: 11, color: 'rgba(251,247,240,.35)', marginTop: 2 }}>Tel: {c.phone}</div>}
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: 'var(--gold)' }}>{c.availablePoints} pts</div>
+                      <div style={{ fontSize: 10, color: 'rgba(251,247,240,.3)', marginTop: 1 }}>{c.level}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+            {nameInput.length >= 2 && nameResults.length === 0 && !loading && (
+              <div style={{ textAlign: 'center', color: 'rgba(251,247,240,.3)', fontSize: 13, marginTop: 20 }}>
+                Sin resultados para "{nameInput}"
+              </div>
+            )}
           </div>
         )}
 
@@ -628,57 +701,52 @@ function POSView({ token, onLogout }) {
 
         {/* ── SUCCESS ── */}
         {screen === 'success' && result && (
-          <div style={{ textAlign: 'center', paddingTop: 20 }}>
-            <div style={{ fontSize: 72, marginBottom: 12 }}>{result.type === 'earn' ? '🎉' : '🎁'}</div>
-
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, letterSpacing: 2, lineHeight: 1, color: result.type === 'earn' ? '#5EC97A' : '#4a9fd4', marginBottom: 8 }}>
-              {result.type === 'earn'
-                ? `+${result.pointsAdded} pts`
-                : `-$${result.discountMxn || (result.discountUsd * 20)?.toFixed(0)} MXN`
-              }
-            </div>
-            <p style={{ color: 'rgba(251,247,240,.55)', fontSize: 14, marginBottom: 16 }}>
-              {result.type === 'earn' ? 'puntos agregados a' : 'descuento aplicado para'}{' '}
-              <strong style={{ color: 'var(--cream)' }}>{result.customerName || customer?.firstName}</strong>
-            </p>
-
-            {/* Level up */}
-            {result.levelChanged && (
-              <div style={{ background: 'linear-gradient(135deg,rgba(255,215,0,.15),rgba(255,215,0,.05))', border: '1px solid rgba(255,215,0,.4)', borderRadius: 14, padding: '12px 18px', marginBottom: 16 }}>
-                <p style={{ fontWeight: 800, color: '#FFD700', margin: 0, fontSize: 14 }}>¡Subió de nivel! → {LEVEL[result.level]?.emoji} {LEVEL[result.level]?.label}</p>
-              </div>
-            )}
-
-            {/* New balance */}
-            <div style={{ background: 'rgba(251,247,240,.04)', border: '1px solid rgba(251,247,240,.09)', borderRadius: 18, padding: '16px 24px', marginBottom: 16 }}>
-              <div style={{ fontSize: 9, letterSpacing: 3, color: 'rgba(251,247,240,.3)', textTransform: 'uppercase', marginBottom: 6 }}>Saldo actualizado</div>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, color: 'var(--gold)', lineHeight: 1 }}>
-                {result.newBalance}
-              </div>
-              <div style={{ fontSize: 11, color: 'rgba(251,247,240,.25)', marginTop: 4 }}>puntos disponibles</div>
-            </div>
-
-            {/* Affordable products after transaction */}
-            <div style={{ textAlign: 'left' }}>
-              <AffordableSection
-                affordable={result.affordableProducts}
-                almost={result.almostAffordableProducts}
-                points={result.newBalance}
-                title={result.type === 'earn' ? 'Ahora puede canjear:' : 'Todavía puede canjear:'}
-              />
-            </div>
-
-            <div style={{ display: 'grid', gap: 10, marginTop: 20 }}>
-              <button onClick={() => { setScreen('customer'); setResult(null); }} style={{ ...S.ghostBtn }}>
-                Ver perfil del cliente
-              </button>
-              <button onClick={reset} style={S.goldBtn}>
-                Nueva transacción
-              </button>
-            </div>
-          </div>
+          <SuccessScreen result={result} customer={customer} onViewProfile={() => { setScreen('customer'); setResult(null); }} onReset={reset} />
         )}
 
+      </div>
+    </div>
+  );
+}
+
+/* ─── Success Screen with Confetti ─── */
+function SuccessScreen({ result, customer, onViewProfile, onReset }) {
+  useEffect(() => {
+    if (result.type !== 'earn') return;
+    let confetti;
+    import('canvas-confetti').then(m => {
+      confetti = m.default;
+      confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 }, colors: ['#C8961E', '#5EC97A', '#FBF7F0', '#1B2F56'] });
+    }).catch(() => {});
+    return () => { if (confetti?.reset) confetti.reset(); };
+  }, [result.type]);
+
+  return (
+    <div style={{ textAlign: 'center', paddingTop: 20 }}>
+      <div style={{ fontSize: 72, marginBottom: 12 }}>{result.type === 'earn' ? '🎉' : '🎁'}</div>
+      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, letterSpacing: 2, lineHeight: 1, color: result.type === 'earn' ? '#5EC97A' : '#4a9fd4', marginBottom: 8 }}>
+        {result.type === 'earn' ? `+${result.pointsAdded} pts` : `-$${result.discountMxn || (result.discountUsd * 20)?.toFixed(0)} MXN`}
+      </div>
+      <p style={{ color: 'rgba(251,247,240,.55)', fontSize: 14, marginBottom: 16 }}>
+        {result.type === 'earn' ? 'puntos agregados a' : 'descuento aplicado para'}{' '}
+        <strong style={{ color: 'var(--cream)' }}>{result.customerName || customer?.firstName}</strong>
+      </p>
+      {result.levelChanged && (
+        <div style={{ background: 'linear-gradient(135deg,rgba(255,215,0,.15),rgba(255,215,0,.05))', border: '1px solid rgba(255,215,0,.4)', borderRadius: 14, padding: '12px 18px', marginBottom: 16 }}>
+          <p style={{ fontWeight: 800, color: '#FFD700', margin: 0, fontSize: 14 }}>¡Subió de nivel! → {LEVEL[result.level]?.emoji} {LEVEL[result.level]?.label}</p>
+        </div>
+      )}
+      <div style={{ background: 'rgba(251,247,240,.04)', border: '1px solid rgba(251,247,240,.09)', borderRadius: 18, padding: '16px 24px', marginBottom: 16 }}>
+        <div style={{ fontSize: 9, letterSpacing: 3, color: 'rgba(251,247,240,.3)', textTransform: 'uppercase', marginBottom: 6 }}>Saldo actualizado</div>
+        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, color: 'var(--gold)', lineHeight: 1 }}>{result.newBalance}</div>
+        <div style={{ fontSize: 11, color: 'rgba(251,247,240,.25)', marginTop: 4 }}>puntos disponibles</div>
+      </div>
+      <div style={{ textAlign: 'left' }}>
+        <AffordableSection affordable={result.affordableProducts} almost={result.almostAffordableProducts} points={result.newBalance} title={result.type === 'earn' ? 'Ahora puede canjear:' : 'Todavía puede canjear:'} />
+      </div>
+      <div style={{ display: 'grid', gap: 10, marginTop: 20 }}>
+        <button onClick={onViewProfile} style={{ ...S.ghostBtn }}>Ver perfil del cliente</button>
+        <button onClick={onReset} style={S.goldBtn}>Nueva transacción</button>
       </div>
     </div>
   );
