@@ -61,6 +61,29 @@ router.post(`${walletBase}/log`, walletController.logError);
 // === PRODUCTS (público) ===
 router.get('/products', productsController.listProducts);
 
+// === WALLET DEMO (público — para preview del pass) ===
+router.get('/wallet/demo-pass', async (req, res) => {
+  try {
+    const walletService = require('../services/wallet.service');
+    const status = walletService.getWalletStatus();
+    if (!status.ready) return res.status(503).json({ error: 'Wallet no configurado', checks: status.checks });
+    const { buffer } = await walletService.generatePassBuffer({
+      id: '00000000-0000-0000-0000-000000000001',
+      firstName: 'House of',
+      lastName: 'Shake',
+      availablePoints: 150,
+      lifetimePoints: 250,
+      level: 'SILVER',
+      walletPassSerial: `DEMO-${Date.now()}`,
+      walletPassToken: `demotoken${Date.now()}`,
+    });
+    res.set({ 'Content-Type': 'application/vnd.apple.pkpass', 'Content-Disposition': 'attachment; filename="houseofshake.pkpass"' });
+    res.send(buffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // === POS (staff Y admin pueden usar el POS) ===
 router.get('/pos/customer/:code', authenticateStaff, posController.lookupCustomer);
 router.post('/pos/customer/:customerId/add-points', authenticateStaff, posController.addPointsForPurchase);
