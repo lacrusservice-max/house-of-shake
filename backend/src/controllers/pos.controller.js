@@ -3,6 +3,21 @@ const pointsService = require('../services/points.service');
 const walletService = require('../services/wallet.service');
 const logger = require('../config/logger');
 
+// Returns products the customer can afford + products almost in reach
+async function getAffordableProducts(availablePoints) {
+  const products = await prisma.product.findMany({
+    where: { active: true },
+    orderBy: [{ pointsValue: 'asc' }, { sortOrder: 'asc' }],
+  });
+
+  const affordable = products.filter(p => p.pointsValue <= availablePoints);
+  const almostAffordable = products.filter(
+    p => p.pointsValue > availablePoints && p.pointsValue <= availablePoints * 1.3 + 50
+  ).slice(0, 3);
+
+  return { affordable, almostAffordable };
+}
+
 // Staff scans QR → look up customer; staff sees limited data, admin sees full data
 async function lookupCustomer(req, res) {
   const { code } = req.params;
@@ -45,6 +60,11 @@ async function lookupCustomer(req, res) {
     const dp = dpRows[0] || {};
     const doublePointsActive = dp.double_points_enabled && (!dp.double_points_expiry || new Date(dp.double_points_expiry) > new Date());
 
+    const { affordable, almostAffordable } = await getAffordableProducts(customer.availablePoints);
+
+    const config = await prisma.config.findFirst();
+    const pointsToMxn = config ? (config.redeemValueUsd / config.pointsToRedeem) * 20 : 0.1;
+
     const data = {
       id: customer.id,
       firstName: customer.firstName,
@@ -58,6 +78,9 @@ async function lookupCustomer(req, res) {
       visitCount: Number(ext.visit_count) || 0,
       lastVisitAt: ext.last_visit_at || null,
       doublePointsActive: !!doublePointsActive,
+      affordableProducts: affordable,
+      almostAffordableProducts: almostAffordable,
+      pointsValueMxn: parseFloat(pointsToMxn.toFixed(4)),
     };
 
     if (isAdmin) {
@@ -98,11 +121,16 @@ async function addPointsForPurchase(req, res) {
     const updated = await prisma.customer.findUnique({ where: { id: customerId } });
     await walletService.sendPushUpdate(updated).catch(() => {});
 
+    const { affordable, almostAffordable } = await getAffordableProducts(result.newBalance);
+
     res.json({
       success: true,
       pointsAdded: result.pointsAdded,
       newBalance: result.newBalance,
       level: result.level,
+      levelChanged: result.level !== customer.level,
+      affordableProducts: affordable,
+      almostAffordableProducts: almostAffordable,
     });
   } catch (err) {
     logger.error('POS addPoints error:', err.message);
@@ -129,11 +157,16 @@ async function redeemPoints(req, res) {
     const updated = await prisma.customer.findUnique({ where: { id: customerId } });
     await walletService.sendPushUpdate(updated).catch(() => {});
 
+    const { affordable, almostAffordable } = await getAffordableProducts(result.newBalance);
+
     res.json({
       success: true,
       pointsRedeemed: parseInt(points),
       discountUsd: result.discountUsd,
+      discountMxn: parseFloat((result.discountUsd * 20).toFixed(2)),
       newBalance: result.newBalance,
+      affordableProducts: affordable,
+      almostAffordableProducts: almostAffordable,
     });
   } catch (err) {
     logger.error('POS redeemPoints error:', err.message);

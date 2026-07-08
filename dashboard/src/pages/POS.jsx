@@ -55,7 +55,9 @@ export default function POS() {
     try {
       const { data } = await api.get(`/customers/email/${encodeURIComponent(email.trim().toLowerCase())}`);
       const cust = data.customer || data;
-      setCustomer(cust);
+      // Get full POS data (includes affordableProducts)
+      const posData = await api.get(`/pos/customer/${cust.id}`).then(r => r.data).catch(() => ({}));
+      setCustomer({ ...cust, recentTransactions: cust.transactions || [], ...posData });
       setScreen('customer');
     } catch (err) {
       setError(err.response?.data?.error || 'Cliente no encontrado');
@@ -363,9 +365,16 @@ export default function POS() {
             </button>
           </div>
 
+          {/* ── TE ALCANZA PARA ── */}
+          <AffordableSection
+            affordable={customer.affordableProducts}
+            almost={customer.almostAffordableProducts}
+            points={customer.availablePoints}
+          />
+
           {/* Recent transactions */}
           {customer.recentTransactions?.length > 0 && (
-            <div style={styles.recentBox}>
+            <div style={{ ...styles.recentBox, marginTop: 12 }}>
               <div style={styles.recentTitle}>Últimas transacciones</div>
               {customer.recentTransactions.map(t => (
                 <div key={t.id} style={styles.recentRow}>
@@ -479,30 +488,45 @@ export default function POS() {
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, letterSpacing: 2, color: '#5EC97A' }}>
                 +{result.pointsAdded} puntos
               </div>
-              <p style={{ color: 'rgba(251,247,240,.6)', marginBottom: 20 }}>
-                agregados a la cuenta de <strong style={{ color: 'var(--cream)' }}>{customer?.firstName}</strong>
+              <p style={{ color: 'rgba(251,247,240,.6)', marginBottom: 12 }}>
+                agregados a <strong style={{ color: 'var(--cream)' }}>{customer?.firstName}</strong>
               </p>
+              {result.levelChanged && (
+                <div style={{ background: 'rgba(255,215,0,.12)', border: '1px solid rgba(255,215,0,.3)', borderRadius: 12, padding: '10px 16px', marginBottom: 12 }}>
+                  <span style={{ fontWeight: 800, color: '#FFD700', fontSize: 13 }}>¡Subió de nivel! 🎖 {result.level}</span>
+                </div>
+              )}
             </>
           ) : (
             <>
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, letterSpacing: 2, color: '#4a9fd4' }}>
-                ${result.discountUsd?.toFixed(2)} MXN
+                -${result.discountMxn || (result.discountUsd * 20)?.toFixed(0)} MXN
               </div>
-              <p style={{ color: 'rgba(251,247,240,.6)', marginBottom: 20 }}>
+              <p style={{ color: 'rgba(251,247,240,.6)', marginBottom: 12 }}>
                 descuento aplicado a <strong style={{ color: 'var(--cream)' }}>{customer?.firstName}</strong>
               </p>
             </>
           )}
 
           <div style={styles.statBox2}>
-            <div style={styles.statLabel}>Saldo actual</div>
+            <div style={styles.statLabel}>Saldo actualizado</div>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: 'var(--gold)', letterSpacing: 2 }}>
               {result.newBalance}
             </div>
             <div style={{ fontSize: 11, color: 'rgba(251,247,240,.3)', letterSpacing: 1 }}>puntos disponibles</div>
           </div>
 
-          <div style={{ display: 'grid', gap: 10, marginTop: 24 }}>
+          {/* Productos asequibles post-transacción */}
+          <div style={{ textAlign: 'left', marginTop: 4 }}>
+            <AffordableSection
+              affordable={result.affordableProducts}
+              almost={result.almostAffordableProducts}
+              points={result.newBalance}
+              title={result.type === 'earn' ? 'Ahora puede canjear:' : 'Todavía puede canjear:'}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gap: 10, marginTop: 20 }}>
             <button onClick={() => { setScreen('customer'); setResult(null); }} style={{ ...styles.goldBtn, background: 'rgba(251,247,240,.08)', color: 'var(--cream)' }}>
               Ver perfil del cliente
             </button>
@@ -626,3 +650,52 @@ const styles = {
     borderBottom: '1px solid rgba(251,247,240,.04)',
   },
 };
+
+function AffordableSection({ affordable = [], almost = [], points = 0, title = 'Le alcanza para:' }) {
+  if (!affordable?.length && !almost?.length) return null;
+  return (
+    <div style={{ marginTop: 14 }}>
+      {affordable.length > 0 && (
+        <div style={{ background: 'rgba(94,201,122,.06)', border: '1px solid rgba(94,201,122,.2)', borderRadius: 14, padding: '14px 16px', marginBottom: 10 }}>
+          <div style={{ fontSize: 9, letterSpacing: 3, color: '#5EC97A', textTransform: 'uppercase', marginBottom: 10, fontWeight: 800, fontFamily: "'Montserrat', sans-serif" }}>
+            ✓ {title}
+          </div>
+          {affordable.map(p => (
+            <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(94,201,122,.05)', borderRadius: 10, padding: '10px 14px', marginBottom: 6 }}>
+              <div style={{ flex: 1, marginRight: 12 }}>
+                <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--cream)', fontFamily: "'Montserrat', sans-serif" }}>{p.name}</div>
+                {p.description && <div style={{ fontSize: 11, color: 'rgba(251,247,240,.4)', marginTop: 2 }}>{p.description}</div>}
+              </div>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: '#5EC97A', lineHeight: 1 }}>{p.pointsValue} pts</div>
+                {p.price != null && <div style={{ fontSize: 10, color: 'rgba(251,247,240,.3)', marginTop: 1 }}>${p.price.toFixed(0)} MXN</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {almost.length > 0 && (
+        <div style={{ background: 'rgba(160,120,30,.06)', border: '1px solid rgba(160,120,30,.2)', borderRadius: 14, padding: '14px 16px' }}>
+          <div style={{ fontSize: 9, letterSpacing: 3, color: 'var(--gold)', textTransform: 'uppercase', marginBottom: 10, fontWeight: 800, fontFamily: "'Montserrat', sans-serif" }}>
+            ◎ Casi alcanza para:
+          </div>
+          {almost.map(p => {
+            const needed = p.pointsValue - points;
+            return (
+              <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(160,120,30,.05)', borderRadius: 10, padding: '10px 14px', marginBottom: 6 }}>
+                <div style={{ flex: 1, marginRight: 12 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--cream)', fontFamily: "'Montserrat', sans-serif" }}>{p.name}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(251,247,240,.4)', marginTop: 2 }}>Faltan {needed} pts más</div>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: 'var(--gold)', lineHeight: 1 }}>{p.pointsValue} pts</div>
+                  {p.price != null && <div style={{ fontSize: 10, color: 'rgba(251,247,240,.3)', marginTop: 1 }}>${p.price.toFixed(0)} MXN</div>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

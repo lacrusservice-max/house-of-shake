@@ -91,17 +91,10 @@ function POSView({ token, onLogout }) {
         throw new Error(data.error || 'Error al buscar cliente');
       }
       const cust = data.customer || data;
-      setCustomer({
-        id: cust.id,
-        firstName: cust.firstName,
-        lastName: cust.lastName,
-        email: cust.email,
-        availablePoints: cust.availablePoints,
-        totalPoints: cust.totalPoints,
-        lifetimePoints: cust.lifetimePoints,
-        level: cust.level,
-        recentTransactions: cust.transactions || [],
-      });
+      // Get full POS data (includes affordableProducts)
+      const posRes = await fetch(`${API}/pos/customer/${cust.id}`, { headers });
+      const posData = posRes.ok ? await posRes.json() : {};
+      setCustomer({ ...cust, recentTransactions: cust.transactions || [], ...posData });
       setScreen('customer');
     } catch (err) {
       if (err.name === 'TypeError') {
@@ -124,7 +117,7 @@ function POSView({ token, onLogout }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al agregar puntos');
-      setResult({ type: 'earn', ...data });
+      setResult({ type: 'earn', customerName: customer.firstName, ...data });
       setAmount(''); setScreen('success');
     } catch (err) {
       setError(err.message);
@@ -143,7 +136,7 @@ function POSView({ token, onLogout }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al canjear');
-      setResult({ type: 'redeem', ...data });
+      setResult({ type: 'redeem', customerName: customer.firstName, ...data });
       setRedeemPts(''); setScreen('success');
     } catch (err) {
       setError(err.message);
@@ -504,9 +497,16 @@ function POSView({ token, onLogout }) {
               </button>
             </div>
 
+            {/* ── "TE ALCANZA PARA" ── */}
+            <AffordableSection
+              affordable={customer.affordableProducts}
+              almost={customer.almostAffordableProducts}
+              points={customer.availablePoints}
+            />
+
             {/* Recent txns */}
             {customer.recentTransactions?.length > 0 && (
-              <div style={{ background: 'rgba(251,247,240,.03)', border: '1px solid rgba(251,247,240,.07)', borderRadius: 14, padding: '14px 16px' }}>
+              <div style={{ background: 'rgba(251,247,240,.03)', border: '1px solid rgba(251,247,240,.07)', borderRadius: 14, padding: '14px 16px', marginTop: 12 }}>
                 <div style={{ fontSize: 9, letterSpacing: 3, color: 'rgba(251,247,240,.3)', textTransform: 'uppercase', marginBottom: 10, fontWeight: 700 }}>Últimas transacciones</div>
                 {customer.recentTransactions.slice(0, 4).map(t => (
                   <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid rgba(251,247,240,.04)' }}>
@@ -634,24 +634,41 @@ function POSView({ token, onLogout }) {
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, letterSpacing: 2, lineHeight: 1, color: result.type === 'earn' ? '#5EC97A' : '#4a9fd4', marginBottom: 8 }}>
               {result.type === 'earn'
                 ? `+${result.pointsAdded} pts`
-                : `$${result.discountUsd?.toFixed(0)} MXN desc.`
+                : `-$${result.discountMxn || (result.discountUsd * 20)?.toFixed(0)} MXN`
               }
             </div>
-            <p style={{ color: 'rgba(251,247,240,.55)', fontSize: 14, marginBottom: 24 }}>
-              {result.type === 'earn' ? 'agregados a' : 'descuento para'}{' '}
-              <strong style={{ color: 'var(--cream)' }}>{customer?.firstName}</strong>
+            <p style={{ color: 'rgba(251,247,240,.55)', fontSize: 14, marginBottom: 16 }}>
+              {result.type === 'earn' ? 'puntos agregados a' : 'descuento aplicado para'}{' '}
+              <strong style={{ color: 'var(--cream)' }}>{result.customerName || customer?.firstName}</strong>
             </p>
 
+            {/* Level up */}
+            {result.levelChanged && (
+              <div style={{ background: 'linear-gradient(135deg,rgba(255,215,0,.15),rgba(255,215,0,.05))', border: '1px solid rgba(255,215,0,.4)', borderRadius: 14, padding: '12px 18px', marginBottom: 16 }}>
+                <p style={{ fontWeight: 800, color: '#FFD700', margin: 0, fontSize: 14 }}>¡Subió de nivel! → {LEVEL[result.level]?.emoji} {LEVEL[result.level]?.label}</p>
+              </div>
+            )}
+
             {/* New balance */}
-            <div style={{ background: 'rgba(251,247,240,.04)', border: '1px solid rgba(251,247,240,.09)', borderRadius: 18, padding: '20px 24px', marginBottom: 28 }}>
-              <div style={{ fontSize: 9, letterSpacing: 3, color: 'rgba(251,247,240,.3)', textTransform: 'uppercase', marginBottom: 6 }}>Nuevo saldo</div>
+            <div style={{ background: 'rgba(251,247,240,.04)', border: '1px solid rgba(251,247,240,.09)', borderRadius: 18, padding: '16px 24px', marginBottom: 16 }}>
+              <div style={{ fontSize: 9, letterSpacing: 3, color: 'rgba(251,247,240,.3)', textTransform: 'uppercase', marginBottom: 6 }}>Saldo actualizado</div>
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, color: 'var(--gold)', lineHeight: 1 }}>
                 {result.newBalance}
               </div>
               <div style={{ fontSize: 11, color: 'rgba(251,247,240,.25)', marginTop: 4 }}>puntos disponibles</div>
             </div>
 
-            <div style={{ display: 'grid', gap: 10 }}>
+            {/* Affordable products after transaction */}
+            <div style={{ textAlign: 'left' }}>
+              <AffordableSection
+                affordable={result.affordableProducts}
+                almost={result.almostAffordableProducts}
+                points={result.newBalance}
+                title={result.type === 'earn' ? 'Ahora puede canjear:' : 'Todavía puede canjear:'}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gap: 10, marginTop: 20 }}>
               <button onClick={() => { setScreen('customer'); setResult(null); }} style={{ ...S.ghostBtn }}>
                 Ver perfil del cliente
               </button>
@@ -663,6 +680,59 @@ function POSView({ token, onLogout }) {
         )}
 
       </div>
+    </div>
+  );
+}
+
+/* ─── Affordable Products Section ─── */
+function AffordableSection({ affordable = [], almost = [], points = 0, title = 'Le alcanza para:' }) {
+  if (!affordable?.length && !almost?.length) return null;
+
+  return (
+    <div style={{ marginTop: 14 }}>
+      {affordable.length > 0 && (
+        <div style={{ background: 'rgba(94,201,122,.06)', border: '1px solid rgba(94,201,122,.2)', borderRadius: 14, padding: '14px 16px', marginBottom: 10 }}>
+          <div style={{ fontSize: 9, letterSpacing: 3, color: '#5EC97A', textTransform: 'uppercase', marginBottom: 10, fontWeight: 800 }}>
+            ✓ {title}
+          </div>
+          <div style={{ display: 'grid', gap: 8 }}>
+            {affordable.map(p => (
+              <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(94,201,122,.05)', borderRadius: 10, padding: '10px 14px' }}>
+                <div style={{ flex: 1, marginRight: 12 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--cream)' }}>{p.name}</div>
+                  {p.description && <div style={{ fontSize: 11, color: 'rgba(251,247,240,.4)', marginTop: 2 }}>{p.description}</div>}
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: '#5EC97A', lineHeight: 1 }}>{p.pointsValue} pts</div>
+                  <div style={{ fontSize: 10, color: 'rgba(251,247,240,.3)', marginTop: 1 }}>${p.price?.toFixed(0)} MXN</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {almost.length > 0 && (
+        <div style={{ background: 'rgba(245,200,66,.04)', border: '1px solid rgba(245,200,66,.15)', borderRadius: 14, padding: '14px 16px' }}>
+          <div style={{ fontSize: 9, letterSpacing: 3, color: 'var(--gold)', textTransform: 'uppercase', marginBottom: 10, fontWeight: 800 }}>
+            Casi lo logra — le faltan pocos pts:
+          </div>
+          <div style={{ display: 'grid', gap: 6 }}>
+            {almost.map(p => {
+              const needed = p.pointsValue - points;
+              return (
+                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'rgba(245,200,66,.04)', borderRadius: 10 }}>
+                  <div style={{ flex: 1, marginRight: 12 }}>
+                    <div style={{ fontWeight: 700, fontSize: 12, color: 'rgba(251,247,240,.7)' }}>{p.name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--gold)', marginTop: 2 }}>Faltan {needed} pts más</div>
+                  </div>
+                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, color: 'rgba(245,200,66,.6)', flexShrink: 0 }}>{p.pointsValue} pts</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
