@@ -147,9 +147,9 @@ async function generatePassBuffer(customerData) {
       serialNumber:        serial,
       authenticationToken: passToken,
       webServiceURL:       buildWebServiceURL(),
-      foregroundColor:     'rgb(255, 255, 255)',
-      backgroundColor:     'rgb(7, 30, 61)',
-      labelColor:          'rgb(245, 200, 66)',
+      foregroundColor:     'rgb(7, 30, 61)',
+      backgroundColor:     'rgb(251, 247, 240)',
+      labelColor:          'rgb(15, 68, 138)',
     }
   );
 
