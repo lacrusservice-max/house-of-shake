@@ -147,9 +147,9 @@ async function generatePassBuffer(customerData) {
       serialNumber:        serial,
       authenticationToken: passToken,
       webServiceURL:       buildWebServiceURL(),
-      foregroundColor:     'rgb(224, 212, 180)',
+      foregroundColor:     'rgb(255, 255, 255)',
       backgroundColor:     'rgb(27, 47, 86)',
-      labelColor:          'rgb(196, 168, 102)',
+      labelColor:          'rgb(160, 120, 30)',
     }
   );
 
@@ -160,21 +160,16 @@ async function generatePassBuffer(customerData) {
     altText:         `ID: ${customerData.id.substring(0, 8).toUpperCase()}`,
   });
 
+  // Marca arriba (strip) — sin primaryFields para no encimar texto sobre la imagen
   pass.headerFields.push({
     key:           'level',
     label:         'NIVEL',
     value:         LEVEL_NAMES[customerData.level] || 'BRONCE',
     textAlignment: 'PKTextAlignmentRight',
   });
-  pass.primaryFields.push({
-    key:           'points',
-    label:         'PUNTOS DISPONIBLES',
-    value:         String(customerData.availablePoints || 0),
-    changeMessage: 'Tus puntos cambiaron a %@',
-  });
+  // Sin primaryFields — los puntos se ven en la app web, no en el pass
   pass.secondaryFields.push(
-    { key: 'name',     label: 'CLIENTE',       value: `${customerData.firstName} ${customerData.lastName}` },
-    { key: 'lifetime', label: 'PUNTOS TOTALES', value: String(customerData.lifetimePoints || 0) }
+    { key: 'name', label: 'CLIENTE', value: `${customerData.firstName} ${customerData.lastName}` }
   );
   pass.auxiliaryFields.push({
     key:   'next_level',
