@@ -31,6 +31,9 @@ const allowedOrigins = [
   'https://house-of-shake.vercel.app',
 ].filter(Boolean);
 
+// Railway (and most PaaS) sit behind a load balancer — trust the first proxy
+app.set('trust proxy', 1);
+
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
 app.use(cors({
