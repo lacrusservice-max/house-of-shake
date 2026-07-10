@@ -34,6 +34,18 @@ const ACCORDION_ITEMS = [
 
 const CATEGORY_EMOJIS = { café: '☕', frío: '🧊', especiales: '✨', alimentos: '🥐', bebida: '🥤' };
 
+const UE = (h) => `https://tb-static.uber.com/prod/image-proc/processed_images/${h}/c67fc65e9b4e16a553eb7574fba090f1.jpeg`;
+const FEATURED_ITEMS = [
+  { name: 'Teddy Bear Latte',      desc: 'Latte frío con sabor a galleta de osito: miel, vainilla y canela.',          price: 95,  img: UE('5ae6d3a270612c4d22f6616087056ec5'), emoji: '☕', tag: '⭐ Favorito' },
+  { name: 'Coconut Iced Latte',    desc: 'Latte helado con leche de coco y espuma fría de coco.',                       price: 95,  img: UE('d320b187d4e1640bd8a8fbd2cf0ce473'), emoji: '🥥', tag: '#1 Más Pedido' },
+  { name: 'Iced Tiramisu Latte',   desc: 'Doble espresso frío con vainilla y cacao, inspirado en el tiramisú.',         price: 95,  img: UE('8479da6854d3123d46f1975583f70ead'), emoji: '☕', tag: '#2 Favorito' },
+  { name: 'Pistachio Milkshake',   desc: 'Batido cremoso verde claro con delicado sabor a pistacho.',                   price: 110, img: UE('7965058b76761f50fefd6b7dd49d6771'), emoji: '🥤', tag: 'Milkshake' },
+  { name: 'Chocolate Milkshake',   desc: 'Helado de chocolate, leche y jarabe de chocolate. Perfección cremosa.',       price: 110, img: UE('09893e14c0dbb41abf502db806eafe48'), emoji: '🍫', tag: 'Milkshake' },
+  { name: 'Iced Matcha Lavander',  desc: 'Matcha frío con cold foam de lavanda. Refrescante y floral.',                 price: 94,  img: UE('0492f4430c143e890ad15e99e0dd1a39'), emoji: '🍵', tag: 'Matcha' },
+  { name: 'Dirty Chai',            desc: 'Mezcla fría de chai y café con hielo. Lo mejor de dos mundos.',              price: 93,  img: UE('699626effe115aecb33a4ce8f60db8ba'), emoji: '🫖', tag: 'Chai' },
+  { name: 'Pink Coconut Drink',    desc: 'Mezcla de bebida de coco y fresa con hielo. Tropical y refrescante.',        price: 89,  img: UE('bedc022baa6e511569c29fdda53dc15d'), emoji: '🍓', tag: 'Fitfresh' },
+];
+
 const SCHEDULE = [
   { day: 'Lunes – Viernes', hours: '8:00 AM – 9:00 PM' },
   { day: 'Sábado', hours: '9:00 AM – 10:00 PM' },
@@ -269,40 +281,30 @@ export default function Landing() {
           <p className="hs-eyebrow" style={{ justifyContent:'center' }}>Specialty Drinks</p>
           <h2 className="hs-h-dark">NUESTRO MENÚ</h2>
           <p className="hs-sub-dark">Cada bebida, diseñada para que vuelvas.</p>
-          <div style={{ position:'relative' }}>
-            <div className="hs-tabs">
-              <button className={`hs-tab${activeTab === 'all' ? ' on' : ''}`} onClick={() => setActiveTab('all')}>Todo</button>
-              {categories.map(cat => (
-                <button key={cat} className={`hs-tab${activeTab === cat ? ' on' : ''}`} onClick={() => setActiveTab(cat)}>
-                  {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
         <div className="hs-mgrid">
-          {filteredProducts.map((p, i) => (
-            <div key={p.id} className="hs-mcard hs-rev">
-              <div className="hs-cimg">
-                <div className="hs-cimg-ph">{CATEGORY_EMOJIS[p.category] || '☕'}</div>
-                <span className="hs-cbadge">+{p.pointsValue} pts</span>
+          {FEATURED_ITEMS.map((p, i) => (
+            <Link key={i} to="/menu" className="hs-mcard hs-rev" style={{ textDecoration:'none', display:'block' }}>
+              <div className="hs-cimg" style={{ position:'relative', overflow:'hidden' }}>
+                {p.img ? (
+                  <img src={p.img} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover', position:'absolute', inset:0 }} onError={e => { e.target.style.display='none'; }} />
+                ) : null}
+                <div className="hs-cimg-ph" style={{ position:'relative', zIndex: p.img ? 0 : 1 }}>{p.emoji}</div>
+                <span className="hs-cbadge" style={{ zIndex:2 }}>{p.tag}</span>
               </div>
               <div className="hs-cbody">
                 <p className="hs-cname">{p.name}</p>
-                <p className="hs-cdesc">{p.description || 'Specialty drink House of Shake'}</p>
+                <p className="hs-cdesc">{p.desc}</p>
                 <div className="hs-cfoot">
                   <span className="hs-cprice">${p.price}</span>
                   <span className="hs-ctag">MXN</span>
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
-        {products.length === 0 && (
-          <p style={{ textAlign:'center', color:'rgba(251,247,240,.3)', padding:'60px 0' }}>Cargando menú...</p>
-        )}
         <div style={{ textAlign:'center', marginTop:48, display:'flex', gap:16, justifyContent:'center', flexWrap:'wrap' }}>
-          <Link to="/menu" className="hs-btn hs-btn-gold">VER MENÚ COMPLETO</Link>
+          <Link to="/menu" className="hs-btn hs-btn-gold">VER MENÚ COMPLETO — 39 PRODUCTOS</Link>
           <Link to="/registro" className="hs-btn hs-btn-blue">ÚNETE Y GANA PUNTOS</Link>
         </div>
       </section>
