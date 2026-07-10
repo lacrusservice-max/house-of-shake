@@ -185,7 +185,7 @@ export default function Landing() {
 
       {/* ── HERO ── */}
       <section id="hs-hero">
-        <div className="hs-hero-img" style={{ backgroundImage: "url('/images/img_1.png')" }} />
+        <div className="hs-hero-img" style={{ backgroundImage: "url('/hero.png')" }} />
         <div className="hs-hero-ov1" />
         <div className="hs-hero-ov2" />
         {/* sparks */}
