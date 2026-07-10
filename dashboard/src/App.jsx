@@ -17,6 +17,7 @@ import Products from './pages/Products';
 import WalletSetup from './pages/WalletSetup';
 import Finanzas from './pages/Finanzas';
 import Personal from './pages/Personal';
+import Menu from './pages/Menu';
 
 function CustomerRoute({ children }) {
   const token = localStorage.getItem('hos_customer_token');
@@ -34,6 +35,7 @@ export default function App() {
       <Routes>
         {/* Public */}
         <Route path="/" element={<Landing />} />
+        <Route path="/menu" element={<Menu />} />
         <Route path="/login" element={<CustomerLogin />} />
         <Route path="/registro" element={<Register />} />
 

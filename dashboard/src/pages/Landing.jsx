@@ -149,7 +149,7 @@ export default function Landing() {
         </a>
         <ul className="hs-nav-links">
           <li><a onClick={() => scrollTo('hs-about')}>Nosotros</a></li>
-          <li><a onClick={() => scrollTo('hs-menu')}>Menú</a></li>
+          <li><Link to="/menu" style={{ color: 'inherit', textDecoration: 'none' }}>Menú</Link></li>
           <li><a onClick={() => scrollTo('hs-reviews')}>Reseñas</a></li>
           <li><a onClick={() => scrollTo('hs-location')}>Encuéntranos</a></li>
         </ul>
@@ -190,7 +190,7 @@ export default function Landing() {
           <p className="hs-hero-desc">Specialty coffee, cold shakes y un espacio diseñado para los que saben lo que quieren. La Paz, Puebla.</p>
           <div className="hs-hero-ctas">
             <Link to="/registro" className="hs-btn hs-btn-gold">ÚNETE AL PROGRAMA</Link>
-            <a href="https://www.uber.com" target="_blank" rel="noreferrer" className="hs-btn hs-btn-ghost">PEDIR A DOMICILIO</a>
+            <Link to="/menu" className="hs-btn hs-btn-ghost">VER MENÚ COMPLETO</Link>
           </div>
         </div>
         <div className="hs-scroll-ind">
@@ -301,7 +301,8 @@ export default function Landing() {
         {products.length === 0 && (
           <p style={{ textAlign:'center', color:'rgba(251,247,240,.3)', padding:'60px 0' }}>Cargando menú...</p>
         )}
-        <div style={{ textAlign:'center', marginTop:48 }}>
+        <div style={{ textAlign:'center', marginTop:48, display:'flex', gap:16, justifyContent:'center', flexWrap:'wrap' }}>
+          <Link to="/menu" className="hs-btn hs-btn-gold">VER MENÚ COMPLETO</Link>
           <Link to="/registro" className="hs-btn hs-btn-blue">ÚNETE Y GANA PUNTOS</Link>
         </div>
       </section>
