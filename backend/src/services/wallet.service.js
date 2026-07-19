@@ -162,14 +162,17 @@ async function generatePassBuffer(customerData) {
 
   // Inyectar strip image dinámica con los pinos del cliente
   try {
-    const strip2x = await generateStripImage(stampsEarned, '2x');
-    const strip1x = await generateStripImage(stampsEarned, '1x');
-    pass.images.add('strip', strip1x);
-    pass.images.add('strip', strip2x, '2x');
-    logger.info(`Wallet strip: ${stampsEarned}/10 stamps para cliente ${customerData.id.substring(0, 8)}`);
+    const [strip2x, strip1x] = await Promise.all([
+      generateStripImage(stampsEarned, '2x'),
+      generateStripImage(stampsEarned, '1x'),
+    ]);
+    pass.addBuffer('strip.png',    strip1x);
+    pass.addBuffer('strip@2x.png', strip2x);
+    pass.addBuffer('strip@3x.png', strip2x); // @3x usa el @2x como fallback
+    logger.info(`Wallet strip generado: ${stampsEarned}/10 stamps — cliente ${customerData.id.substring(0, 8)}`);
   } catch (err) {
-    logger.warn(`Stamp composer falló, usando strip estático: ${err.message}`);
-    // Fallback silencioso al strip del template
+    logger.error(`Stamp composer falló: ${err.message}`);
+    // Fallback silencioso: queda el strip estático del template
   }
 
   pass.setBarcodes({

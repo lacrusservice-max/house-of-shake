@@ -87,7 +87,7 @@ async function generateStripImage(stampsEarned, resolution = '2x') {
     .toBuffer();
 
   if (stampsEarned <= 0) {
-    return sharp(bannerBuf).jpeg({ quality: 92 }).toBuffer();
+    return sharp(bannerBuf).png({ compressionLevel: 6 }).toBuffer();
   }
 
   // Preparar el pino con transparencia correcta
@@ -107,7 +107,7 @@ async function generateStripImage(stampsEarned, resolution = '2x') {
 
   return sharp(bannerBuf)
     .composite(composites)
-    .jpeg({ quality: 92 })
+    .png({ compressionLevel: 6 })
     .toBuffer();
 }
 
