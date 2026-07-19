@@ -118,8 +118,7 @@ async function getLatestPass(req, res, next) {
       select: {
         id: true, firstName: true, lastName: true,
         availablePoints: true, lifetimePoints: true,
-        level: true, visitCount: true,
-        walletPassSerial: true, walletPassToken: true,
+        level: true, walletPassSerial: true, walletPassToken: true,
         updatedAt: true,
       },
     });

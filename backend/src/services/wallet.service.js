@@ -137,11 +137,9 @@ async function generatePassBuffer(customerData) {
   const serial    = customerData.walletPassSerial || uuidv4();
   const passToken = customerData.walletPassToken  || uuidv4().replace(/-/g, '');
 
-  // Calcular stamps ganados en el ciclo actual (cada 10 visitas = tarjeta completa)
-  const visitCount   = customerData.visitCount || 0;
-  const stampsEarned = visitCount > 0
-    ? (visitCount % 10 === 0 ? 10 : visitCount % 10)
-    : 0;
+  // Stamps derivados de lifetimePoints: 100 pts = 1 stamp, 10 stamps = tarjeta completa
+  const totalStamps  = Math.floor((customerData.lifetimePoints || 0) / 100);
+  const stampsEarned = totalStamps === 0 ? 0 : (totalStamps % 10 === 0 ? 10 : totalStamps % 10);
 
   const pass = await PKPass.from(
     {

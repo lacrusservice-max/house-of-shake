@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import '../styles/mi-cuenta.css';
+import { MedalIcon, CoffeeIcon, GiftIcon, ShakeIcon, StarIcon, LightningIcon, TrophyIcon, CardIcon, CheckIcon, CakeIcon } from '../components/Icons';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const LEVEL_CONFIG = {
-  BRONZE: { color: '#cd7f32', cls: '',       emoji: '🥉', label: 'Bronze', next: 'Silver', nextAt: 101 },
-  SILVER: { color: '#c0c0c0', cls: 'silver', emoji: '🥈', label: 'Silver', next: 'Gold',   nextAt: 301 },
-  GOLD:   { color: '#ffd700', cls: 'gold',   emoji: '🥇', label: 'Gold',   next: null,     nextAt: null },
+  BRONZE: { color: '#cd7f32', cls: '',       rank: 3, label: 'Bronze', next: 'Silver', nextAt: 101 },
+  SILVER: { color: '#c0c0c0', cls: 'silver', rank: 2, label: 'Silver', next: 'Gold',   nextAt: 301 },
+  GOLD:   { color: '#ffd700', cls: 'gold',   rank: 1, label: 'Gold',   next: null,     nextAt: null },
 };
 
 const TX_TYPE = {
@@ -21,26 +22,26 @@ const TX_TYPE = {
 };
 
 const REWARDS = [
-  { pts: 50,  icon: '⬆️', title: 'Upgrade gratis',       desc: 'Sube tu bebida al siguiente tamaño' },
-  { pts: 100, icon: '💵', title: '$5 MXN de descuento',   desc: 'Descuento directo en tu próxima compra' },
-  { pts: 150, icon: '🥤', title: 'Bebida fría mediana',   desc: 'Cualquier bebida fría tamaño mediano' },
-  { pts: 200, icon: '☕', title: 'Bebida especialidad',    desc: 'Bebida de especialidad a tu elección' },
-  { pts: 300, icon: '🎁', title: 'Pack Combo',            desc: 'Bebida + snack de la casa' },
+  { pts: 50,  Icon: StarIcon,     title: 'Upgrade gratis',       desc: 'Sube tu bebida al siguiente tamaño' },
+  { pts: 100, Icon: LightningIcon, title: '$5 MXN de descuento', desc: 'Descuento directo en tu próxima compra' },
+  { pts: 150, Icon: ShakeIcon,    title: 'Bebida fría mediana',  desc: 'Cualquier bebida fría tamaño mediano' },
+  { pts: 200, Icon: CoffeeIcon,   title: 'Bebida especialidad',  desc: 'Bebida de especialidad a tu elección' },
+  { pts: 300, Icon: GiftIcon,     title: 'Pack Combo',           desc: 'Bebida + snack de la casa' },
 ];
 
 const LEVELS_INFO = [
   {
-    key: 'BRONZE', emoji: '🥉', label: 'Bronze', color: '#cd7f32',
+    key: 'BRONZE', rank: 3, label: 'Bronze', color: '#cd7f32',
     range: '0 – 100 pts', pts: 0,
     perks: ['1 pto por cada $1 MXN', 'Bono de bienvenida', 'Acceso al programa de lealtad'],
   },
   {
-    key: 'SILVER', emoji: '🥈', label: 'Silver', color: '#c0c0c0',
+    key: 'SILVER', rank: 2, label: 'Silver', color: '#c0c0c0',
     range: '101 – 300 pts', pts: 101,
     perks: ['1 pto por cada $1 MXN', '+10% bonus de puntos', 'Acceso prioritario', 'Canjes exclusivos'],
   },
   {
-    key: 'GOLD', emoji: '🥇', label: 'Gold', color: '#ffd700',
+    key: 'GOLD', rank: 1, label: 'Gold', color: '#ffd700',
     range: '301+ pts', pts: 301,
     perks: ['1 pto por cada $1 MXN', '+20% bonus de puntos', 'Beneficios exclusivos', 'Sorpresas especiales', 'Atención VIP'],
   },
@@ -145,7 +146,7 @@ export default function MiCuenta() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al reclamar');
       setCustomer(prev => ({ ...prev, availablePoints: data.newBalance, birthdayRewardAvailable: false }));
-      setBdMsg(data.message || '¡+200 puntos de cumpleaños! 🎂');
+      setBdMsg(data.message || '¡+200 puntos de cumpleaños!');
     } catch (err) {
       setBdMsg(err.message);
     }
@@ -197,6 +198,15 @@ export default function MiCuenta() {
   const nextReward = REWARDS.find(r => r.pts > customer.availablePoints);
   const ptsToNextReward = nextReward ? nextReward.pts - customer.availablePoints : 0;
 
+  // Acumulador: 100 pts = 1 stamp, 10 stamps = tarjeta completa
+  const STAMPS_TOTAL = 10;
+  const totalStamps  = Math.floor((customer.lifetimePoints || 0) / 100);
+  const stampsEarned = totalStamps === 0 ? 0 : (totalStamps % 10 === 0 ? 10 : totalStamps % 10);
+  const cardComplete = stampsEarned === STAMPS_TOTAL;
+  // Posiciones X de los 10 slots (% del ancho del banner, medidas exactas del pixel scan)
+  const STAMP_X = [13.3, 22.0, 29.6, 37.1, 44.7, 52.4, 60.0, 68.3, 76.0, 82.9];
+  const STAMP_Y = 82; // % del alto del banner
+
   return (
     <div className="mc-root">
 
@@ -222,13 +232,13 @@ export default function MiCuenta() {
             borderRadius: 14, padding: '14px 18px', marginBottom: 14,
             display: 'flex', alignItems: 'center', gap: 12,
           }}>
-            <span style={{ fontSize: 28 }}>🎂</span>
+            <CakeIcon size={28} color="#FF80B0" animated />
             <div>
               <p style={{ fontWeight: 800, fontSize: 14, color: '#FF80B0', margin: 0 }}>¡Feliz cumpleaños, {customer.firstName}!</p>
               <p style={{ fontSize: 12, color: 'rgba(251,247,240,.55)', margin: '2px 0 0' }}>
                 {customer.birthdayRewardAvailable
-                  ? 'Ve a tu Perfil para reclamar tu regalo de +200 puntos 🎁'
-                  : '¡Que lo disfrutes mucho! 🎉'}
+                  ? 'Ve a tu Perfil para reclamar tu regalo de +200 puntos'
+                  : '¡Que lo disfrutes mucho!'}
               </p>
             </div>
           </div>
@@ -242,7 +252,7 @@ export default function MiCuenta() {
             borderRadius: 14, padding: '14px 18px', marginBottom: 14,
             display: 'flex', alignItems: 'center', gap: 12,
           }}>
-            <span style={{ fontSize: 28 }}>⚡</span>
+            <LightningIcon size={28} color="#F5C842" animated />
             <div>
               <p style={{ fontWeight: 800, fontSize: 14, color: 'var(--gold)', margin: 0 }}>¡Puntos dobles activos hoy!</p>
               <p style={{ fontSize: 12, color: 'rgba(251,247,240,.55)', margin: '2px 0 0' }}>
@@ -255,9 +265,9 @@ export default function MiCuenta() {
         {/* WELCOME */}
         <div className="mc-eyebrow">Mi cuenta</div>
         <h1 className="mc-heading">
-          Hola, <span>{customer.firstName}</span> {level.emoji}
+          Hola, <span>{customer.firstName}</span> <MedalIcon size={28} rank={level.rank} style={{ verticalAlign: 'middle' }} />
         </h1>
-        <p className="mc-sub">Miembro {level.label}{customer.visitCount > 0 ? ` · ${customer.visitCount} visitas` : ''}</p>
+        <p className="mc-sub">Miembro {level.label}{totalStamps > 0 ? ` · ${totalStamps} compras` : ''}</p>
 
         {/* STATS */}
         <div className="mc-stats">
@@ -286,7 +296,7 @@ export default function MiCuenta() {
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 20 }}>{nextReward.icon}</span>
+              <nextReward.Icon size={20} color="#F5C842" animated />
               <div>
                 <p style={{ fontSize: 10, color: 'rgba(251,247,240,.4)', margin: 0, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 700 }}>Próximo canje</p>
                 <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--cream)', margin: 0 }}>{nextReward.title}</p>
@@ -303,7 +313,7 @@ export default function MiCuenta() {
         {level.nextAt ? (
           <div className="mc-level">
             <div className="mc-level-top">
-              <span className="mc-level-name">{level.emoji} {level.label}</span>
+              <span className="mc-level-name" style={{ display:'flex', alignItems:'center', gap:6 }}><MedalIcon size={16} rank={level.rank} /> {level.label}</span>
               <span className="mc-level-next">{ptsToNext} pts para {level.next} →</span>
             </div>
             <div className="mc-bar-bg">
@@ -313,7 +323,7 @@ export default function MiCuenta() {
           </div>
         ) : (
           <div className="mc-gold-badge">
-            <p>🥇 ¡Eres Gold! Nivel máximo alcanzado</p>
+            <p style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}><MedalIcon size={16} rank={1} /> ¡Eres Gold! Nivel máximo alcanzado</p>
             <p>Tienes +20% de puntos bonus en cada compra</p>
           </div>
         )}
@@ -323,17 +333,17 @@ export default function MiCuenta() {
         {/* TABS */}
         <div className="mc-tabs">
           {[
-            { key: 'tarjeta',  label: '📱 Tarjeta' },
-            { key: 'historial', label: '📋 Historial' },
-            { key: 'lealtad', label: '🏆 Lealtad' },
-            { key: 'perfil', label: '👤 Perfil' },
+            { key: 'tarjeta',   Icon: CardIcon,    label: 'Tarjeta' },
+            { key: 'historial', Icon: CheckIcon,   label: 'Historial' },
+            { key: 'lealtad',   Icon: TrophyIcon,  label: 'Lealtad' },
+            { key: 'perfil',    Icon: StarIcon,    label: 'Perfil' },
           ].map(t => (
             <button
               key={t.key}
               onClick={() => setActiveTab(t.key)}
               className={`mc-tab${activeTab === t.key ? ' active' : ''}`}
             >
-              {t.label}
+              <t.Icon size={13} color={activeTab === t.key ? '#F5C842' : 'rgba(251,247,240,.4)'} /> {t.label}
             </button>
           ))}
         </div>
@@ -341,6 +351,58 @@ export default function MiCuenta() {
         {/* TAB — TARJETA */}
         {activeTab === 'tarjeta' && (
           <div className="mc-card-wrap">
+
+            {/* ACUMULADOR BANNER */}
+            <div style={{ position: 'relative', width: '100%', maxWidth: 400, margin: '0 auto 20px', borderRadius: 10, overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,.6)' }}>
+              <img
+                src="/images/apple-wallet-banner.jpg"
+                alt="Tarjeta de lealtad House of Shake"
+                style={{ width: '100%', height: 'auto', display: 'block' }}
+                draggable={false}
+              />
+              {STAMP_X.map((xPct, i) => (
+                <img
+                  key={i}
+                  src="/images/acumulador-pino.png"
+                  alt=""
+                  style={{
+                    position: 'absolute',
+                    width: '7%',
+                    height: 'auto',
+                    left: `${xPct}%`,
+                    top: `${STAMP_Y}%`,
+                    transform: 'translate(-50%, -50%)',
+                    opacity: i < stampsEarned ? 1 : 0,
+                    transition: 'opacity 0.4s ease',
+                    pointerEvents: 'none',
+                  }}
+                />
+              ))}
+              {cardComplete && (
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  background: 'rgba(245,200,66,.18)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  backdropFilter: 'blur(2px)',
+                }}>
+                  <p style={{
+                    fontFamily: "'Bebas Neue', sans-serif",
+                    fontSize: 'clamp(14px, 4vw, 20px)',
+                    color: '#F5C842',
+                    letterSpacing: 3,
+                    textShadow: '0 2px 16px rgba(0,0,0,.9)',
+                    textAlign: 'center',
+                    padding: '0 12px',
+                  }}>
+                    ¡Tarjeta completa! Canjea tu premio
+                  </p>
+                </div>
+              )}
+            </div>
+            <p style={{ textAlign: 'center', fontSize: 11, color: 'rgba(251,247,240,.35)', letterSpacing: 1, fontWeight: 700, textTransform: 'uppercase', marginBottom: 20 }}>
+              {stampsEarned} / {STAMPS_TOTAL} visitas · {STAMPS_TOTAL - stampsEarned > 0 ? `${STAMPS_TOTAL - stampsEarned} para tu próximo premio` : '¡Premio listo!'}
+            </p>
+
             <div className="mc-qr-hero" onClick={() => setQrFullscreen(true)}>
               <div className="mc-qr-hero-inner" style={{ borderColor: `${level.color}55` }}>
                 <div className="mc-qr-hero-header">
@@ -349,7 +411,7 @@ export default function MiCuenta() {
                     <p className="mc-qr-hero-name">{customer.firstName} {customer.lastName}</p>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <span style={{ fontSize: 26 }}>{level.emoji}</span>
+                    <MedalIcon size={26} rank={level.rank} />
                     <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 15, letterSpacing: 2, color: level.color, lineHeight: 1 }}>{level.label}</p>
                   </div>
                 </div>
@@ -372,17 +434,17 @@ export default function MiCuenta() {
                   )}
                 </div>
               </div>
-              <p className="mc-qr-instruction">📷 Muestra este QR al staff al momento de pagar</p>
+              <p className="mc-qr-instruction">Muestra este QR al staff al momento de pagar</p>
             </div>
 
             <div className="mc-info-grid">
               <div className="mc-info-card">
-                <div className="mc-info-icon">⚡</div>
+                <div className="mc-info-icon"><LightningIcon size={24} color="#F5C842" animated /></div>
                 <p className="mc-info-title">1 pto = $1 MXN</p>
                 <p className="mc-info-desc">Ganas puntos en cada compra</p>
               </div>
               <div className="mc-info-card">
-                <div className="mc-info-icon">🎁</div>
+                <div className="mc-info-icon"><GiftIcon size={24} color="#F5C842" animated /></div>
                 <p className="mc-info-title">100 pts = $5 MXN</p>
                 <p className="mc-info-desc">Canjea tu saldo en tienda</p>
               </div>
@@ -394,7 +456,7 @@ export default function MiCuenta() {
               className="mc-wallet-btn"
               style={{ cursor: walletLoading ? 'not-allowed' : 'pointer', opacity: walletLoading ? .7 : 1, border: 'none', textAlign: 'center', width: '100%' }}
             >
-              {walletLoading ? '⏳ Descargando pass...' : '🍎 Agregar a Apple Wallet'}
+              {walletLoading ? 'Descargando pass...' : 'Agregar a Apple Wallet'}
             </button>
             {walletError && (
               <p style={{ fontSize: 12, color: 'rgba(224,92,92,.9)', textAlign: 'center', marginTop: 8, padding: '8px 12px', background: 'rgba(224,92,92,.08)', borderRadius: 10, border: '1px solid rgba(224,92,92,.2)' }}>
@@ -425,8 +487,8 @@ export default function MiCuenta() {
             <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 36, letterSpacing: 2, color: '#F5C842' }}>
               {customer.availablePoints.toLocaleString()} pts
             </p>
-            <p style={{ fontSize: 12, color: 'rgba(251,247,240,.35)', letterSpacing: 1, fontWeight: 600 }}>
-              {customer.firstName} {customer.lastName} · {level.emoji} {level.label}
+            <p style={{ fontSize: 12, color: 'rgba(251,247,240,.35)', letterSpacing: 1, fontWeight: 600, display:'flex', alignItems:'center', justifyContent:'center', gap:5 }}>
+              {customer.firstName} {customer.lastName} · <MedalIcon size={14} rank={level.rank} /> {level.label}
             </p>
             <button
               onClick={() => setQrFullscreen(false)}
@@ -450,12 +512,12 @@ export default function MiCuenta() {
           <div>
             {txLoading ? (
               <div className="mc-empty">
-                <div className="mc-empty-icon">⏳</div>
+                <div className="mc-empty-icon"><LightningIcon size={48} color="#F5C842" /></div>
                 <p className="mc-empty-title">Cargando...</p>
               </div>
             ) : transactions.length === 0 ? (
               <div className="mc-empty">
-                <div className="mc-empty-icon">☕</div>
+                <div className="mc-empty-icon"><CoffeeIcon size={48} color="#1B2F56" /></div>
                 <p className="mc-empty-title">Sin transacciones aún</p>
                 <p className="mc-empty-sub">¡Visita la sucursal y empieza a acumular puntos!</p>
               </div>
@@ -498,7 +560,7 @@ export default function MiCuenta() {
                       letterSpacing: 1,
                     }}
                   >
-                    {txLoadingMore ? '⏳ Cargando...' : '↓ Ver más transacciones'}
+                    {txLoadingMore ? 'Cargando...' : '↓ Ver más transacciones'}
                   </button>
                 )}
                 {!txHasMore && transactions.length >= TX_PAGE_SIZE && (
@@ -527,7 +589,7 @@ export default function MiCuenta() {
                     border: `1px solid ${unlocked ? 'rgba(94,201,122,.25)' : 'rgba(251,247,240,.07)'}`,
                     borderRadius: 14, padding: '14px 16px',
                   }}>
-                    <span style={{ fontSize: 26, flexShrink: 0 }}>{r.icon}</span>
+                    <r.Icon size={26} color={unlocked ? '#5EC97A' : '#F5C842'} animated={unlocked} style={{ flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontWeight: 800, fontSize: 14, color: unlocked ? '#5EC97A' : 'var(--cream)', margin: 0 }}>{r.title}</p>
                       <p style={{ fontSize: 11, color: 'rgba(251,247,240,.4)', margin: '2px 0 0' }}>{r.desc}</p>
@@ -543,14 +605,14 @@ export default function MiCuenta() {
 
             {/* Current level highlight */}
             <div className="mc-loyalty-hero" style={{ borderColor: `${level.color}40`, background: `${level.color}0d` }}>
-              <div className="mc-loyalty-hero-emoji">{level.emoji}</div>
+              <div className="mc-loyalty-hero-emoji"><MedalIcon size={64} rank={level.rank} /></div>
               <div>
                 <p className="mc-loyalty-hero-label">Tu nivel actual</p>
                 <p className="mc-loyalty-hero-name" style={{ color: level.color }}>{level.label}</p>
                 {level.nextAt ? (
                   <p className="mc-loyalty-hero-hint">{ptsToNext} pts para alcanzar {level.next}</p>
                 ) : (
-                  <p className="mc-loyalty-hero-hint" style={{ color: '#ffd700' }}>¡Nivel máximo! 🎉</p>
+                  <p className="mc-loyalty-hero-hint" style={{ color: '#ffd700' }}>¡Nivel máximo!</p>
                 )}
               </div>
             </div>
@@ -565,7 +627,7 @@ export default function MiCuenta() {
                     className={`mc-loyalty-level-card${isActive ? ' active' : ''}`}
                     style={{ borderColor: isActive ? lvl.color : 'rgba(251,247,240,.08)', background: isActive ? `${lvl.color}0d` : 'rgba(251,247,240,.03)' }}>
                     <div className="mc-loyalty-level-header">
-                      <span style={{ fontSize: 24 }}>{lvl.emoji}</span>
+                      <MedalIcon size={24} rank={lvl.rank} />
                       <div>
                         <p className="mc-loyalty-level-name" style={{ color: isActive ? lvl.color : 'var(--cream)' }}>{lvl.label}</p>
                         <p className="mc-loyalty-level-range">{lvl.range} vitalicio</p>
@@ -574,7 +636,7 @@ export default function MiCuenta() {
                     </div>
                     <ul className="mc-loyalty-perks">
                       {lvl.perks.map(p => (
-                        <li key={p}><span className="mc-loyalty-check" style={{ color: lvl.color }}>✓</span> {p}</li>
+                        <li key={p}><CheckIcon size={14} color={lvl.color} style={{ verticalAlign:'middle' }} /> {p}</li>
                       ))}
                     </ul>
                   </div>
@@ -586,13 +648,13 @@ export default function MiCuenta() {
             <p className="mc-loyalty-section-title" style={{ marginTop: 28 }}>¿Cómo funciona?</p>
             <div className="mc-loyalty-how">
               {[
-                { icon: '☕', title: 'Compra en sucursal', desc: 'Muestra tu tarjeta QR al pagar en el mostrador' },
-                { icon: '⚡', title: 'Gana puntos al instante', desc: '1 punto por cada $1 MXN (más bonus por nivel)' },
-                { icon: '🎁', title: 'Canjea recompensas', desc: 'Desde 50 puntos — upgrades, descuentos y bebidas gratis' },
-                { icon: '🏆', title: 'Sube de nivel', desc: 'Acumula puntos de por vida para desbloquear beneficios exclusivos' },
+                { Icon: CoffeeIcon,    title: 'Compra en sucursal', desc: 'Muestra tu tarjeta QR al pagar en el mostrador' },
+                { Icon: LightningIcon, title: 'Gana puntos al instante', desc: '1 punto por cada $1 MXN (más bonus por nivel)' },
+                { Icon: GiftIcon,      title: 'Canjea recompensas', desc: 'Desde 50 puntos — upgrades, descuentos y bebidas gratis' },
+                { Icon: TrophyIcon,    title: 'Sube de nivel', desc: 'Acumula puntos de por vida para desbloquear beneficios exclusivos' },
               ].map(s => (
-                <div key={s.icon} className="mc-loyalty-step">
-                  <div className="mc-loyalty-step-icon">{s.icon}</div>
+                <div key={s.title} className="mc-loyalty-step">
+                  <div className="mc-loyalty-step-icon"><s.Icon size={24} color="#F5C842" animated /></div>
                   <div>
                     <p className="mc-loyalty-step-title">{s.title}</p>
                     <p className="mc-loyalty-step-desc">{s.desc}</p>
@@ -616,7 +678,7 @@ export default function MiCuenta() {
                 borderRadius: 18, padding: '22px', marginBottom: 20,
                 textAlign: 'center',
               }}>
-                <div style={{ fontSize: 48, marginBottom: 8 }}>🎂</div>
+                <div style={{ marginBottom: 8 }}><CakeIcon size={48} color="#FF80B0" animated /></div>
                 <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, letterSpacing: 2, color: '#FF80B0', margin: '0 0 4px' }}>
                   ¡Feliz cumpleaños!
                 </p>
@@ -634,9 +696,10 @@ export default function MiCuenta() {
                     borderRadius: 12, color: '#2C1A0E', fontWeight: 900, fontSize: 14,
                     cursor: 'pointer', fontFamily: "'Montserrat', sans-serif",
                     letterSpacing: 1, opacity: claimingBd ? .7 : 1,
+                    display: 'inline-flex', alignItems: 'center', gap: 8,
                   }}
                 >
-                  {claimingBd ? '⏳ Reclamando...' : '🎁 ¡Reclamar mi regalo!'}
+                  <GiftIcon size={16} color="#2C1A0E" /> {claimingBd ? 'Reclamando...' : '¡Reclamar mi regalo!'}
                 </button>
                 {bdMsg && (
                   <p style={{ marginTop: 12, fontSize: 13, fontWeight: 700, color: bdMsg.includes('ya') || bdMsg.includes('no') ? '#E05C5C' : '#5EC97A' }}>
@@ -704,7 +767,7 @@ export default function MiCuenta() {
                 </div>
 
                 <div style={{ marginBottom: 18 }}>
-                  <label style={pLbl}>🎂 Fecha de cumpleaños</label>
+                  <label style={{ ...pLbl, display:'flex', alignItems:'center', gap:6 }}><CakeIcon size={12} color="rgba(251,247,240,.4)" /> Fecha de cumpleaños</label>
                   <input
                     type="date"
                     value={profile.birthday}
@@ -738,17 +801,17 @@ export default function MiCuenta() {
                     opacity: profileSaving ? .7 : 1,
                   }}
                 >
-                  {profileSaving ? '⏳ Guardando...' : 'Guardar cambios'}
+                  {profileSaving ? 'Guardando...' : 'Guardar cambios'}
                 </button>
               </form>
             </div>
 
             {/* Visit stats */}
-            {(customer.visitCount > 0 || customer.lastVisitAt) && (
+            {totalStamps > 0 && (
               <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div style={{ background: 'rgba(251,247,240,.03)', border: '1px solid rgba(251,247,240,.07)', borderRadius: 14, padding: '16px', textAlign: 'center' }}>
-                  <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 40, color: 'var(--gold)', margin: 0, lineHeight: 1 }}>{customer.visitCount || 0}</p>
-                  <p style={{ fontSize: 10, color: 'rgba(251,247,240,.35)', margin: '4px 0 0', letterSpacing: 1, textTransform: 'uppercase', fontWeight: 700 }}>Visitas totales</p>
+                  <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 40, color: 'var(--gold)', margin: 0, lineHeight: 1 }}>{totalStamps}</p>
+                  <p style={{ fontSize: 10, color: 'rgba(251,247,240,.35)', margin: '4px 0 0', letterSpacing: 1, textTransform: 'uppercase', fontWeight: 700 }}>Compras totales</p>
                 </div>
                 <div style={{ background: 'rgba(251,247,240,.03)', border: '1px solid rgba(251,247,240,.07)', borderRadius: 14, padding: '16px', textAlign: 'center' }}>
                   <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--cream)', margin: 0, paddingTop: 8 }}>
