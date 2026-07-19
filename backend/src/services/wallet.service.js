@@ -16,6 +16,7 @@ const fs         = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const prisma     = require('../config/prisma');
 const logger     = require('../config/logger');
+const { generateStripImage } = require('./stamp.composer');
 
 // ─── Certificate loading & cache ─────────────────────────────────────────────
 
@@ -125,7 +126,7 @@ function buildWebServiceURL() {
  * Does NOT write anything to the database — safe to call for previews/tests.
  *
  * @param {{ id, firstName, lastName, availablePoints, lifetimePoints, level,
- *           walletPassSerial?, walletPassToken? }} customerData
+ *           visitCount?, walletPassSerial?, walletPassToken? }} customerData
  * @returns {Promise<Buffer>}
  */
 async function generatePassBuffer(customerData) {
@@ -135,6 +136,12 @@ async function generatePassBuffer(customerData) {
   const { signerCert, signerKey, wwdrBuffer } = certs;
   const serial    = customerData.walletPassSerial || uuidv4();
   const passToken = customerData.walletPassToken  || uuidv4().replace(/-/g, '');
+
+  // Calcular stamps ganados en el ciclo actual (cada 10 visitas = tarjeta completa)
+  const visitCount   = customerData.visitCount || 0;
+  const stampsEarned = visitCount > 0
+    ? (visitCount % 10 === 0 ? 10 : visitCount % 10)
+    : 0;
 
   const pass = await PKPass.from(
     {
@@ -152,6 +159,18 @@ async function generatePassBuffer(customerData) {
       labelColor:          'rgb(160, 120, 30)',
     }
   );
+
+  // Inyectar strip image dinámica con los pinos del cliente
+  try {
+    const strip2x = await generateStripImage(stampsEarned, '2x');
+    const strip1x = await generateStripImage(stampsEarned, '1x');
+    pass.images.add('strip', strip1x);
+    pass.images.add('strip', strip2x, '2x');
+    logger.info(`Wallet strip: ${stampsEarned}/10 stamps para cliente ${customerData.id.substring(0, 8)}`);
+  } catch (err) {
+    logger.warn(`Stamp composer falló, usando strip estático: ${err.message}`);
+    // Fallback silencioso al strip del template
+  }
 
   pass.setBarcodes({
     format:          'PKBarcodeFormatQR',

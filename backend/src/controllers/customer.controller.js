@@ -127,7 +127,16 @@ async function redeemPoints(req, res, next) {
 async function downloadWalletPass(req, res, next) {
   try {
     const { id } = req.params;
-    const customer = await prisma.customer.findUnique({ where: { id } });
+    const customer = await prisma.customer.findUnique({
+      where: { id },
+      select: {
+        id: true, firstName: true, lastName: true,
+        availablePoints: true, lifetimePoints: true,
+        level: true, visitCount: true,
+        walletPassSerial: true, walletPassToken: true,
+        updatedAt: true,
+      },
+    });
     if (!customer) return res.status(404).json({ error: 'Cliente no encontrado' });
 
     if (!walletService.areCertsAvailable()) {

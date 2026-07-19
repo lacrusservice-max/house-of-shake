@@ -115,6 +115,13 @@ async function getLatestPass(req, res, next) {
     const passToken = authHeader.substring(10);
     const customer = await prisma.customer.findFirst({
       where: { walletPassSerial: serialNumber, walletPassToken: passToken },
+      select: {
+        id: true, firstName: true, lastName: true,
+        availablePoints: true, lifetimePoints: true,
+        level: true, visitCount: true,
+        walletPassSerial: true, walletPassToken: true,
+        updatedAt: true,
+      },
     });
 
     if (!customer) return res.status(401).json({ error: 'No autorizado' });
