@@ -5,3 +5,48 @@
 body {
   @apply bg-gray-50 text-gray-900;
 }
+
+/* ── Icon animation keyframes (global) ── */
+@keyframes steamFloat {
+  0%   { opacity: 0; transform: translateY(0) scaleX(1); }
+  25%  { opacity: 0.75; }
+  100% { opacity: 0; transform: translateY(-10px) scaleX(0.7); }
+}
+@keyframes leafSway {
+  0%, 100% { transform: rotate(-6deg); }
+  50%       { transform: rotate(6deg); }
+}
+@keyframes starPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.18); }
+}
+@keyframes giftFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+@keyframes flameDance {
+  0%, 100% { transform: scaleX(1) scaleY(1); }
+  33%      { transform: scaleX(0.88) scaleY(1.06); }
+  66%      { transform: scaleX(1.1) scaleY(0.94); }
+}
+@keyframes iceRotate {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(60deg); }
+}
+@keyframes tentFlag {
+  0%, 100% { transform: rotate(-5deg); }
+  50%      { transform: rotate(5deg); }
+}
+@keyframes trophyShine {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50%      { transform: scale(1.04); opacity: 1; }
+}
+@keyframes shakeFill {
+  0%, 100% { transform: scaleY(1); }
+  50%      { transform: scaleY(1.04); }
+}
+@keyframes checkPop {
+  0%   { transform: scale(0.7); opacity: 0; }
+  60%  { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}

@@ -2,50 +2,18 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import '../styles/mi-cuenta.css';
-import { MedalIcon, CoffeeIcon, GiftIcon, ShakeIcon, StarIcon, LightningIcon, TrophyIcon, CardIcon, CheckIcon, CakeIcon } from '../components/Icons';
+import { CoffeeIcon, GiftIcon, ShakeIcon, StarIcon, LightningIcon, TrophyIcon, CardIcon, CheckIcon, CakeIcon } from '../components/Icons';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-const LEVEL_CONFIG = {
-  BRONZE: { color: '#cd7f32', cls: '',       rank: 3, label: 'Bronze', next: 'Silver', nextAt: 101 },
-  SILVER: { color: '#c0c0c0', cls: 'silver', rank: 2, label: 'Silver', next: 'Gold',   nextAt: 301 },
-  GOLD:   { color: '#ffd700', cls: 'gold',   rank: 1, label: 'Gold',   next: null,     nextAt: null },
-};
-
 const TX_TYPE = {
-  EARN:          { label: 'Puntos ganados',    color: '#5EC97A' },
-  REDEEM:        { label: 'Canje',             color: '#4a9fd4' },
-  WELCOME_BONUS: { label: 'Bono bienvenida',   color: '#F5C842' },
-  BIRTHDAY:      { label: 'Regalo cumpleaños', color: '#FF80B0' },
-  REVERSAL:      { label: 'Reversión',         color: '#E05C5C' },
-  ADJUSTMENT:    { label: 'Ajuste',            color: '#b07bff' },
+  EARN:          { label: 'Pinos ganados',      color: '#5EC97A' },
+  REDEEM:        { label: 'Canje',              color: '#4a9fd4' },
+  WELCOME_BONUS: { label: 'Bono bienvenida',    color: '#F5C842' },
+  BIRTHDAY:      { label: 'Regalo cumpleaños',  color: '#FF80B0' },
+  REVERSAL:      { label: 'Reversión',          color: '#E05C5C' },
+  ADJUSTMENT:    { label: 'Ajuste',             color: '#b07bff' },
 };
-
-const REWARDS = [
-  { pts: 50,  Icon: StarIcon,     title: 'Upgrade gratis',       desc: 'Sube tu bebida al siguiente tamaño' },
-  { pts: 100, Icon: LightningIcon, title: '$5 MXN de descuento', desc: 'Descuento directo en tu próxima compra' },
-  { pts: 150, Icon: ShakeIcon,    title: 'Bebida fría mediana',  desc: 'Cualquier bebida fría tamaño mediano' },
-  { pts: 200, Icon: CoffeeIcon,   title: 'Bebida especialidad',  desc: 'Bebida de especialidad a tu elección' },
-  { pts: 300, Icon: GiftIcon,     title: 'Pack Combo',           desc: 'Bebida + snack de la casa' },
-];
-
-const LEVELS_INFO = [
-  {
-    key: 'BRONZE', rank: 3, label: 'Bronze', color: '#cd7f32',
-    range: '0 – 100 pts', pts: 0,
-    perks: ['1 pto por cada $1 MXN', 'Bono de bienvenida', 'Acceso al programa de lealtad'],
-  },
-  {
-    key: 'SILVER', rank: 2, label: 'Silver', color: '#c0c0c0',
-    range: '101 – 300 pts', pts: 101,
-    perks: ['1 pto por cada $1 MXN', '+10% bonus de puntos', 'Acceso prioritario', 'Canjes exclusivos'],
-  },
-  {
-    key: 'GOLD', rank: 1, label: 'Gold', color: '#ffd700',
-    range: '301+ pts', pts: 301,
-    perks: ['1 pto por cada $1 MXN', '+20% bonus de puntos', 'Beneficios exclusivos', 'Sorpresas especiales', 'Atención VIP'],
-  },
-];
 
 export default function MiCuenta() {
   const [customer, setCustomer] = useState(() => JSON.parse(localStorage.getItem('hos_customer') || 'null'));
@@ -59,12 +27,10 @@ export default function MiCuenta() {
   const [walletLoading, setWalletLoading] = useState(false);
   const [walletError, setWalletError] = useState('');
 
-  // Profile editing
   const [profile, setProfile] = useState({ firstName: '', lastName: '', phone: '', birthday: '' });
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMsg, setProfileMsg] = useState('');
 
-  // Birthday reward
   const [claimingBd, setClaimingBd] = useState(false);
   const [bdMsg, setBdMsg] = useState('');
 
@@ -146,7 +112,7 @@ export default function MiCuenta() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al reclamar');
       setCustomer(prev => ({ ...prev, availablePoints: data.newBalance, birthdayRewardAvailable: false }));
-      setBdMsg(data.message || '¡+200 puntos de cumpleaños!');
+      setBdMsg(data.message || '¡+20 Pinos de cumpleaños! 🌲');
     } catch (err) {
       setBdMsg(err.message);
     }
@@ -189,23 +155,20 @@ export default function MiCuenta() {
 
   if (!customer) return null;
 
-  const level = LEVEL_CONFIG[customer.level] || LEVEL_CONFIG.BRONZE;
-  const progressPct = level.nextAt
-    ? Math.min(100, Math.round((customer.lifetimePoints / level.nextAt) * 100))
-    : 100;
-  const ptsToNext = level.nextAt ? Math.max(0, level.nextAt - customer.lifetimePoints) : 0;
-  const redeemable = Math.floor(customer.availablePoints / 100) * 5;
-  const nextReward = REWARDS.find(r => r.pts > customer.availablePoints);
-  const ptsToNextReward = nextReward ? nextReward.pts - customer.availablePoints : 0;
+  // Sistema de Pinos: 1 Pino = 10 puntos = $10 MXN
+  // 120 Pinos = bebida gratis hasta $90 | 10 slots, 12 Pinos por slot
+  const PINES_PER_CYCLE = 120;
+  const PINES_PER_SLOT  = 12;
+  const totalPines      = Math.floor((customer.lifetimePoints || 0) / 10);
+  const pinesInCycle    = totalPines % PINES_PER_CYCLE;
+  const slotsEarned     = (pinesInCycle === 0 && totalPines > 0) ? 10 : Math.floor(pinesInCycle / PINES_PER_SLOT);
+  const cardComplete    = slotsEarned === 10;
+  const pinesLeft       = cardComplete ? 0 : PINES_PER_CYCLE - pinesInCycle;
+  const progressPct     = Math.round((pinesInCycle / PINES_PER_CYCLE) * 100);
 
-  // Acumulador: 100 pts = 1 stamp, 10 stamps = tarjeta completa
-  const STAMPS_TOTAL = 10;
-  const totalStamps  = Math.floor((customer.lifetimePoints || 0) / 100);
-  const stampsEarned = totalStamps === 0 ? 0 : (totalStamps % 10 === 0 ? 10 : totalStamps % 10);
-  const cardComplete = stampsEarned === STAMPS_TOTAL;
-  // Posiciones X de los 10 slots (% del ancho del banner, medidas exactas del pixel scan)
+  // Posiciones X de los 10 slots (% del ancho del banner, pixel-perfect)
   const STAMP_X = [13.3, 22.0, 29.6, 37.1, 44.7, 52.4, 60.0, 68.3, 76.0, 82.9];
-  const STAMP_Y = 82; // % del alto del banner
+  const STAMP_Y = 82;
 
   return (
     <div className="mc-root">
@@ -237,14 +200,14 @@ export default function MiCuenta() {
               <p style={{ fontWeight: 800, fontSize: 14, color: '#FF80B0', margin: 0 }}>¡Feliz cumpleaños, {customer.firstName}!</p>
               <p style={{ fontSize: 12, color: 'rgba(251,247,240,.55)', margin: '2px 0 0' }}>
                 {customer.birthdayRewardAvailable
-                  ? 'Ve a tu Perfil para reclamar tu regalo de +200 puntos'
+                  ? 'Ve a tu Perfil para reclamar tu regalo de +20 Pinos 🌲'
                   : '¡Que lo disfrutes mucho!'}
               </p>
             </div>
           </div>
         )}
 
-        {/* DOUBLE POINTS BANNER */}
+        {/* DOUBLE PINES BANNER */}
         {customer.doublePointsActive && (
           <div style={{
             background: 'linear-gradient(135deg, rgba(245,200,66,.12), rgba(245,200,66,.04))',
@@ -254,9 +217,9 @@ export default function MiCuenta() {
           }}>
             <LightningIcon size={28} color="#F5C842" animated />
             <div>
-              <p style={{ fontWeight: 800, fontSize: 14, color: 'var(--gold)', margin: 0 }}>¡Puntos dobles activos hoy!</p>
+              <p style={{ fontWeight: 800, fontSize: 14, color: 'var(--gold)', margin: 0 }}>🌲 ¡Pinos dobles activos hoy!</p>
               <p style={{ fontSize: 12, color: 'rgba(251,247,240,.55)', margin: '2px 0 0' }}>
-                Ganas el doble de puntos en cada compra ahora mismo
+                Ganas el doble de Pinos en cada compra ahora mismo
               </p>
             </div>
           </div>
@@ -264,69 +227,70 @@ export default function MiCuenta() {
 
         {/* WELCOME */}
         <div className="mc-eyebrow">Mi cuenta</div>
-        <h1 className="mc-heading">
-          Hola, <span>{customer.firstName}</span> <MedalIcon size={28} rank={level.rank} style={{ verticalAlign: 'middle' }} />
-        </h1>
-        <p className="mc-sub">Miembro {level.label}{totalStamps > 0 ? ` · ${totalStamps} compras` : ''}</p>
+        <h1 className="mc-heading">Hola, <span>{customer.firstName}</span> 🌲</h1>
+        <p className="mc-sub">House of Shake Rewards{totalPines > 0 ? ` · ${totalPines} Pinos acumulados` : ''}</p>
 
         {/* STATS */}
         <div className="mc-stats">
           <div className="mc-stat">
-            <p className="mc-stat-label">Disponibles</p>
-            <p className="mc-stat-value gold">{customer.availablePoints}</p>
-            <p className="mc-stat-unit">puntos</p>
+            <p className="mc-stat-label">Este ciclo</p>
+            <p className="mc-stat-value gold">{pinesInCycle}</p>
+            <p className="mc-stat-unit">pinos</p>
           </div>
           <div className="mc-stat">
-            <p className="mc-stat-label">Acumulados</p>
-            <p className="mc-stat-value">{customer.lifetimePoints}</p>
-            <p className="mc-stat-unit">total</p>
+            <p className="mc-stat-label">Totales</p>
+            <p className="mc-stat-value">{totalPines}</p>
+            <p className="mc-stat-unit">acumulados</p>
           </div>
           <div className="mc-stat">
-            <p className="mc-stat-label">Canjeable</p>
-            <p className="mc-stat-value green">${redeemable}</p>
-            <p className="mc-stat-unit">MXN</p>
+            <p className="mc-stat-label">Para bebida</p>
+            <p className="mc-stat-value green">{cardComplete ? '¡YA!' : pinesLeft}</p>
+            <p className="mc-stat-unit">{cardComplete ? 'canjeable' : 'pinos más'}</p>
           </div>
         </div>
 
         {/* NEXT REWARD HINT */}
-        {nextReward && (
+        {!cardComplete && (
           <div style={{
             background: 'rgba(245,200,66,.05)', border: '1px solid rgba(245,200,66,.14)',
             borderRadius: 12, padding: '10px 16px', marginBottom: 14,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <nextReward.Icon size={20} color="#F5C842" animated />
+              <CoffeeIcon size={20} color="#F5C842" animated />
               <div>
-                <p style={{ fontSize: 10, color: 'rgba(251,247,240,.4)', margin: 0, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 700 }}>Próximo canje</p>
-                <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--cream)', margin: 0 }}>{nextReward.title}</p>
+                <p style={{ fontSize: 10, color: 'rgba(251,247,240,.4)', margin: 0, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 700 }}>Próxima recompensa</p>
+                <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--cream)', margin: 0 }}>Bebida gratis hasta $90</p>
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <p style={{ fontSize: 20, fontFamily: "'Bebas Neue', sans-serif", color: 'var(--gold)', margin: 0, lineHeight: 1 }}>+{ptsToNextReward}</p>
-              <p style={{ fontSize: 9, color: 'rgba(251,247,240,.3)', margin: 0 }}>pts necesarios</p>
+              <p style={{ fontSize: 20, fontFamily: "'Bebas Neue', sans-serif", color: 'var(--gold)', margin: 0, lineHeight: 1 }}>{pinesLeft}</p>
+              <p style={{ fontSize: 9, color: 'rgba(251,247,240,.3)', margin: 0 }}>Pinos más</p>
             </div>
+          </div>
+        )}
+        {cardComplete && (
+          <div style={{
+            background: 'rgba(94,201,122,.07)', border: '1px solid rgba(94,201,122,.3)',
+            borderRadius: 12, padding: '10px 16px', marginBottom: 14,
+            display: 'flex', alignItems: 'center', gap: 12,
+          }}>
+            <CoffeeIcon size={22} color="#5EC97A" animated />
+            <p style={{ fontWeight: 800, fontSize: 13, color: '#5EC97A', margin: 0 }}>🎉 ¡120 Pinos completados! Muestra tu QR al staff para canjear tu bebida gratis.</p>
           </div>
         )}
 
-        {/* LEVEL PROGRESS */}
-        {level.nextAt ? (
-          <div className="mc-level">
-            <div className="mc-level-top">
-              <span className="mc-level-name" style={{ display:'flex', alignItems:'center', gap:6 }}><MedalIcon size={16} rank={level.rank} /> {level.label}</span>
-              <span className="mc-level-next">{ptsToNext} pts para {level.next} →</span>
-            </div>
-            <div className="mc-bar-bg">
-              <div className="mc-bar-fill" style={{ width: `${progressPct}%`, background: level.color }} />
-            </div>
-            <p className="mc-bar-pts">{customer.lifetimePoints} / {level.nextAt} puntos</p>
+        {/* PINE PROGRESS */}
+        <div className="mc-level">
+          <div className="mc-level-top">
+            <span className="mc-level-name">🌲 Pinos en ciclo actual</span>
+            <span className="mc-level-next">{cardComplete ? '¡Bebida lista para canjear!' : `${pinesLeft} para tu bebida →`}</span>
           </div>
-        ) : (
-          <div className="mc-gold-badge">
-            <p style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}><MedalIcon size={16} rank={1} /> ¡Eres Gold! Nivel máximo alcanzado</p>
-            <p>Tienes +20% de puntos bonus en cada compra</p>
+          <div className="mc-bar-bg">
+            <div className="mc-bar-fill" style={{ width: `${progressPct}%`, background: cardComplete ? '#5EC97A' : 'var(--gold)' }} />
           </div>
-        )}
+          <p className="mc-bar-pts">{pinesInCycle} / {PINES_PER_CYCLE} Pinos</p>
+        </div>
 
         <hr className="mc-divider" />
 
@@ -372,7 +336,7 @@ export default function MiCuenta() {
                     left: `${xPct}%`,
                     top: `${STAMP_Y}%`,
                     transform: 'translate(-50%, -50%)',
-                    opacity: i < stampsEarned ? 1 : 0,
+                    opacity: i < slotsEarned ? 1 : 0,
                     transition: 'opacity 0.4s ease',
                     pointerEvents: 'none',
                   }}
@@ -381,38 +345,38 @@ export default function MiCuenta() {
               {cardComplete && (
                 <div style={{
                   position: 'absolute', inset: 0,
-                  background: 'rgba(245,200,66,.18)',
+                  background: 'rgba(94,201,122,.18)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   backdropFilter: 'blur(2px)',
                 }}>
                   <p style={{
                     fontFamily: "'Bebas Neue', sans-serif",
                     fontSize: 'clamp(14px, 4vw, 20px)',
-                    color: '#F5C842',
+                    color: '#5EC97A',
                     letterSpacing: 3,
                     textShadow: '0 2px 16px rgba(0,0,0,.9)',
                     textAlign: 'center',
                     padding: '0 12px',
                   }}>
-                    ¡Tarjeta completa! Canjea tu premio
+                    🌲 ¡Bebida gratis lista! Canjea con el staff
                   </p>
                 </div>
               )}
             </div>
             <p style={{ textAlign: 'center', fontSize: 11, color: 'rgba(251,247,240,.35)', letterSpacing: 1, fontWeight: 700, textTransform: 'uppercase', marginBottom: 20 }}>
-              {stampsEarned} / {STAMPS_TOTAL} visitas · {STAMPS_TOTAL - stampsEarned > 0 ? `${STAMPS_TOTAL - stampsEarned} para tu próximo premio` : '¡Premio listo!'}
+              {pinesInCycle} / {PINES_PER_CYCLE} Pinos · {slotsEarned} / 10 slots{pinesLeft > 0 ? ` · ${pinesLeft} para tu bebida gratis` : ' · ¡Premio listo!'}
             </p>
 
             <div className="mc-qr-hero" onClick={() => setQrFullscreen(true)}>
-              <div className="mc-qr-hero-inner" style={{ borderColor: `${level.color}55` }}>
+              <div className="mc-qr-hero-inner" style={{ borderColor: 'rgba(245,200,66,.35)' }}>
                 <div className="mc-qr-hero-header">
                   <div>
                     <p className="mc-qr-hero-brand">House of Shake</p>
                     <p className="mc-qr-hero-name">{customer.firstName} {customer.lastName}</p>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <MedalIcon size={26} rank={level.rank} />
-                    <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 15, letterSpacing: 2, color: level.color, lineHeight: 1 }}>{level.label}</p>
+                    <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: 1, color: 'var(--gold)', lineHeight: 1, margin: 0 }}>{totalPines}</p>
+                    <p style={{ fontSize: 9, color: 'rgba(251,247,240,.4)', margin: 0, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 700 }}>Pinos 🌲</p>
                   </div>
                 </div>
                 <div className="mc-qr-center">
@@ -421,15 +385,20 @@ export default function MiCuenta() {
                   </div>
                   <p className="mc-qr-tap-hint">Toca para ampliar</p>
                 </div>
-                <div className="mc-qr-hero-footer" style={{ borderTopColor: `${level.color}20` }}>
+                <div className="mc-qr-hero-footer" style={{ borderTopColor: 'rgba(245,200,66,.2)' }}>
                   <div>
-                    <p className="mc-qr-pts-label">Puntos disponibles</p>
-                    <p className="mc-qr-pts-value" style={{ color: level.color }}>{customer.availablePoints.toLocaleString()}</p>
+                    <p className="mc-qr-pts-label">Pinos en ciclo</p>
+                    <p className="mc-qr-pts-value" style={{ color: 'var(--gold)' }}>{pinesInCycle} / 120</p>
                   </div>
-                  {redeemable > 0 && (
+                  {cardComplete ? (
                     <div style={{ textAlign: 'right' }}>
-                      <p className="mc-qr-pts-label">Canjeable</p>
-                      <p className="mc-qr-pts-value" style={{ color: '#5EC97A' }}>${redeemable} MXN</p>
+                      <p className="mc-qr-pts-label">Estado</p>
+                      <p className="mc-qr-pts-value" style={{ color: '#5EC97A' }}>🌲 ¡Bebida lista!</p>
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'right' }}>
+                      <p className="mc-qr-pts-label">Para bebida gratis</p>
+                      <p className="mc-qr-pts-value" style={{ color: '#5EC97A' }}>{pinesLeft} Pinos más</p>
                     </div>
                   )}
                 </div>
@@ -440,13 +409,13 @@ export default function MiCuenta() {
             <div className="mc-info-grid">
               <div className="mc-info-card">
                 <div className="mc-info-icon"><LightningIcon size={24} color="#F5C842" animated /></div>
-                <p className="mc-info-title">1 pto = $1 MXN</p>
-                <p className="mc-info-desc">Ganas puntos en cada compra</p>
+                <p className="mc-info-title">1 Pino = $10 MXN</p>
+                <p className="mc-info-desc">Un Pino por cada $10 gastados</p>
               </div>
               <div className="mc-info-card">
                 <div className="mc-info-icon"><GiftIcon size={24} color="#F5C842" animated /></div>
-                <p className="mc-info-title">100 pts = $5 MXN</p>
-                <p className="mc-info-desc">Canjea tu saldo en tienda</p>
+                <p className="mc-info-title">120 Pinos = bebida</p>
+                <p className="mc-info-desc">Bebida gratis hasta $90 MXN</p>
               </div>
             </div>
 
@@ -485,10 +454,10 @@ export default function MiCuenta() {
               <QRCodeSVG value={customer.id} size={Math.min(280, window.innerWidth - 100)} bgColor="#ffffff" fgColor="#071E3D" level="H" includeMargin={false} />
             </div>
             <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 36, letterSpacing: 2, color: '#F5C842' }}>
-              {customer.availablePoints.toLocaleString()} pts
+              {totalPines.toLocaleString()} Pinos 🌲
             </p>
-            <p style={{ fontSize: 12, color: 'rgba(251,247,240,.35)', letterSpacing: 1, fontWeight: 600, display:'flex', alignItems:'center', justifyContent:'center', gap:5 }}>
-              {customer.firstName} {customer.lastName} · <MedalIcon size={14} rank={level.rank} /> {level.label}
+            <p style={{ fontSize: 12, color: 'rgba(251,247,240,.35)', letterSpacing: 1, fontWeight: 600, textAlign: 'center' }}>
+              {customer.firstName} {customer.lastName}
             </p>
             <button
               onClick={() => setQrFullscreen(false)}
@@ -519,7 +488,7 @@ export default function MiCuenta() {
               <div className="mc-empty">
                 <div className="mc-empty-icon"><CoffeeIcon size={48} color="#1B2F56" /></div>
                 <p className="mc-empty-title">Sin transacciones aún</p>
-                <p className="mc-empty-sub">¡Visita la sucursal y empieza a acumular puntos!</p>
+                <p className="mc-empty-sub">¡Visita la sucursal y empieza a acumular Pinos!</p>
               </div>
             ) : (
               <div>
@@ -527,6 +496,7 @@ export default function MiCuenta() {
                   {transactions.map(t => {
                     const cfg = TX_TYPE[t.type] || { label: t.type, color: '#8A7B6A' };
                     const isPos = t.points > 0;
+                    const pinesValue = Math.round(Math.abs(t.points) / 10 * 10) / 10;
                     return (
                       <div key={t.id} className="mc-tx-row">
                         <div style={{ flex: 1, marginRight: 16, minWidth: 0 }}>
@@ -538,9 +508,9 @@ export default function MiCuenta() {
                         </div>
                         <div style={{ textAlign: 'right', flexShrink: 0 }}>
                           <p className={`mc-tx-pts ${isPos ? 'pos' : 'neg'}`}>
-                            {isPos ? '+' : ''}{t.points}
+                            {isPos ? '+' : ''}{pinesValue % 1 === 0 ? pinesValue.toFixed(0) : pinesValue.toFixed(1)}
                           </p>
-                          <p className="mc-tx-unit">pts</p>
+                          <p className="mc-tx-unit">pinos</p>
                         </div>
                       </div>
                     );
@@ -577,81 +547,75 @@ export default function MiCuenta() {
         {activeTab === 'lealtad' && (
           <div className="mc-loyalty">
 
-            {/* Rewards catalog */}
-            <p className="mc-loyalty-section-title">Catálogo de recompensas</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
-              {REWARDS.map(r => {
-                const unlocked = customer.availablePoints >= r.pts;
-                return (
-                  <div key={r.pts} style={{
-                    display: 'flex', alignItems: 'center', gap: 14,
-                    background: unlocked ? 'rgba(94,201,122,.07)' : 'rgba(251,247,240,.03)',
-                    border: `1px solid ${unlocked ? 'rgba(94,201,122,.25)' : 'rgba(251,247,240,.07)'}`,
-                    borderRadius: 14, padding: '14px 16px',
-                  }}>
-                    <r.Icon size={26} color={unlocked ? '#5EC97A' : '#F5C842'} animated={unlocked} style={{ flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontWeight: 800, fontSize: 14, color: unlocked ? '#5EC97A' : 'var(--cream)', margin: 0 }}>{r.title}</p>
-                      <p style={{ fontSize: 11, color: 'rgba(251,247,240,.4)', margin: '2px 0 0' }}>{r.desc}</p>
-                    </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: unlocked ? '#5EC97A' : 'var(--gold)', margin: 0, lineHeight: 1 }}>{r.pts}</p>
-                      <p style={{ fontSize: 9, color: 'rgba(251,247,240,.3)', margin: 0 }}>pts</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Current level highlight */}
-            <div className="mc-loyalty-hero" style={{ borderColor: `${level.color}40`, background: `${level.color}0d` }}>
-              <div className="mc-loyalty-hero-emoji"><MedalIcon size={64} rank={level.rank} /></div>
-              <div>
-                <p className="mc-loyalty-hero-label">Tu nivel actual</p>
-                <p className="mc-loyalty-hero-name" style={{ color: level.color }}>{level.label}</p>
-                {level.nextAt ? (
-                  <p className="mc-loyalty-hero-hint">{ptsToNext} pts para alcanzar {level.next}</p>
-                ) : (
-                  <p className="mc-loyalty-hero-hint" style={{ color: '#ffd700' }}>¡Nivel máximo!</p>
-                )}
+            {/* Recompensa única */}
+            <p className="mc-loyalty-section-title">Tu recompensa</p>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 14,
+              background: cardComplete ? 'rgba(94,201,122,.07)' : 'rgba(251,247,240,.03)',
+              border: `1px solid ${cardComplete ? 'rgba(94,201,122,.25)' : 'rgba(251,247,240,.1)'}`,
+              borderRadius: 16, padding: '18px 16px', marginBottom: 20,
+            }}>
+              <CoffeeIcon size={40} color={cardComplete ? '#5EC97A' : '#F5C842'} animated={cardComplete} style={{ flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontWeight: 800, fontSize: 16, color: cardComplete ? '#5EC97A' : 'var(--cream)', margin: 0 }}>
+                  Bebida gratis hasta $90 MXN
+                </p>
+                <p style={{ fontSize: 12, color: 'rgba(251,247,240,.5)', margin: '6px 0 0', lineHeight: 1.5 }}>
+                  Cualquier bebida de hasta $90. Si cuesta más, solo pagas la diferencia.
+                </p>
+              </div>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 30, color: cardComplete ? '#5EC97A' : 'var(--gold)', margin: 0, lineHeight: 1 }}>120</p>
+                <p style={{ fontSize: 9, color: 'rgba(251,247,240,.3)', margin: 0, letterSpacing: 1 }}>PINOS 🌲</p>
               </div>
             </div>
 
-            {/* Level cards */}
-            <p className="mc-loyalty-section-title">Niveles del programa</p>
-            <div className="mc-loyalty-levels">
-              {LEVELS_INFO.map(lvl => {
-                const isActive = customer.level === lvl.key;
-                return (
-                  <div key={lvl.key}
-                    className={`mc-loyalty-level-card${isActive ? ' active' : ''}`}
-                    style={{ borderColor: isActive ? lvl.color : 'rgba(251,247,240,.08)', background: isActive ? `${lvl.color}0d` : 'rgba(251,247,240,.03)' }}>
-                    <div className="mc-loyalty-level-header">
-                      <MedalIcon size={24} rank={lvl.rank} />
-                      <div>
-                        <p className="mc-loyalty-level-name" style={{ color: isActive ? lvl.color : 'var(--cream)' }}>{lvl.label}</p>
-                        <p className="mc-loyalty-level-range">{lvl.range} vitalicio</p>
-                      </div>
-                      {isActive && <span className="mc-loyalty-current-badge">ACTUAL</span>}
-                    </div>
-                    <ul className="mc-loyalty-perks">
-                      {lvl.perks.map(p => (
-                        <li key={p}><CheckIcon size={14} color={lvl.color} style={{ verticalAlign:'middle' }} /> {p}</li>
-                      ))}
-                    </ul>
-                  </div>
-                );
-              })}
+            {/* Progreso */}
+            <div style={{ background: 'rgba(251,247,240,.04)', border: '1px solid rgba(251,247,240,.08)', borderRadius: 16, padding: '18px', marginBottom: 24 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--cream)' }}>🌲 {pinesInCycle} / 120 Pinos</span>
+                <span style={{ fontSize: 12, color: cardComplete ? '#5EC97A' : 'rgba(251,247,240,.4)', fontWeight: 700 }}>
+                  {cardComplete ? '¡Bebida lista!' : `${pinesLeft} para tu bebida`}
+                </span>
+              </div>
+              <div className="mc-bar-bg">
+                <div className="mc-bar-fill" style={{ width: `${progressPct}%`, background: cardComplete ? '#5EC97A' : 'var(--gold)' }} />
+              </div>
+              <p style={{ fontSize: 10, color: 'rgba(251,247,240,.3)', marginTop: 8, fontFamily: "'Montserrat', sans-serif", letterSpacing: .5 }}>
+                {totalPines} Pinos totales acumulados desde que te uniste
+              </p>
             </div>
 
-            {/* How it works */}
-            <p className="mc-loyalty-section-title" style={{ marginTop: 28 }}>¿Cómo funciona?</p>
+            {/* Bonos especiales */}
+            <p className="mc-loyalty-section-title">Bonos especiales</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
+              {[
+                { Icon: CakeIcon,      color: '#FF80B0', title: '+20 Pinos de cumpleaños',    desc: 'Recibe 20 Pinos gratis el día de tu cumpleaños. Regístralo en Perfil.' },
+                { Icon: StarIcon,      color: '#F5C842', title: '+10 Pinos al registrarte',   desc: 'Bono de bienvenida al unirte a House of Shake Rewards.' },
+                { Icon: LightningIcon, color: '#5EC97A', title: 'Pinos dobles en temporada',  desc: 'Gana el doble de Pinos durante lanzamientos de bebidas especiales.' },
+              ].map(b => (
+                <div key={b.title} style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 14,
+                  background: 'rgba(251,247,240,.03)', border: '1px solid rgba(251,247,240,.07)',
+                  borderRadius: 14, padding: '14px 16px',
+                }}>
+                  <b.Icon size={26} color={b.color} animated style={{ flexShrink: 0, marginTop: 2 }} />
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontWeight: 800, fontSize: 14, color: 'var(--cream)', margin: 0 }}>{b.title}</p>
+                    <p style={{ fontSize: 11, color: 'rgba(251,247,240,.4)', margin: '4px 0 0', lineHeight: 1.5 }}>{b.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Cómo funciona */}
+            <p className="mc-loyalty-section-title">¿Cómo funciona?</p>
             <div className="mc-loyalty-how">
               {[
-                { Icon: CoffeeIcon,    title: 'Compra en sucursal', desc: 'Muestra tu tarjeta QR al pagar en el mostrador' },
-                { Icon: LightningIcon, title: 'Gana puntos al instante', desc: '1 punto por cada $1 MXN (más bonus por nivel)' },
-                { Icon: GiftIcon,      title: 'Canjea recompensas', desc: 'Desde 50 puntos — upgrades, descuentos y bebidas gratis' },
-                { Icon: TrophyIcon,    title: 'Sube de nivel', desc: 'Acumula puntos de por vida para desbloquear beneficios exclusivos' },
+                { Icon: CoffeeIcon,    title: 'Muestra tu QR antes de pagar',  desc: 'Presenta tu tarjeta al staff al llegar al mostrador' },
+                { Icon: LightningIcon, title: '1 Pino por cada $10 MXN',       desc: 'Gana Pinos en cada compra. Pinos dobles en eventos especiales.' },
+                { Icon: ShakeIcon,     title: '120 Pinos = bebida gratis',      desc: 'Bebida de hasta $90 MXN gratis. Si cuesta más, solo pagas la diferencia.' },
+                { Icon: CakeIcon,      title: 'Bonos especiales',               desc: '+20 Pinos en tu cumpleaños. +10 Pinos de bienvenida al registrarte.' },
               ].map(s => (
                 <div key={s.title} className="mc-loyalty-step">
                   <div className="mc-loyalty-step-icon"><s.Icon size={24} color="#F5C842" animated /></div>
@@ -686,7 +650,7 @@ export default function MiCuenta() {
                   Tienes un regalo especial esperándote
                 </p>
                 <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 42, color: 'var(--gold)', margin: '0 0 16px', letterSpacing: 2 }}>
-                  +200 puntos
+                  +20 PINOS 🌲
                 </p>
                 <button
                   onClick={handleClaimBirthday}
@@ -699,7 +663,7 @@ export default function MiCuenta() {
                     display: 'inline-flex', alignItems: 'center', gap: 8,
                   }}
                 >
-                  <GiftIcon size={16} color="#2C1A0E" /> {claimingBd ? 'Reclamando...' : '¡Reclamar mi regalo!'}
+                  <GiftIcon size={16} color="#2C1A0E" /> {claimingBd ? 'Reclamando...' : '¡Reclamar mis Pinos!'}
                 </button>
                 {bdMsg && (
                   <p style={{ marginTop: 12, fontSize: 13, fontWeight: 700, color: bdMsg.includes('ya') || bdMsg.includes('no') ? '#E05C5C' : '#5EC97A' }}>
@@ -709,7 +673,6 @@ export default function MiCuenta() {
               </div>
             )}
 
-            {/* Birthday claim result (if not available but has a msg) */}
             {!customer.birthdayRewardAvailable && bdMsg && (
               <div style={{
                 background: 'rgba(94,201,122,.08)', border: '1px solid rgba(94,201,122,.25)',
@@ -777,7 +740,7 @@ export default function MiCuenta() {
                     onBlur={e => e.target.style.borderColor = 'rgba(251,247,240,.12)'}
                   />
                   <p style={{ fontSize: 10, color: 'rgba(251,247,240,.3)', marginTop: 4, letterSpacing: .5, fontFamily: "'Montserrat', sans-serif" }}>
-                    Recibirás +200 puntos de regalo el día de tu cumpleaños
+                    Recibirás +20 Pinos 🌲 de regalo el día de tu cumpleaños
                   </p>
                 </div>
 
@@ -806,18 +769,20 @@ export default function MiCuenta() {
               </form>
             </div>
 
-            {/* Visit stats */}
-            {totalStamps > 0 && (
+            {/* Pine stats */}
+            {totalPines > 0 && (
               <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div style={{ background: 'rgba(251,247,240,.03)', border: '1px solid rgba(251,247,240,.07)', borderRadius: 14, padding: '16px', textAlign: 'center' }}>
-                  <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 40, color: 'var(--gold)', margin: 0, lineHeight: 1 }}>{totalStamps}</p>
-                  <p style={{ fontSize: 10, color: 'rgba(251,247,240,.35)', margin: '4px 0 0', letterSpacing: 1, textTransform: 'uppercase', fontWeight: 700 }}>Compras totales</p>
+                  <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 40, color: 'var(--gold)', margin: 0, lineHeight: 1 }}>{totalPines}</p>
+                  <p style={{ fontSize: 10, color: 'rgba(251,247,240,.35)', margin: '4px 0 0', letterSpacing: 1, textTransform: 'uppercase', fontWeight: 700 }}>Pinos totales 🌲</p>
                 </div>
                 <div style={{ background: 'rgba(251,247,240,.03)', border: '1px solid rgba(251,247,240,.07)', borderRadius: 14, padding: '16px', textAlign: 'center' }}>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--cream)', margin: 0, paddingTop: 8 }}>
-                    {customer.lastVisitAt ? new Date(customer.lastVisitAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : '—'}
+                  <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 40, color: cardComplete ? '#5EC97A' : 'var(--cream)', margin: 0, lineHeight: 1 }}>
+                    {cardComplete ? '🎉' : pinesLeft}
                   </p>
-                  <p style={{ fontSize: 10, color: 'rgba(251,247,240,.35)', margin: '4px 0 0', letterSpacing: 1, textTransform: 'uppercase', fontWeight: 700 }}>Última visita</p>
+                  <p style={{ fontSize: 10, color: 'rgba(251,247,240,.35)', margin: '4px 0 0', letterSpacing: 1, textTransform: 'uppercase', fontWeight: 700 }}>
+                    {cardComplete ? '¡Bebida lista!' : 'Para bebida gratis'}
+                  </p>
                 </div>
               </div>
             )}

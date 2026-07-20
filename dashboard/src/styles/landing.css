@@ -16,10 +16,6 @@
   transition:transform .16s ease,background .16s ease;top:0;left:0;transform:translate(-50%,-50%) }
 #hs-cur.h { transform:translate(-50%,-50%) scale(2.5);background:rgba(245,200,66,.15) }
 
-/* ── scroll progress ── */
-#hs-prog { position:fixed;top:0;left:0;height:3px;
-  background:linear-gradient(90deg,var(--gold),var(--blue-light));
-  width:0;z-index:10000;box-shadow:0 0 8px rgba(245,200,66,.5);transition:width .1s linear }
 
 /* ── keyframes ── */
 @keyframes sparkle { 0%,100%{transform:translateY(0) rotate(0deg);opacity:.5} 50%{transform:translateY(-22px) rotate(180deg);opacity:1} }
@@ -37,7 +33,7 @@
 .hs-rev:nth-child(5){transition-delay:.42s}.hs-rev:nth-child(6){transition-delay:.52s}
 
 /* ── spark dots ── */
-.hs-sp { position:absolute;border-radius:50%;background:var(--gold);pointer-events:none;
+.hs-sp { position:absolute;border-radius:50%;background:var(--gold);pointer-events:none;z-index:2;
   animation:sparkle var(--d,4s) ease-in-out infinite;animation-delay:var(--dl,0s);
   width:var(--sz,5px);height:var(--sz,5px) }
 
@@ -87,37 +83,41 @@
 .hs-nav-links a:hover::after { left:0;right:0 }
 .hs-nav-ctas { display:flex;align-items:center;gap:10px }
 
-/* ── HERO ── */
-#hs-hero { position:relative;height:100vh;min-height:620px;overflow:hidden;
-  display:flex;align-items:center;justify-content:center;font-family:'Montserrat',sans-serif }
-.hs-hero-img { position:absolute;inset:0;background-size:cover;background-position:center top;transition:transform .12s linear }
-.hs-hero-ov1 { position:absolute;inset:0;background:linear-gradient(180deg,rgba(7,30,61,.55) 0%,rgba(15,68,138,.35) 45%,rgba(7,30,61,.88) 100%) }
-.hs-hero-ov2 { position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 25%,rgba(0,0,0,.45) 100%) }
-.hs-hero-body { position:relative;z-index:10;text-align:center;display:flex;flex-direction:column;align-items:center;padding:0 20px }
+/* ── HERO — flex column so nothing ever overlaps ── */
+#hs-hero { position:relative;height:100vh;min-height:600px;overflow:hidden;
+  display:flex;flex-direction:column;font-family:'Montserrat',sans-serif }
+.hs-hero-img { position:absolute;inset:0;background-size:cover;background-position:center top;z-index:0 }
+.hs-hero-ov1 { position:absolute;inset:0;z-index:1;
+  background:linear-gradient(180deg,rgba(7,30,61,.5) 0%,rgba(15,68,138,.28) 45%,rgba(7,30,61,.84) 100%) }
+.hs-hero-ov2 { position:absolute;inset:0;z-index:1;
+  background:radial-gradient(ellipse at center,transparent 25%,rgba(0,0,0,.4) 100%) }
+.hs-hero-body { flex:1;position:relative;z-index:10;text-align:center;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:88px 20px 0;min-height:0 }
 .hs-camp-badge { display:inline-flex;align-items:center;gap:8px;background:rgba(245,200,66,.1);
   border:1px solid rgba(245,200,66,.28);border-radius:100px;padding:6px 18px;
   font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);font-weight:700;
-  margin-bottom:26px;animation:fadeup .7s ease .3s both }
-.hs-hero-title { font-family:'Bebas Neue',sans-serif;font-size:clamp(5.5rem,15vw,15rem);
-  color:var(--cream);line-height:.88;letter-spacing:4px;
-  text-shadow:0 4px 40px rgba(0,0,0,.7),0 0 80px rgba(26,77,179,.25);margin-bottom:8px }
+  margin-bottom:14px;animation:fadeup .7s ease .3s both }
+.hs-hero-title { font-family:'Bebas Neue',sans-serif;font-size:clamp(3.5rem,8.5vw,8.5rem);
+  color:var(--cream);line-height:.9;letter-spacing:4px;
+  text-shadow:0 4px 40px rgba(0,0,0,.7),0 0 80px rgba(26,77,179,.25);margin-bottom:6px }
 .hs-hero-title .acc { color:var(--gold) }
-.hs-hero-sub { font-family:'Bebas Neue',sans-serif;font-size:clamp(1.3rem,3.5vw,3rem);
-  color:rgba(251,247,240,.6);letter-spacing:8px;margin-bottom:22px }
-.hs-hero-desc { font-size:14px;color:rgba(251,247,240,.55);max-width:460px;line-height:1.9;margin-bottom:36px }
+.hs-hero-sub { font-family:'Bebas Neue',sans-serif;font-size:clamp(1rem,2.8vw,2.2rem);
+  color:rgba(251,247,240,.6);letter-spacing:6px;margin-bottom:12px }
+.hs-hero-desc { font-size:13px;color:rgba(251,247,240,.52);max-width:440px;line-height:1.85;margin-bottom:22px }
 .hs-hero-ctas { display:flex;gap:14px;flex-wrap:wrap;justify-content:center }
-.hs-hero-badges { position:absolute;bottom:36px;left:0;right:0;
-  display:flex;justify-content:center;gap:16px;flex-wrap:wrap;padding:0 20px }
-.hs-hbadge { display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.5);
-  backdrop-filter:blur(12px);border:1px solid rgba(245,200,66,.15);border-radius:7px;
-  padding:9px 14px;color:var(--cream);font-size:11px;font-weight:600 }
-.hs-hbadge strong { color:var(--gold);font-size:14px;font-weight:800 }
-.hs-scroll-ind { position:absolute;bottom:108px;left:50%;transform:translateX(-50%);
-  display:flex;flex-direction:column;align-items:center;gap:6px;
-  color:rgba(251,247,240,.35);font-size:9px;letter-spacing:3px;text-transform:uppercase;
-  font-family:'Montserrat',sans-serif }
-.hs-scroll-line { width:1px;height:36px;background:linear-gradient(180deg,rgba(245,200,66,.6),transparent);
-  animation:sparkle 1.6s ease-in-out infinite }
+.hs-hero-badges { display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:20px }
+.hs-hbadge { display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.05);
+  border:1px solid rgba(245,200,66,.13);border-radius:7px;
+  padding:8px 13px;color:var(--cream);font-size:10px;font-weight:600 }
+.hs-hbadge strong { color:var(--gold);font-size:13px;font-weight:800 }
+@media(max-height:700px) {
+  .hs-hero-body { padding-top:72px }
+  .hs-hero-desc { display:none }
+  .hs-camp-badge { margin-bottom:8px }
+  .hs-hero-sub { margin-bottom:8px }
+  .hs-hero-title { font-size:clamp(2.8rem,6.5vw,6.5rem) }
+}
 
 /* ── ABOUT ── */
 #hs-about { background:var(--bark2);position:relative;overflow:hidden;font-family:'Montserrat',sans-serif }
@@ -175,7 +175,7 @@
 
 /* ── MENU ── */
 #hs-menu { background:var(--pine2);padding:90px 48px;position:relative;font-family:'Montserrat',sans-serif }
-#hs-menu::before { content:'⛺ SUMMER CAMP · GOOD VIBES · COLD SHAKES · SPECIALTY COFFEE · CAMP HOUSE · ';
+#hs-menu::before { content:'SUMMER CAMP · GOOD VIBES · COLD SHAKES · SPECIALTY COFFEE · CAMP HOUSE · ';
   position:absolute;top:0;left:0;right:0;background:var(--bark);color:rgba(245,200,66,.5);
   font-size:9px;letter-spacing:3px;font-weight:700;text-transform:uppercase;
   padding:8px 0;text-align:center;white-space:nowrap;overflow:hidden;font-family:'Montserrat',sans-serif }
@@ -194,7 +194,7 @@
 .hs-mcard:hover { transform:translateY(-8px);background:rgba(251,247,240,.07);
   border-color:rgba(245,200,66,.25);box-shadow:0 18px 45px rgba(0,0,0,.45),0 0 18px rgba(26,77,179,.12) }
 .hs-cimg { height:190px;position:relative;overflow:hidden;background:rgba(255,255,255,.05) }
-.hs-cimg-ph { width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:3rem }
+.hs-cimg-ph { width:100%;height:100%;display:flex;align-items:center;justify-content:center }
 .hs-cbadge { position:absolute;top:9px;right:9px;background:var(--gold);color:var(--bark);
   font-size:8px;font-weight:800;letter-spacing:1px;text-transform:uppercase;
   padding:4px 9px;border-radius:20px;animation:badgepulse 2s infinite;z-index:2 }
@@ -211,7 +211,7 @@
 .hs-marquee { display:flex;gap:0;white-space:nowrap;animation:marquee-scroll 28s linear infinite }
 .hs-marquee span { font-family:'Bebas Neue',sans-serif;font-size:1.1rem;
   color:rgba(251,247,240,.6);letter-spacing:3px;padding:0 20px }
-.hs-marquee span.dot { color:var(--blue-light);font-size:.8rem }
+.hs-marquee span.dot { color:var(--gold);font-size:.65rem }
 
 /* ── STATS ── */
 .hs-stats { display:flex;justify-content:center;gap:0;background:var(--pine);flex-wrap:wrap }
@@ -293,7 +293,7 @@
 .hs-ft-links a { font-size:12px;color:rgba(251,247,240,.38);text-decoration:none;transition:color .2s;cursor:pointer }
 .hs-ft-links a:hover { color:var(--cream) }
 .hs-ft-bottom { border-top:1px solid rgba(245,200,66,.07);padding-top:28px;
-  display:flex;align-items:center;justify-content:space-between;flex-wrap:gap }
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px }
 .hs-ft-copy { font-size:11px;color:rgba(251,247,240,.22);letter-spacing:1px }
 
 /* ── MOBILE ── */

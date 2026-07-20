@@ -3,6 +3,7 @@ import { statsApi, setupApi, loyaltyApi } from '../services/api';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { PeopleIcon, StarIcon, GiftIcon, UserPlusIcon, LightningIcon, FlameIcon, RankIcon, CakeIcon, TrophyIcon, CheckIcon } from '../components/Icons';
 
 const levelColors = { BRONZE: '#cd7f32', SILVER: '#b0b0b0', GOLD: '#f5c842' };
 const levelLabels = { BRONZE: 'Bronce', SILVER: 'Plata', GOLD: 'Oro' };
@@ -23,18 +24,17 @@ function StatCard({ title, value, subtitle, gradient, icon }) {
           <p style={{ fontSize: 32, fontWeight: 900, lineHeight: 1, marginBottom: 2 }}>{value}</p>
           {subtitle && <p style={{ fontSize: 11, opacity: .65 }}>{subtitle}</p>}
         </div>
-        {icon && <span style={{ fontSize: 28, opacity: .7 }}>{icon}</span>}
+        {icon && <span style={{ opacity: .7 }}>{icon}</span>}
       </div>
     </div>
   );
 }
 
 function MiniTopCustomer({ customer, rank }) {
-  const medal = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'][rank];
   const lvlColor = levelColors[customer.level] || '#cd7f32';
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid #f3f4f6' }}>
-      <span style={{ fontSize: 18, flexShrink: 0 }}>{medal}</span>
+      <span style={{ flexShrink: 0 }}><RankIcon size={22} rank={rank + 1} /></span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ fontSize: 13, fontWeight: 700, color: '#111', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {customer.firstName} {customer.lastName}
@@ -111,7 +111,7 @@ export default function Dashboard() {
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240 }}>
       <div style={{ textAlign: 'center', color: '#aaa' }}>
-        <div style={{ fontSize: 36, marginBottom: 8 }}>⏳</div>
+        <div style={{ marginBottom: 8 }}><LightningIcon size={36} color="#aaa" /></div>
         <p style={{ fontSize: 13 }}>Cargando estadísticas...</p>
       </div>
     </div>
@@ -148,29 +148,29 @@ export default function Dashboard() {
             cursor: 'pointer', opacity: setupLoading ? .6 : 1,
             fontFamily: 'inherit',
           }}>
-          {setupLoading ? '⏳ Configurando...' : '🔧 Setup Shopify'}
+          {setupLoading ? 'Configurando...' : 'Setup Shopify'}
         </button>
       </div>
 
       {setupResult && (
         <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 12, padding: 16, marginBottom: 20 }}>
-          <p style={{ fontWeight: 700, color: '#166534', marginBottom: 8, fontSize: 13 }}>✅ Setup completado</p>
+          <p style={{ fontWeight: 700, color: '#166534', marginBottom: 8, fontSize: 13, display:'flex', alignItems:'center', gap:6 }}><CheckIcon size={14} color="#166534" /> Setup completado</p>
           <pre style={{ fontSize: 11, color: '#15803d', overflow: 'auto', margin: 0 }}>{JSON.stringify(setupResult, null, 2)}</pre>
         </div>
       )}
 
       {/* Primary stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 14 }}>
-        <StatCard icon="👥" title="Total Clientes" value={stats?.totalCustomers?.toLocaleString() || 0} gradient="linear-gradient(135deg,#c85032,#e8401a)" />
-        <StatCard icon="⭐" title="Puntos en Circulación" value={stats?.totalAvailablePoints?.toLocaleString() || 0} subtitle="disponibles" gradient="linear-gradient(135deg,#f59e0b,#ea580c)" />
-        <StatCard icon="🎁" title="Canjes Hoy" value={stats?.redemptionsToday || 0} gradient="linear-gradient(135deg,#16a34a,#059669)" />
+        <StatCard icon={<PeopleIcon size={28} color="white" />} title="Total Clientes" value={stats?.totalCustomers?.toLocaleString() || 0} gradient="linear-gradient(135deg,#c85032,#e8401a)" />
+        <StatCard icon={<StarIcon size={28} color="white" />} title="Puntos en Circulación" value={stats?.totalAvailablePoints?.toLocaleString() || 0} subtitle="disponibles" gradient="linear-gradient(135deg,#f59e0b,#ea580c)" />
+        <StatCard icon={<GiftIcon size={28} color="white" animated={false} />} title="Canjes Hoy" value={stats?.redemptionsToday || 0} gradient="linear-gradient(135deg,#16a34a,#059669)" />
       </div>
 
       {/* Loyalty KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 24 }}>
-        <StatCard icon="🆕" title="Nuevos este mes" value={stats?.newCustomersThisMonth || 0} subtitle="clientes registrados" gradient="linear-gradient(135deg,#7c3aed,#6d28d9)" />
-        <StatCard icon="⚡" title="Puntos ganados (mes)" value={(stats?.pointsEarnedThisMonth || 0).toLocaleString()} subtitle="pts acumulados" gradient="linear-gradient(135deg,#0284c7,#0369a1)" />
-        <StatCard icon="🔥" title="Activos 30 días" value={stats?.activeCustomers30d || 0} subtitle={`${engagementRate}% engagement`} gradient="linear-gradient(135deg,#db2777,#be185d)" />
+        <StatCard icon={<UserPlusIcon size={28} color="white" />} title="Nuevos este mes" value={stats?.newCustomersThisMonth || 0} subtitle="clientes registrados" gradient="linear-gradient(135deg,#7c3aed,#6d28d9)" />
+        <StatCard icon={<LightningIcon size={28} color="white" />} title="Puntos ganados (mes)" value={(stats?.pointsEarnedThisMonth || 0).toLocaleString()} subtitle="pts acumulados" gradient="linear-gradient(135deg,#0284c7,#0369a1)" />
+        <StatCard icon={<FlameIcon size={28} color="white" />} title="Activos 30 días" value={stats?.activeCustomers30d || 0} subtitle={`${engagementRate}% engagement`} gradient="linear-gradient(135deg,#db2777,#be185d)" />
       </div>
 
       {/* Birthday customers today + Double Points toggle */}
@@ -178,7 +178,7 @@ export default function Dashboard() {
 
         {/* 🎂 Birthday customers */}
         <div style={{ background: '#fff', borderRadius: 18, padding: '20px 24px', boxShadow: '0 1px 8px rgba(0,0,0,.06)' }}>
-          <h2 style={{ fontSize: 15, fontWeight: 800, color: '#111', marginBottom: 4, marginTop: 0 }}>🎂 Cumpleaños hoy</h2>
+          <h2 style={{ fontSize: 15, fontWeight: 800, color: '#111', marginBottom: 4, marginTop: 0, display:'flex', alignItems:'center', gap:6 }}><CakeIcon size={16} color="#111" /> Cumpleaños hoy</h2>
           <p style={{ fontSize: 11, color: '#aaa', margin: '0 0 14px' }}>{birthdayCustomers.length} cliente(s) celebra(n) hoy</p>
           {birthdayCustomers.length === 0 ? (
             <p style={{ color: '#ccc', fontSize: 13, textAlign: 'center', padding: '12px 0' }}>Sin cumpleaños hoy</p>
@@ -201,7 +201,7 @@ export default function Dashboard() {
 
         {/* ⚡ Double points toggle */}
         <div style={{ background: '#fff', borderRadius: 18, padding: '20px 24px', boxShadow: '0 1px 8px rgba(0,0,0,.06)' }}>
-          <h2 style={{ fontSize: 15, fontWeight: 800, color: '#111', marginBottom: 4, marginTop: 0 }}>⚡ Puntos Dobles</h2>
+          <h2 style={{ fontSize: 15, fontWeight: 800, color: '#111', marginBottom: 4, marginTop: 0, display:'flex', alignItems:'center', gap:6 }}><LightningIcon size={16} color="#111" /> Puntos Dobles</h2>
           <p style={{ fontSize: 11, color: '#aaa', margin: '0 0 16px' }}>
             {dpStatus.enabled
               ? dpStatus.expiry ? `Activo hasta ${new Date(dpStatus.expiry).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}` : 'Activo sin límite'
@@ -222,7 +222,7 @@ export default function Dashboard() {
               }} />
             </div>
             <span style={{ fontSize: 13, fontWeight: 700, color: dpStatus.enabled ? '#f59e0b' : '#6b7280' }}>
-              {dpStatus.enabled ? '🔥 ACTIVO' : 'Inactivo'}
+              {dpStatus.enabled ? <span style={{ display:'flex', alignItems:'center', gap:4 }}><FlameIcon size={12} color="currentColor" /> ACTIVO</span> : 'Inactivo'}
             </span>
           </div>
 
@@ -252,7 +252,7 @@ export default function Dashboard() {
                 color: '#92400e', opacity: (dpLoading || dpStatus.enabled) ? .5 : 1,
               }}
             >
-              ⚡ Activar {dpHours}h
+              <LightningIcon size={12} color="#92400e" /> Activar {dpHours}h
             </button>
             <button
               onClick={() => handleToggleDoublePoints(false)}
@@ -327,7 +327,7 @@ export default function Dashboard() {
         {/* Top clientes */}
         {stats?.topCustomers?.length > 0 && (
           <div style={{ background: '#fff', borderRadius: 18, padding: '20px 24px', boxShadow: '0 1px 8px rgba(0,0,0,.06)' }}>
-            <h2 style={{ fontSize: 15, fontWeight: 800, color: '#111', marginBottom: 16, marginTop: 0 }}>🏆 Top Clientes</h2>
+            <h2 style={{ fontSize: 15, fontWeight: 800, color: '#111', marginBottom: 16, marginTop: 0, display:'flex', alignItems:'center', gap:6 }}><TrophyIcon size={16} color="#111" /> Top Clientes</h2>
             {stats.topCustomers.map((c, i) => <MiniTopCustomer key={i} customer={c} rank={i} />)}
           </div>
         )}

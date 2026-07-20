@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../styles/landing.css';
+import { TentIcon, GiftIcon, RegisterIcon, CoffeeIcon, PeopleIcon } from '../components/Icons';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -32,18 +33,16 @@ const ACCORDION_ITEMS = [
   { num: '05', title: 'PROGRAMA PUNTOS', desc: 'Cada visita suma. Acumula puntos y canjéalos por bebidas gratis. Así de simple.', img: '/images/img_12.png' },
 ];
 
-const CATEGORY_EMOJIS = { café: '☕', frío: '🧊', especiales: '✨', alimentos: '🥐', bebida: '🥤' };
-
 const UE = (h) => `https://tb-static.uber.com/prod/image-proc/processed_images/${h}/c67fc65e9b4e16a553eb7574fba090f1.jpeg`;
 const FEATURED_ITEMS = [
-  { name: 'Teddy Bear Latte',      desc: 'Latte frío con sabor a galleta de osito: miel, vainilla y canela.',          price: 95,  img: UE('5ae6d3a270612c4d22f6616087056ec5'), emoji: '☕', tag: '⭐ Favorito' },
-  { name: 'Coconut Iced Latte',    desc: 'Latte helado con leche de coco y espuma fría de coco.',                       price: 95,  img: UE('d320b187d4e1640bd8a8fbd2cf0ce473'), emoji: '🥥', tag: '#1 Más Pedido' },
-  { name: 'Iced Tiramisu Latte',   desc: 'Doble espresso frío con vainilla y cacao, inspirado en el tiramisú.',         price: 95,  img: UE('8479da6854d3123d46f1975583f70ead'), emoji: '☕', tag: '#2 Favorito' },
-  { name: 'Pistachio Milkshake',   desc: 'Batido cremoso verde claro con delicado sabor a pistacho.',                   price: 110, img: UE('7965058b76761f50fefd6b7dd49d6771'), emoji: '🥤', tag: 'Milkshake' },
-  { name: 'Chocolate Milkshake',   desc: 'Helado de chocolate, leche y jarabe de chocolate. Perfección cremosa.',       price: 110, img: UE('09893e14c0dbb41abf502db806eafe48'), emoji: '🍫', tag: 'Milkshake' },
-  { name: 'Iced Matcha Lavander',  desc: 'Matcha frío con cold foam de lavanda. Refrescante y floral.',                 price: 94,  img: UE('0492f4430c143e890ad15e99e0dd1a39'), emoji: '🍵', tag: 'Matcha' },
-  { name: 'Dirty Chai',            desc: 'Mezcla fría de chai y café con hielo. Lo mejor de dos mundos.',              price: 93,  img: UE('699626effe115aecb33a4ce8f60db8ba'), emoji: '🫖', tag: 'Chai' },
-  { name: 'Pink Coconut Drink',    desc: 'Mezcla de bebida de coco y fresa con hielo. Tropical y refrescante.',        price: 89,  img: UE('bedc022baa6e511569c29fdda53dc15d'), emoji: '🍓', tag: 'Fitfresh' },
+  { name: 'Teddy Bear Latte',      desc: 'Latte frío con sabor a galleta de osito: miel, vainilla y canela.',          price: 95,  img: UE('5ae6d3a270612c4d22f6616087056ec5'), tag: 'Favorito' },
+  { name: 'Coconut Iced Latte',    desc: 'Latte helado con leche de coco y espuma fría de coco.',                       price: 95,  img: UE('d320b187d4e1640bd8a8fbd2cf0ce473'), tag: '#1 Más Pedido' },
+  { name: 'Iced Tiramisu Latte',   desc: 'Doble espresso frío con vainilla y cacao, inspirado en el tiramisú.',         price: 95,  img: UE('8479da6854d3123d46f1975583f70ead'), tag: '#2 Favorito' },
+  { name: 'Pistachio Milkshake',   desc: 'Batido cremoso verde claro con delicado sabor a pistacho.',                   price: 110, img: UE('7965058b76761f50fefd6b7dd49d6771'), tag: 'Milkshake' },
+  { name: 'Chocolate Milkshake',   desc: 'Helado de chocolate, leche y jarabe de chocolate. Perfección cremosa.',       price: 110, img: UE('09893e14c0dbb41abf502db806eafe48'), tag: 'Milkshake' },
+  { name: 'Iced Matcha Lavander',  desc: 'Matcha frío con cold foam de lavanda. Refrescante y floral.',                 price: 94,  img: UE('0492f4430c143e890ad15e99e0dd1a39'), tag: 'Matcha' },
+  { name: 'Dirty Chai',            desc: 'Mezcla fría de chai y café con hielo. Lo mejor de dos mundos.',              price: 93,  img: UE('699626effe115aecb33a4ce8f60db8ba'), tag: 'Chai' },
+  { name: 'Pink Coconut Drink',    desc: 'Mezcla de bebida de coco y fresa con hielo. Tropical y refrescante.',        price: 89,  img: UE('bedc022baa6e511569c29fdda53dc15d'), tag: 'Fitfresh' },
 ];
 
 const SCHEDULE = [
@@ -74,15 +73,10 @@ export default function Landing() {
 
   // Navbar scroll + progress bar + reveal
   useEffect(() => {
-    const prog = document.getElementById('hs-prog');
     const cur = document.getElementById('hs-cur');
 
     const onScroll = () => {
       setNavScrolled(window.scrollY > 60);
-      if (prog) {
-        const pct = (window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100;
-        prog.style.width = pct + '%';
-      }
       // Reveal
       document.querySelectorAll('.hs-rev').forEach(el => {
         if (el.getBoundingClientRect().top < window.innerHeight * 0.88) el.classList.add('on');
@@ -149,9 +143,8 @@ export default function Landing() {
 
   return (
     <div style={{ background: '#071E3D', fontFamily: "'Montserrat', sans-serif", cursor: 'none' }}>
-      {/* Cursor + Progress */}
+      {/* Cursor */}
       <div id="hs-cur" />
-      <div id="hs-prog" />
 
       {/* ── NAVBAR ── */}
       <nav id="hs-nav" className={navScrolled ? 'sc' : ''}>
@@ -161,7 +154,7 @@ export default function Landing() {
         </a>
         <ul className="hs-nav-links">
           <li><a onClick={() => scrollTo('hs-about')}>Nosotros</a></li>
-          <li><Link to="/menu" style={{ color: 'inherit', textDecoration: 'none' }}>Menú</Link></li>
+          <li><Link to="/menu" style={{ color: 'rgba(251,247,240,.8)', textDecoration: 'none' }}>Menú</Link></li>
           <li><a onClick={() => scrollTo('hs-reviews')}>Reseñas</a></li>
           <li><a onClick={() => scrollTo('hs-location')}>Encuéntranos</a></li>
         </ul>
@@ -196,7 +189,7 @@ export default function Landing() {
           <div key={i} className="hs-sp" style={{ left:s.l,top:s.t,'--d':s.d,'--dl':s.dl,'--sz':s.sz }} />
         ))}
         <div className="hs-hero-body">
-          <div className="hs-camp-badge">⛺ Summer Camp Edition 2026</div>
+          <div className="hs-camp-badge"><TentIcon size={14} color="#F5C842" animated /> Summer Camp Edition 2026</div>
           <h1 className="hs-hero-title">HOUSE<br /><span className="acc">OF</span><br />SHAKE</h1>
           <p className="hs-hero-sub">COFFEE THAT KNOWS NO BOUNDARIES</p>
           <p className="hs-hero-desc">Specialty coffee, cold shakes y un espacio diseñado para los que saben lo que quieren. La Paz, Puebla.</p>
@@ -204,16 +197,12 @@ export default function Landing() {
             <Link to="/registro" className="hs-btn hs-btn-gold">ÚNETE AL PROGRAMA</Link>
             <Link to="/menu" className="hs-btn hs-btn-ghost">VER MENÚ COMPLETO</Link>
           </div>
-        </div>
-        <div className="hs-scroll-ind">
-          <div className="hs-scroll-line" />
-          <span>scroll</span>
-        </div>
-        <div className="hs-hero-badges">
-          <div className="hs-hbadge"><strong>86</strong> Reseñas</div>
-          <div className="hs-hbadge"><strong>4.0★</strong> Rating</div>
-          <div className="hs-hbadge"><strong>2K+</strong> Seguidores IG</div>
-          <div className="hs-hbadge"><strong>La Paz</strong> Puebla</div>
+          <div className="hs-hero-badges">
+            <div className="hs-hbadge"><strong>86</strong> Reseñas</div>
+            <div className="hs-hbadge"><strong>4.0★</strong> Rating</div>
+            <div className="hs-hbadge"><strong>2K+</strong> Seguidores IG</div>
+            <div className="hs-hbadge"><strong>La Paz</strong> Puebla</div>
+          </div>
         </div>
       </section>
 
@@ -289,7 +278,7 @@ export default function Landing() {
                 {p.img ? (
                   <img src={p.img} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover', position:'absolute', inset:0 }} onError={e => { e.target.style.display='none'; }} />
                 ) : null}
-                <div className="hs-cimg-ph" style={{ position:'relative', zIndex: p.img ? 0 : 1 }}>{p.emoji}</div>
+                <div className="hs-cimg-ph" style={{ position:'absolute', bottom:12, left:12, zIndex:3, background:'rgba(7,30,61,0.55)', backdropFilter:'blur(6px)', borderRadius:'50%', padding:8, display:'flex', alignItems:'center', justifyContent:'center' }}><CoffeeIcon size={28} color="#F5C842" animated /></div>
                 <span className="hs-cbadge" style={{ zIndex:2 }}>{p.tag}</span>
               </div>
               <div className="hs-cbody">
@@ -319,12 +308,12 @@ export default function Landing() {
           <p className="hs-sub-dark hs-rev">Acumula 1 punto por cada $1 MXN gastado. 100 puntos = $5 MXN de descuento. Sin complicaciones.</p>
           <div className="hs-rev" style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16, marginBottom:48, maxWidth:700, margin:'0 auto 48px' }}>
             {[
-              { icon:'📝', title:'Regístrate gratis', desc:'En menos de un minuto desde esta página.' },
-              { icon:'☕', title:'Compra y acumula', desc:'Muestra tu QR al staff en cada visita.' },
-              { icon:'🎁', title:'Canjea beneficios', desc:'100 puntos = $5 MXN. Niveles Bronze, Silver y Gold.' },
+              { Icon: RegisterIcon, title:'Regístrate gratis', desc:'En menos de un minuto desde esta página.' },
+              { Icon: CoffeeIcon,   title:'Compra y acumula', desc:'Muestra tu QR al staff en cada visita.' },
+              { Icon: GiftIcon,     title:'Canjea beneficios', desc:'100 puntos = $5 MXN. Niveles Bronze, Silver y Gold.' },
             ].map(s => (
               <div key={s.title} style={{ background:'rgba(251,247,240,.04)', border:'1px solid rgba(245,200,66,.1)', borderRadius:10, padding:28 }}>
-                <div style={{ fontSize:'2.5rem', marginBottom:12 }}>{s.icon}</div>
+                <div style={{ marginBottom:12, display:'flex', justifyContent:'center' }}><s.Icon size={36} color="#F5C842" animated /></div>
                 <p style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:'1.2rem', letterSpacing:2, color:'#FBF7F0', marginBottom:6 }}>{s.title}</p>
                 <p style={{ fontSize:12, color:'rgba(251,247,240,.45)', lineHeight:1.7 }}>{s.desc}</p>
               </div>
@@ -332,7 +321,7 @@ export default function Landing() {
           </div>
           {publicStats.totalCustomers > 0 && (
             <div className="hs-rev" style={{ display:'inline-flex', alignItems:'center', gap:10, background:'rgba(245,200,66,.08)', border:'1px solid rgba(245,200,66,.2)', borderRadius:40, padding:'10px 24px', marginBottom:28 }}>
-              <span style={{ fontSize:20 }}>👥</span>
+              <PeopleIcon size={20} color="#F5C842" />
               <span style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:'1.5rem', color:'#F5C842', letterSpacing:2 }}>
                 {publicStats.totalCustomers.toLocaleString()}
               </span>
@@ -351,13 +340,13 @@ export default function Landing() {
         <div className="hs-marquee">
           {[...Array(2)].map((_, rep) => (
             <span key={rep} style={{ display:'contents' }}>
-              <span>HOUSE OF SHAKE</span><span className="dot">⛺</span>
-              <span>CAMP HOUSE</span><span className="dot">🌲</span>
-              <span>COLD SHAKES</span><span className="dot">🐻</span>
-              <span>GOOD VIBES</span><span className="dot">☕</span>
-              <span>SPECIALTY COFFEE</span><span className="dot">⛺</span>
-              <span>LA PAZ PUEBLA</span><span className="dot">🌿</span>
-              <span>SUMMER CAMP</span><span className="dot">🧊</span>
+              <span>HOUSE OF SHAKE</span><span className="dot">◆</span>
+              <span>CAMP HOUSE</span><span className="dot">◆</span>
+              <span>COLD SHAKES</span><span className="dot">◆</span>
+              <span>GOOD VIBES</span><span className="dot">◆</span>
+              <span>SPECIALTY COFFEE</span><span className="dot">◆</span>
+              <span>LA PAZ PUEBLA</span><span className="dot">◆</span>
+              <span>SUMMER CAMP</span><span className="dot">◆</span>
             </span>
           ))}
         </div>

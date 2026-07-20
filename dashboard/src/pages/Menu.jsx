@@ -1,16 +1,26 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import '../styles/mi-cuenta.css';
+import { CoffeeIcon, IceIcon, LeafIcon, BerryIcon, ChaiIcon, ShakeIcon, PastryIcon, SparkleIcon, SearchIcon, DeliveryIcon } from '../components/Icons';
 
 const RAPPI_URL = 'https://www.rappi.com.mx/restaurantes/1930210777-house-of-shake';
 const UBER_URL  = 'https://www.ubereats.com/mx/store/house-of-shake-puebla/x1IW6WRuX1mMKK2aNKKVEQ';
 const IMG = (hash) => `https://tb-static.uber.com/prod/image-proc/processed_images/${hash}/c67fc65e9b4e16a553eb7574fba090f1.jpeg`;
 
+const CAT_ICONS = {
+  'cold-coffees': CoffeeIcon,
+  'cold-brew':    IceIcon,
+  'matcha':       LeafIcon,
+  'fitfresh':     BerryIcon,
+  'chai':         ChaiIcon,
+  'milkshakes':   ShakeIcon,
+  'reposteria':   PastryIcon,
+};
+
 const MENU = [
   {
     id: 'cold-coffees',
     name: 'Cold Coffees',
-    emoji: '☕',
     color: '#1B2F56',
     gradient: 'linear-gradient(135deg,#1B2F56,#2a4a8a)',
     items: [
@@ -33,7 +43,6 @@ const MENU = [
   {
     id: 'cold-brew',
     name: 'Cold Brew',
-    emoji: '🧊',
     color: '#0a1628',
     gradient: 'linear-gradient(135deg,#0a1628,#1B2F56)',
     items: [
@@ -44,7 +53,6 @@ const MENU = [
   {
     id: 'matcha',
     name: 'Matcha',
-    emoji: '🍵',
     color: '#2d6a4f',
     gradient: 'linear-gradient(135deg,#2d6a4f,#52b788)',
     items: [
@@ -60,7 +68,6 @@ const MENU = [
   {
     id: 'fitfresh',
     name: 'Fitfresh',
-    emoji: '🍓',
     color: '#e63946',
     gradient: 'linear-gradient(135deg,#e63946,#f4a261)',
     items: [
@@ -72,7 +79,6 @@ const MENU = [
   {
     id: 'chai',
     name: 'Chai',
-    emoji: '🫖',
     color: '#7b4f2e',
     gradient: 'linear-gradient(135deg,#7b4f2e,#c8961e)',
     items: [
@@ -83,7 +89,6 @@ const MENU = [
   {
     id: 'milkshakes',
     name: 'Milkshakes',
-    emoji: '🥤',
     color: '#9d4edd',
     gradient: 'linear-gradient(135deg,#9d4edd,#c77dff)',
     items: [
@@ -97,7 +102,6 @@ const MENU = [
   {
     id: 'reposteria',
     name: 'Repostería',
-    emoji: '🥐',
     color: '#c85032',
     gradient: 'linear-gradient(135deg,#c85032,#e8a020)',
     items: [
@@ -144,8 +148,8 @@ export default function Menu() {
           <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 20, color: '#c8961e', letterSpacing: 2 }}>HOUSE OF SHAKE</span>
         </Link>
         <div style={{ display: 'flex', gap: 12 }}>
-          <OrderBtn href={RAPPI_URL} color="#FF441F" label="Rappi" icon="🛵" />
-          <OrderBtn href={UBER_URL}  color="#06C167" label="Uber Eats" icon="🚴" />
+          <OrderBtn href={RAPPI_URL} color="#FF441F" label="Rappi" />
+          <OrderBtn href={UBER_URL}  color="#06C167" label="Uber Eats" />
         </div>
       </nav>
 
@@ -170,7 +174,7 @@ export default function Menu() {
           </p>
           {/* Search */}
           <div style={{ position: 'relative', maxWidth: 400, margin: '0 auto' }}>
-            <span style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', fontSize: 16, opacity: .5 }}>🔍</span>
+            <span style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', opacity: .5, display:'flex' }}><SearchIcon size={16} color="rgba(251,247,240,.9)" /></span>
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
@@ -188,9 +192,9 @@ export default function Menu() {
 
       {/* ── ORDER BANNER ── */}
       <div style={{ background: '#fff', borderBottom: '1px solid #f0ede6', padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 13, color: '#666', fontWeight: 600 }}>📦 Pide a domicilio ahora:</span>
-        <OrderBtn href={RAPPI_URL} color="#FF441F" label="Ordenar en Rappi" icon="🛵" large />
-        <OrderBtn href={UBER_URL}  color="#06C167" label="Ordenar en Uber Eats" icon="🚴" large />
+        <span style={{ fontSize: 13, color: '#666', fontWeight: 600, display:'flex', alignItems:'center', gap:6 }}><DeliveryIcon size={16} color="#666" /> Pide a domicilio ahora:</span>
+        <OrderBtn href={RAPPI_URL} color="#FF441F" label="Ordenar en Rappi" large />
+        <OrderBtn href={UBER_URL}  color="#06C167" label="Ordenar en Uber Eats" large />
       </div>
 
       {/* ── CATEGORY TABS ── */}
@@ -205,19 +209,22 @@ export default function Menu() {
             active={activeCategory === 'all'}
             onClick={() => { setActiveCategory('all'); setSearch(''); }}
             label="Todo el Menú"
-            emoji="✨"
+            icon={<SparkleIcon size={14} color="#1B2F56" />}
             color="#1B2F56"
           />
-          {MENU.map(cat => (
-            <TabBtn
-              key={cat.id}
-              active={activeCategory === cat.name}
-              onClick={() => { setActiveCategory(cat.name); setSearch(''); }}
-              label={cat.name}
-              emoji={cat.emoji}
-              color={cat.color}
-            />
-          ))}
+          {MENU.map(cat => {
+            const CatIcon = CAT_ICONS[cat.id] || CoffeeIcon;
+            return (
+              <TabBtn
+                key={cat.id}
+                active={activeCategory === cat.name}
+                onClick={() => { setActiveCategory(cat.name); setSearch(''); }}
+                label={cat.name}
+                icon={<CatIcon size={14} color={cat.color} />}
+                color={cat.color}
+              />
+            );
+          })}
         </div>
       </div>
 
@@ -229,10 +236,10 @@ export default function Menu() {
           <div style={{ marginBottom: 40, display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{
               width: 56, height: 56, borderRadius: 16, background: currentCat.gradient,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: `0 8px 24px ${currentCat.color}40`,
             }}>
-              {currentCat.emoji}
+              {(() => { const CatIcon = CAT_ICONS[currentCat.id] || CoffeeIcon; return <CatIcon size={28} color="#fff" />; })()}
             </div>
             <div>
               <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 38, color: '#111', margin: 0, letterSpacing: 1 }}>
@@ -259,10 +266,10 @@ export default function Menu() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
                 <div style={{
                   width: 40, height: 40, borderRadius: 12, background: cat.gradient,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
                   boxShadow: `0 4px 12px ${cat.color}30`,
                 }}>
-                  {cat.emoji}
+                  {(() => { const CatIcon = CAT_ICONS[cat.id] || CoffeeIcon; return <CatIcon size={20} color="#fff" />; })()}
                 </div>
                 <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 30, color: '#111', margin: 0, letterSpacing: 1 }}>
                   {cat.name}
@@ -295,7 +302,7 @@ export default function Menu() {
 
         {filtered.length === 0 && (
           <div style={{ textAlign: 'center', padding: '80px 20px', color: '#bbb' }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>☕</div>
+            <div style={{ marginBottom: 16 }}><CoffeeIcon size={48} color="#1B2F56" opacity={0.3} /></div>
             <p style={{ fontSize: 16, fontWeight: 600 }}>No encontramos "{search}"</p>
             <p style={{ fontSize: 13 }}>Prueba con otro término</p>
           </div>
@@ -315,8 +322,8 @@ export default function Menu() {
           Delivery a tu puerta en ~35 minutos
         </p>
         <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <OrderBtn href={RAPPI_URL} color="#FF441F" label="Pedir en Rappi" icon="🛵" large />
-          <OrderBtn href={UBER_URL}  color="#06C167" label="Pedir en Uber Eats" icon="🚴" large />
+          <OrderBtn href={RAPPI_URL} color="#FF441F" label="Pedir en Rappi" large />
+          <OrderBtn href={UBER_URL}  color="#06C167" label="Pedir en Uber Eats" large />
         </div>
       </div>
 
@@ -376,9 +383,9 @@ function ProductCard({ item, color, gradient, onSelect, showCategory }) {
         ) : (
           <div style={{
             width: '100%', height: '100%', background: gradient,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 52,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            {getCategoryEmoji(item.category)}
+            {(() => { const cat = MENU.find(c => c.name === item.category); const CatIcon = (cat && CAT_ICONS[cat.id]) || CoffeeIcon; return <CatIcon size={52} color="#fff" opacity={0.7} />; })()}
           </div>
         )}
         {/* Price badge */}
@@ -422,7 +429,7 @@ function ProductCard({ item, color, gradient, onSelect, showCategory }) {
               transition: 'opacity .15s',
             }}
           >
-            🛵 Rappi
+            <DeliveryIcon size={13} color="#fff" /> Rappi
           </a>
           <a
             href={UBER_URL}
@@ -436,7 +443,7 @@ function ProductCard({ item, color, gradient, onSelect, showCategory }) {
               transition: 'opacity .15s',
             }}
           >
-            🚴 Uber Eats
+            <DeliveryIcon size={13} color="#fff" /> Uber Eats
           </a>
         </div>
       </div>
@@ -485,9 +492,9 @@ function ProductModal({ item, onClose }) {
           ) : (
             <div style={{
               width: '100%', height: '100%', background: cat?.gradient || 'linear-gradient(135deg,#1B2F56,#c8961e)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 80,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              {getCategoryEmoji(item.category)}
+              {(() => { const CatIcon = (cat && CAT_ICONS[cat.id]) || CoffeeIcon; return <CatIcon size={80} color="#fff" opacity={0.7} />; })()}
             </div>
           )}
           <button
@@ -512,7 +519,7 @@ function ProductModal({ item, onClose }) {
         <div style={{ padding: '24px 28px 28px' }}>
           {item.category && (
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: cat?.color || '#c8961e', textTransform: 'uppercase', marginBottom: 6 }}>
-              {cat?.emoji} {item.category}
+              {item.category}
             </div>
           )}
           <h2 style={{ fontSize: 24, fontWeight: 900, color: '#111', margin: '0 0 12px', lineHeight: 1.2 }}>
@@ -527,14 +534,14 @@ function ProductModal({ item, onClose }) {
               padding: '14px', borderRadius: 14, fontSize: 14, fontWeight: 800,
               textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             }}>
-              🛵 Pedir en Rappi
+              <DeliveryIcon size={16} color="#fff" /> Pedir en Rappi
             </a>
             <a href={UBER_URL} target="_blank" rel="noopener noreferrer" style={{
               flex: 1, background: '#06C167', color: '#fff', textDecoration: 'none',
               padding: '14px', borderRadius: 14, fontSize: 14, fontWeight: 800,
               textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             }}>
-              🚴 Pedir en Uber Eats
+              <DeliveryIcon size={16} color="#fff" /> Pedir en Uber Eats
             </a>
           </div>
         </div>
@@ -545,7 +552,7 @@ function ProductModal({ item, onClose }) {
 }
 
 /* ─── Tab Button ─── */
-function TabBtn({ active, onClick, label, emoji, color }) {
+function TabBtn({ active, onClick, label, icon, color }) {
   return (
     <button
       onClick={onClick}
@@ -558,13 +565,13 @@ function TabBtn({ active, onClick, label, emoji, color }) {
         display: 'flex', alignItems: 'center', gap: 6,
       }}
     >
-      <span>{emoji}</span> {label}
+      {icon} {label}
     </button>
   );
 }
 
 /* ─── Order Button ─── */
-function OrderBtn({ href, color, label, icon, large }) {
+function OrderBtn({ href, color, label, large }) {
   return (
     <a
       href={href}
@@ -583,12 +590,7 @@ function OrderBtn({ href, color, label, icon, large }) {
       onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.04)'; }}
       onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
     >
-      {icon} {label}
+      <DeliveryIcon size={large ? 16 : 13} color="#fff" /> {label}
     </a>
   );
-}
-
-function getCategoryEmoji(catName) {
-  const cat = MENU.find(c => c.name === catName);
-  return cat?.emoji || '☕';
 }

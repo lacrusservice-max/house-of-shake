@@ -1,15 +1,16 @@
 import { useState, lazy, Suspense, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/mi-cuenta.css';
+import { CoffeeIcon, MedalIcon, GiftIcon, StarIcon, CakeIcon, LightningIcon, SearchIcon, WarningIcon } from '../components/Icons';
 
 const QRScanner = lazy(() => import('../components/QRScanner'));
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const LEVEL = {
-  BRONZE: { color: '#cd7f32', bg: 'rgba(205,127,50,.15)', emoji: '🥉', label: 'Bronze' },
-  SILVER: { color: '#c0c0c0', bg: 'rgba(192,192,192,.12)', emoji: '🥈', label: 'Silver' },
-  GOLD:   { color: '#ffd700', bg: 'rgba(255,215,0,.12)',   emoji: '🥇', label: 'Gold'   },
+  BRONZE: { color: '#cd7f32', bg: 'rgba(205,127,50,.15)', rank: 3, label: 'Bronze' },
+  SILVER: { color: '#c0c0c0', bg: 'rgba(192,192,192,.12)', rank: 2, label: 'Silver' },
+  GOLD:   { color: '#ffd700', bg: 'rgba(255,215,0,.12)',   rank: 1, label: 'Gold'   },
 };
 
 export default function Staff() {
@@ -198,7 +199,7 @@ function POSView({ token, onLogout }) {
       {/* Top nav */}
       <nav className="mc-nav">
         <div className="mc-nav-brand">
-          <div className="mc-nav-logo">☕</div>
+          <div className="mc-nav-logo"><CoffeeIcon size={28} color="#c8961e" /></div>
           <span className="mc-nav-title">POS · COBRAR</span>
         </div>
         <button onClick={onLogout} className="mc-nav-logout">Salir</button>
@@ -220,7 +221,7 @@ function POSView({ token, onLogout }) {
             <div style={{ display: 'grid', gap: 10 }}>
               {/* Cámara QR */}
               <button onClick={() => { setSearchMode('qr'); setScreen('camera'); }} style={S.bigBtn('#F5C842', '#2C1A0E')}>
-                <div style={{ fontSize: 32 }}>📷</div>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'center', width:32, height:32 }}><SearchIcon size={28} color="#2C1A0E" /></div>
                 <div style={{ textAlign: 'left' }}>
                   <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 2 }}>Escanear QR con cámara</div>
                   <div style={{ fontSize: 11, opacity: .7 }}>Apunta al código QR del cliente</div>
@@ -230,7 +231,7 @@ function POSView({ token, onLogout }) {
 
               {/* Email */}
               <button onClick={() => { setSearchMode('email'); setScreen('searchEmail'); }} style={S.bigBtn('rgba(94,201,122,.12)', 'var(--cream)', '1px solid rgba(94,201,122,.25)')}>
-                <div style={{ fontSize: 32 }}>📧</div>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'center', width:32, height:32 }}><StarIcon size={28} color="#5EC97A" /></div>
                 <div style={{ textAlign: 'left' }}>
                   <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 2 }}>Buscar por email</div>
                   <div style={{ fontSize: 11, opacity: .5 }}>El cliente dice su correo</div>
@@ -240,7 +241,7 @@ function POSView({ token, onLogout }) {
 
               {/* Search by name */}
               <button onClick={() => { setSearchMode('name'); setNameInput(''); setNameResults([]); setScreen('searchName'); }} style={S.bigBtn('rgba(74,159,212,.08)', 'var(--cream)', '1px solid rgba(74,159,212,.2)')}>
-                <div style={{ fontSize: 32 }}>🔍</div>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'center', width:32, height:32 }}><SearchIcon size={28} color="#4a9fd4" /></div>
                 <div style={{ textAlign: 'left' }}>
                   <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 2 }}>Buscar por nombre</div>
                   <div style={{ fontSize: 11, opacity: .5 }}>El cliente no trae su teléfono</div>
@@ -250,7 +251,7 @@ function POSView({ token, onLogout }) {
 
               {/* Manual ID */}
               <button onClick={() => { setSearchMode('manual'); setScreen('searchManual'); }} style={S.bigBtn('rgba(251,247,240,.05)', 'var(--cream)', '1px solid rgba(251,247,240,.1)')}>
-                <div style={{ fontSize: 32 }}>⌨️</div>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'center', width:32, height:32 }}><CoffeeIcon size={28} color="rgba(251,247,240,.5)" /></div>
                 <div style={{ textAlign: 'left' }}>
                   <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 2 }}>Ingresar ID manual</div>
                   <div style={{ fontSize: 11, opacity: .5 }}>Pega el código del QR</div>
@@ -275,7 +276,7 @@ function POSView({ token, onLogout }) {
               {/* NOT FOUND: show clear explanation + options */}
               {isNotFound && !quickReg.show && (
                 <div style={{ ...S.err, marginBottom: 14 }}>
-                  <p style={{ fontWeight: 800, marginBottom: 6 }}>⚠️ Cliente no encontrado</p>
+                  <p style={{ fontWeight: 800, marginBottom: 6, display:'flex', alignItems:'center', gap:6 }}><WarningIcon size={16} color="#E05C5C" /> Cliente no encontrado</p>
                   <p style={{ fontSize: 11, opacity: .8, marginBottom: 10 }}>
                     QR escaneado: <code style={{ background: 'rgba(224,92,92,.15)', padding: '2px 6px', borderRadius: 4, fontFamily: 'monospace', fontSize: 10 }}>{scannedId?.substring(0, 16)}...</code>
                   </p>
@@ -476,7 +477,7 @@ function POSView({ token, onLogout }) {
                 borderRadius: 14, padding: '14px 18px', marginBottom: 14,
                 display: 'flex', alignItems: 'center', gap: 12,
               }}>
-                <span style={{ fontSize: 26 }}>🎂</span>
+                <CakeIcon size={26} color="#FF80B0" animated />
                 <div>
                   <p style={{ fontWeight: 800, fontSize: 14, color: '#FF80B0', margin: 0 }}>¡Hoy es el cumpleaños de {customer.firstName}!</p>
                   <p style={{ fontSize: 12, color: 'rgba(251,247,240,.55)', margin: '2px 0 0' }}>Pídele que reclame su regalo de +200 puntos en su app</p>
@@ -491,7 +492,7 @@ function POSView({ token, onLogout }) {
                 borderRadius: 12, padding: '10px 16px', marginBottom: 14,
                 display: 'flex', alignItems: 'center', gap: 10,
               }}>
-                <span style={{ fontSize: 20 }}>⚡</span>
+                <LightningIcon size={20} color="#F5C842" animated />
                 <p style={{ fontWeight: 800, fontSize: 13, color: 'var(--gold)', margin: 0 }}>¡Puntos dobles activos! Los puntos de esta compra se duplican automáticamente</p>
               </div>
             )}
@@ -515,7 +516,7 @@ function POSView({ token, onLogout }) {
                   )}
                 </div>
                 <div style={{ textAlign: 'center', flexShrink: 0, background: lvl.bg, borderRadius: 12, padding: '8px 12px' }}>
-                  <div style={{ fontSize: 24 }}>{lvl.emoji}</div>
+                  <MedalIcon size={24} rank={lvl.rank} />
                   <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 13, letterSpacing: 2, color: lvl.color }}>{lvl.label}</div>
                 </div>
               </div>
@@ -562,7 +563,7 @@ function POSView({ token, onLogout }) {
                   opacity: customer.availablePoints < 100 ? .4 : 1,
                   fontFamily: "'Montserrat', sans-serif",
                 }}>
-                <span style={{ fontSize: 28 }}>🎁</span>
+                <GiftIcon size={28} color="#4a9fd4" animated />
                 <span style={{ fontWeight: 800, fontSize: 13 }}>Canjear</span>
                 <span style={{ fontSize: 10, opacity: .7 }}>
                   {customer.availablePoints < 100 ? 'Sin saldo' : `$${redeemable} disp.`}
@@ -608,7 +609,7 @@ function POSView({ token, onLogout }) {
             </p>
 
             <div style={{ background: 'rgba(245,200,66,.06)', border: '1px solid rgba(245,200,66,.2)', borderRadius: 12, padding: '10px 16px', textAlign: 'center', color: 'var(--gold)', fontSize: 12, fontWeight: 700, letterSpacing: 1, marginBottom: 20 }}>
-              {customer.doublePointsActive ? '⚡ PUNTOS DOBLES ACTIVOS — gana el doble hoy' : `1 punto por cada $1 MXN · ${lvl.label} tiene bonus extra`}
+              {customer.doublePointsActive ? 'PUNTOS DOBLES ACTIVOS — gana el doble hoy' : `1 punto por cada $1 MXN · ${lvl.label} tiene bonus extra`}
             </div>
 
             <form onSubmit={handleAddPoints}>
@@ -631,7 +632,7 @@ function POSView({ token, onLogout }) {
               )}
               {error && <div style={S.err}>{error}</div>}
               <button type="submit" disabled={loading || !amount || parseFloat(amount) <= 0} style={{ ...S.goldBtn, marginTop: 20, fontSize: 15, height: 56, opacity: (loading || !amount) ? .6 : 1 }}>
-                {loading ? '⏳ Procesando…' : '✓ Confirmar compra'}
+                {loading ? 'Procesando…' : 'Confirmar compra'}
               </button>
             </form>
           </div>
@@ -693,7 +694,7 @@ function POSView({ token, onLogout }) {
               <button type="submit"
                 disabled={loading || !redeemPts || parseInt(redeemPts) < 100 || parseInt(redeemPts) > maxRedeem}
                 style={{ ...S.goldBtn, marginTop: 16, fontSize: 15, height: 56, opacity: (loading || !redeemPts || parseInt(redeemPts) < 100) ? .5 : 1 }}>
-                {loading ? '⏳ Procesando…' : '✓ Confirmar canje'}
+                {loading ? 'Procesando…' : 'Confirmar canje'}
               </button>
             </form>
           </div>
@@ -723,7 +724,9 @@ function SuccessScreen({ result, customer, onViewProfile, onReset }) {
 
   return (
     <div style={{ textAlign: 'center', paddingTop: 20 }}>
-      <div style={{ fontSize: 72, marginBottom: 12 }}>{result.type === 'earn' ? '🎉' : '🎁'}</div>
+      <div style={{ marginBottom: 12, display:'flex', justifyContent:'center' }}>
+        {result.type === 'earn' ? <StarIcon size={72} color="#F5C842" animated /> : <GiftIcon size={72} color="#4a9fd4" animated />}
+      </div>
       <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, letterSpacing: 2, lineHeight: 1, color: result.type === 'earn' ? '#5EC97A' : '#4a9fd4', marginBottom: 8 }}>
         {result.type === 'earn' ? `+${result.pointsAdded} pts` : `-$${result.discountMxn || (result.discountUsd * 20)?.toFixed(0)} MXN`}
       </div>
@@ -733,7 +736,7 @@ function SuccessScreen({ result, customer, onViewProfile, onReset }) {
       </p>
       {result.levelChanged && (
         <div style={{ background: 'linear-gradient(135deg,rgba(255,215,0,.15),rgba(255,215,0,.05))', border: '1px solid rgba(255,215,0,.4)', borderRadius: 14, padding: '12px 18px', marginBottom: 16 }}>
-          <p style={{ fontWeight: 800, color: '#FFD700', margin: 0, fontSize: 14 }}>¡Subió de nivel! → {LEVEL[result.level]?.emoji} {LEVEL[result.level]?.label}</p>
+          <p style={{ fontWeight: 800, color: '#FFD700', margin: 0, fontSize: 14, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>¡Subió de nivel! → <MedalIcon size={16} rank={LEVEL[result.level]?.rank || 3} /> {LEVEL[result.level]?.label}</p>
         </div>
       )}
       <div style={{ background: 'rgba(251,247,240,.04)', border: '1px solid rgba(251,247,240,.09)', borderRadius: 18, padding: '16px 24px', marginBottom: 16 }}>

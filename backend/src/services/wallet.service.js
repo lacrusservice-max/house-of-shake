@@ -102,12 +102,13 @@ function areCertsAvailable() {
 
 // ─── Pass helpers ─────────────────────────────────────────────────────────────
 
-const LEVEL_NAMES = { BRONZE: 'BRONCE', SILVER: 'PLATA', GOLD: 'ORO' };
-
-function getNextLevelInfo(lifetimePoints) {
-  if (lifetimePoints < 101) return `${101 - lifetimePoints} pts para Plata`;
-  if (lifetimePoints < 301) return `${301 - lifetimePoints} pts para Oro`;
-  return '¡Nivel Oro alcanzado!';
+// Sistema de Pinos: 1 Pino = 10 pts = $10 MXN | 120 Pinos = bebida hasta $90
+function getPineProgress(lifetimePoints) {
+  const totalPines   = Math.floor((lifetimePoints || 0) / 10);
+  const pinesInCycle = totalPines % 120;
+  const slotsEarned  = (pinesInCycle === 0 && totalPines > 0) ? 10 : Math.floor(pinesInCycle / 12);
+  const pinesLeft    = slotsEarned === 10 ? 0 : 120 - pinesInCycle;
+  return { totalPines, pinesInCycle, slotsEarned, pinesLeft };
 }
 
 function buildWebServiceURL() {
@@ -137,9 +138,8 @@ async function generatePassBuffer(customerData) {
   const serial    = customerData.walletPassSerial || uuidv4();
   const passToken = customerData.walletPassToken  || uuidv4().replace(/-/g, '');
 
-  // Stamps derivados de lifetimePoints: 100 pts = 1 stamp, 10 stamps = tarjeta completa
-  const totalStamps  = Math.floor((customerData.lifetimePoints || 0) / 100);
-  const stampsEarned = totalStamps === 0 ? 0 : (totalStamps % 10 === 0 ? 10 : totalStamps % 10);
+  const { totalPines, pinesInCycle, slotsEarned, pinesLeft } = getPineProgress(customerData.lifetimePoints);
+  const stampsEarned = slotsEarned;
 
   const pass = await PKPass.from(
     {
@@ -167,7 +167,7 @@ async function generatePassBuffer(customerData) {
     pass.addBuffer('strip.png',    strip1x);
     pass.addBuffer('strip@2x.png', strip2x);
     pass.addBuffer('strip@3x.png', strip2x); // @3x usa el @2x como fallback
-    logger.info(`Wallet strip generado: ${stampsEarned}/10 stamps — cliente ${customerData.id.substring(0, 8)}`);
+    logger.info(`Wallet strip generado: ${stampsEarned}/10 slots (${pinesInCycle}/120 Pinos) — cliente ${customerData.id.substring(0, 8)}`);
   } catch (err) {
     logger.error(`Stamp composer falló: ${err.message}`);
     // Fallback silencioso: queda el strip estático del template
@@ -180,28 +180,27 @@ async function generatePassBuffer(customerData) {
     altText:         `ID: ${customerData.id.substring(0, 8).toUpperCase()}`,
   });
 
-  // Marca arriba (strip) — sin primaryFields para no encimar texto sobre la imagen
   pass.headerFields.push({
-    key:           'level',
-    label:         'NIVEL',
-    value:         LEVEL_NAMES[customerData.level] || 'BRONCE',
+    key:           'pines',
+    label:         'PINOS',
+    value:         `${pinesInCycle}/120`,
     textAlignment: 'PKTextAlignmentRight',
   });
-  // Sin primaryFields — los puntos se ven en la app web, no en el pass
   pass.secondaryFields.push(
     { key: 'name', label: 'CLIENTE', value: `${customerData.firstName} ${customerData.lastName}` }
   );
   pass.auxiliaryFields.push({
-    key:   'next_level',
-    label: 'PRÓXIMO NIVEL',
-    value: getNextLevelInfo(customerData.lifetimePoints || 0),
+    key:   'reward',
+    label: pinesLeft === 0 ? '🎉 BEBIDA LISTA' : 'PARA BEBIDA GRATIS',
+    value: pinesLeft === 0 ? '¡Canjea con el staff!' : `${pinesLeft} Pinos más`,
   });
   pass.backFields.push(
-    { key: 'how',    label: '¿Cómo funciona?',    value: '1 punto por cada $1 MXN gastado. 100 puntos = $5 MXN de descuento en tu próxima compra.' },
-    { key: 'levels', label: 'Niveles',             value: 'Bronce: 0–100 pts | Plata: 101–300 pts (+10% bonus) | Oro: 301+ pts (+20% bonus)' },
-    { key: 'redeem', label: 'Canjear',             value: 'Muestra tu tarjeta al staff al pagar. El staff escaneará tu QR y aplicará el descuento.' },
-    { key: 'app',    label: 'Ver tu saldo online',  value: 'house-of-shake.vercel.app/mi-cuenta' },
-    { key: 'id',     label: 'ID de Cliente',        value: customerData.id.substring(0, 8).toUpperCase() }
+    { key: 'how',      label: '¿Cómo funciona?',    value: '1 Pino por cada $10 MXN gastados. Muestra tu tarjeta al staff antes de pagar.' },
+    { key: 'reward',   label: 'Recompensa',          value: '120 Pinos = bebida gratis de hasta $90 MXN. Si cuesta más, solo pagas la diferencia.' },
+    { key: 'bonuses',  label: 'Bonos especiales',    value: '+20 Pinos en tu cumpleaños · +10 Pinos al registrarte · Pinos dobles en temporadas especiales' },
+    { key: 'redeem',   label: 'Canjear',             value: 'Muestra tu QR al staff con 120 Pinos en ciclo completo. Ellos registran el canje.' },
+    { key: 'app',      label: 'Ver tus Pinos online', value: 'house-of-shake.vercel.app/mi-cuenta' },
+    { key: 'id',       label: 'ID de Cliente',        value: customerData.id.substring(0, 8).toUpperCase() }
   );
 
   return { buffer: pass.getAsBuffer(), serial, passToken };
