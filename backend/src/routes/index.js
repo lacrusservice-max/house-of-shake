@@ -109,6 +109,7 @@ router.get('/pos/search', authenticateStaff, posController.searchCustomers);
 router.get('/pos/customer/:code', authenticateStaff, posController.lookupCustomer);
 router.post('/pos/customer/:customerId/add-points', authenticateStaff, posLimiter, posController.addPointsForPurchase);
 router.post('/pos/customer/:customerId/redeem', authenticateStaff, posLimiter, posController.redeemPoints);
+router.post('/pos/customer/:customerId/redeem-drink', authenticateStaff, posLimiter, posController.redeemFreeDrink);
 router.post('/pos/quick-register', authenticateStaff, customerController.quickRegisterFromPOS);
 
 // === ADMIN (solo role: admin) ===

@@ -103,12 +103,15 @@ function areCertsAvailable() {
 // ─── Pass helpers ─────────────────────────────────────────────────────────────
 
 // Sistema de Pinos: 1 Pino = 10 pts = $10 MXN | 120 Pinos = bebida hasta $90
-function getPineProgress(lifetimePoints) {
-  const totalPines   = Math.floor((lifetimePoints || 0) / 10);
-  const pinesInCycle = totalPines % 120;
-  const slotsEarned  = (pinesInCycle === 0 && totalPines > 0) ? 10 : Math.floor(pinesInCycle / 12);
+// Ciclo basado en availablePoints para que el canje de bebida reinicie el ciclo.
+// lifetimePoints/10 = Pinos totales históricos (solo para display).
+function getPineProgress(availablePoints, lifetimePoints) {
+  const availPines   = Math.floor((availablePoints || 0) / 10);
+  const pinesInCycle = availPines % 120;
+  const slotsEarned  = (pinesInCycle === 0 && availPines > 0) ? 10 : Math.floor(pinesInCycle / 12);
   const pinesLeft    = slotsEarned === 10 ? 0 : 120 - pinesInCycle;
-  return { totalPines, pinesInCycle, slotsEarned, pinesLeft };
+  const totalPines   = Math.floor((lifetimePoints || 0) / 10);
+  return { availPines, pinesInCycle, slotsEarned, pinesLeft, totalPines };
 }
 
 function buildWebServiceURL() {
@@ -138,7 +141,10 @@ async function generatePassBuffer(customerData) {
   const serial    = customerData.walletPassSerial || uuidv4();
   const passToken = customerData.walletPassToken  || uuidv4().replace(/-/g, '');
 
-  const { totalPines, pinesInCycle, slotsEarned, pinesLeft } = getPineProgress(customerData.lifetimePoints);
+  const { pinesInCycle, slotsEarned, pinesLeft, totalPines } = getPineProgress(
+    customerData.availablePoints,
+    customerData.lifetimePoints
+  );
   const stampsEarned = slotsEarned;
 
   const pass = await PKPass.from(

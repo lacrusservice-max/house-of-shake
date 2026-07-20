@@ -174,6 +174,60 @@ async function redeemPoints(req, res) {
   }
 }
 
+// Staff canjea bebida gratis — 120 Pinos = 1200 pts deducidos de availablePoints
+async function redeemFreeDrink(req, res) {
+  const { customerId } = req.params;
+  const PINES_REQUERIDOS = 120;
+  const PUNTOS_REQUERIDOS = PINES_REQUERIDOS * 10; // 1200
+
+  try {
+    const customer = await prisma.customer.findUnique({ where: { id: customerId } });
+    if (!customer) return res.status(404).json({ error: 'Cliente no encontrado' });
+
+    const availPines = Math.floor(customer.availablePoints / 10);
+    if (availPines < PINES_REQUERIDOS) {
+      return res.status(400).json({
+        error: `El cliente tiene ${availPines} Pinos. Necesita ${PINES_REQUERIDOS} para canjear la bebida gratis.`,
+      });
+    }
+
+    const [updatedCustomer] = await prisma.$transaction([
+      prisma.customer.update({
+        where: { id: customerId },
+        data: { availablePoints: { decrement: PUNTOS_REQUERIDOS } },
+      }),
+      prisma.transaction.create({
+        data: {
+          customerId,
+          type: 'REDEEM',
+          points: -PUNTOS_REQUERIDOS,
+          description: `🌲 Bebida gratis canjeada — 120 Pinos completados`,
+          staffId: req.admin?.id || null,
+          staffEmail: req.admin?.email || null,
+        },
+      }),
+    ]);
+
+    const newAvailablePoints = updatedCustomer.availablePoints;
+    const newAvailPines      = Math.floor(newAvailablePoints / 10);
+    const newPinesInCycle    = newAvailPines % PINES_REQUERIDOS;
+
+    await walletService.sendPushUpdate({ ...customer, availablePoints: newAvailablePoints }).catch(() => {});
+
+    logger.info(`🌲 Bebida gratis canjeada: ${PINES_REQUERIDOS} Pinos — cliente ${customerId}`);
+    res.json({
+      success: true,
+      pinesRedeemed: PINES_REQUERIDOS,
+      newAvailablePoints,
+      newPinesInCycle,
+      customerName: customer.firstName,
+    });
+  } catch (err) {
+    logger.error('POS redeemFreeDrink error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+}
+
 async function searchCustomers(req, res) {
   const { q = '' } = req.query;
   const term = q.trim();
@@ -209,4 +263,4 @@ async function searchCustomers(req, res) {
   }
 }
 
-module.exports = { lookupCustomer, addPointsForPurchase, redeemPoints, searchCustomers };
+module.exports = { lookupCustomer, addPointsForPurchase, redeemPoints, redeemFreeDrink, searchCustomers };

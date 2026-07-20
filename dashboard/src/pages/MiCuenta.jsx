@@ -157,14 +157,17 @@ export default function MiCuenta() {
 
   // Sistema de Pinos: 1 Pino = 10 puntos = $10 MXN
   // 120 Pinos = bebida gratis hasta $90 | 10 slots, 12 Pinos por slot
+  // Ciclo basado en availablePoints — se reinicia cuando se canjea la bebida.
+  // lifetimePoints/10 = Pinos totales históricos (solo display).
   const PINES_PER_CYCLE = 120;
   const PINES_PER_SLOT  = 12;
-  const totalPines      = Math.floor((customer.lifetimePoints || 0) / 10);
-  const pinesInCycle    = totalPines % PINES_PER_CYCLE;
-  const slotsEarned     = (pinesInCycle === 0 && totalPines > 0) ? 10 : Math.floor(pinesInCycle / PINES_PER_SLOT);
+  const availPines      = Math.floor((customer.availablePoints || 0) / 10);
+  const pinesInCycle    = availPines % PINES_PER_CYCLE;
+  const slotsEarned     = (pinesInCycle === 0 && availPines > 0) ? 10 : Math.floor(pinesInCycle / PINES_PER_SLOT);
   const cardComplete    = slotsEarned === 10;
   const pinesLeft       = cardComplete ? 0 : PINES_PER_CYCLE - pinesInCycle;
   const progressPct     = Math.round((pinesInCycle / PINES_PER_CYCLE) * 100);
+  const totalPines      = Math.floor((customer.lifetimePoints || 0) / 10);
 
   // Posiciones X de los 10 slots (% del ancho del banner, pixel-perfect)
   const STAMP_X = [13.3, 22.0, 29.6, 37.1, 44.7, 52.4, 60.0, 68.3, 76.0, 82.9];

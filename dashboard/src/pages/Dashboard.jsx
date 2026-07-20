@@ -5,10 +5,10 @@ import { es } from 'date-fns/locale';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { PeopleIcon, StarIcon, GiftIcon, UserPlusIcon, LightningIcon, FlameIcon, RankIcon, CakeIcon, TrophyIcon, CheckIcon } from '../components/Icons';
 
-const levelColors = { BRONZE: '#cd7f32', SILVER: '#b0b0b0', GOLD: '#f5c842' };
-const levelLabels = { BRONZE: 'Bronce', SILVER: 'Plata', GOLD: 'Oro' };
+const engagementColors = { BRONZE: '#22c55e', SILVER: '#3b82f6', GOLD: '#f5c842' };
+const engagementLabels = { BRONZE: 'Nuevos (1–39 🌲)', SILVER: 'Activos (40–119 🌲)', GOLD: 'Fieles (120+ 🌲)' };
 const txTypeLabel = {
-  EARN: 'Puntos ganados', REDEEM: 'Canje', WELCOME_BONUS: 'Bienvenida',
+  EARN: 'Pinos ganados', REDEEM: 'Canje', WELCOME_BONUS: 'Bienvenida',
   EXPIRY: 'Expiración', ADJUSTMENT: 'Ajuste manual', REVERSAL: 'Reversión',
 };
 
@@ -31,7 +31,7 @@ function StatCard({ title, value, subtitle, gradient, icon }) {
 }
 
 function MiniTopCustomer({ customer, rank }) {
-  const lvlColor = levelColors[customer.level] || '#cd7f32';
+  const totalPines = Math.floor((customer.lifetimePoints || 0) / 10);
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid #f3f4f6' }}>
       <span style={{ flexShrink: 0 }}><RankIcon size={22} rank={rank + 1} /></span>
@@ -39,10 +39,12 @@ function MiniTopCustomer({ customer, rank }) {
         <p style={{ fontSize: 13, fontWeight: 700, color: '#111', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {customer.firstName} {customer.lastName}
         </p>
-        <p style={{ fontSize: 10, color: lvlColor, fontWeight: 700, margin: 0, letterSpacing: .5 }}>{levelLabels[customer.level]}</p>
+        <p style={{ fontSize: 10, color: '#6b7280', fontWeight: 700, margin: 0, letterSpacing: .5 }}>
+          {totalPines >= 120 ? '🌲 Fiel' : totalPines >= 40 ? '🌱 Activo' : '🪴 Nuevo'}
+        </p>
       </div>
       <span style={{ fontWeight: 900, fontSize: 14, color: '#c85032', flexShrink: 0 }}>
-        {customer.lifetimePoints?.toLocaleString()} pts
+        {totalPines.toLocaleString()} 🌲
       </span>
     </div>
   );
@@ -118,12 +120,12 @@ export default function Dashboard() {
   );
 
   const levelData = stats?.levelDistribution?.map(l => ({
-    name: levelLabels[l.level] || l.level,
+    name: engagementLabels[l.level] || l.level,
     clientes: l._count.level,
-    color: levelColors[l.level],
+    color: engagementColors[l.level] || '#ccc',
   })) || [];
 
-  const pieData = levelData.map(l => ({ name: l.name, value: l.clientes, color: levelColors[Object.keys(levelLabels).find(k => levelLabels[k] === l.name)] || '#ccc' }));
+  const pieData = levelData.map(l => ({ name: l.name, value: l.clientes, color: l.color }));
 
   const engagementRate = stats?.totalCustomers
     ? Math.round((stats.activeCustomers30d / stats.totalCustomers) * 100)
@@ -162,14 +164,14 @@ export default function Dashboard() {
       {/* Primary stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 14 }}>
         <StatCard icon={<PeopleIcon size={28} color="white" />} title="Total Clientes" value={stats?.totalCustomers?.toLocaleString() || 0} gradient="linear-gradient(135deg,#c85032,#e8401a)" />
-        <StatCard icon={<StarIcon size={28} color="white" />} title="Puntos en Circulación" value={stats?.totalAvailablePoints?.toLocaleString() || 0} subtitle="disponibles" gradient="linear-gradient(135deg,#f59e0b,#ea580c)" />
+        <StatCard icon={<StarIcon size={28} color="white" />} title="Pinos Activos" value={Math.floor((stats?.totalAvailablePoints || 0) / 10).toLocaleString()} subtitle="en circulación 🌲" gradient="linear-gradient(135deg,#f59e0b,#ea580c)" />
         <StatCard icon={<GiftIcon size={28} color="white" animated={false} />} title="Canjes Hoy" value={stats?.redemptionsToday || 0} gradient="linear-gradient(135deg,#16a34a,#059669)" />
       </div>
 
       {/* Loyalty KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 24 }}>
         <StatCard icon={<UserPlusIcon size={28} color="white" />} title="Nuevos este mes" value={stats?.newCustomersThisMonth || 0} subtitle="clientes registrados" gradient="linear-gradient(135deg,#7c3aed,#6d28d9)" />
-        <StatCard icon={<LightningIcon size={28} color="white" />} title="Puntos ganados (mes)" value={(stats?.pointsEarnedThisMonth || 0).toLocaleString()} subtitle="pts acumulados" gradient="linear-gradient(135deg,#0284c7,#0369a1)" />
+        <StatCard icon={<LightningIcon size={28} color="white" />} title="Pinos Ganados (Mes)" value={Math.floor((stats?.pointsEarnedThisMonth || 0) / 10).toLocaleString()} subtitle="🌲 acumulados" gradient="linear-gradient(135deg,#0284c7,#0369a1)" />
         <StatCard icon={<FlameIcon size={28} color="white" />} title="Activos 30 días" value={stats?.activeCustomers30d || 0} subtitle={`${engagementRate}% engagement`} gradient="linear-gradient(135deg,#db2777,#be185d)" />
       </div>
 
@@ -188,7 +190,7 @@ export default function Dashboard() {
                 <div key={c.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f3f4f6' }}>
                   <div>
                     <p style={{ fontSize: 13, fontWeight: 700, color: '#111', margin: 0 }}>{c.firstName} {c.lastName}</p>
-                    <p style={{ fontSize: 11, color: '#aaa', margin: 0 }}>{c.email} · {levelLabels[c.level] || c.level}</p>
+                    <p style={{ fontSize: 11, color: '#aaa', margin: 0 }}>{c.email} · {Math.floor((c.lifetimePoints || 0) / 10)} Pinos 🌲</p>
                   </div>
                   <span style={{ fontSize: 11, fontWeight: 700, color: Number(c.birthday_reward_year) === new Date().getFullYear() ? '#16a34a' : '#f59e0b', flexShrink: 0 }}>
                     {Number(c.birthday_reward_year) === new Date().getFullYear() ? '✓ Reclamado' : 'Pendiente'}
@@ -201,7 +203,7 @@ export default function Dashboard() {
 
         {/* ⚡ Double points toggle */}
         <div style={{ background: '#fff', borderRadius: 18, padding: '20px 24px', boxShadow: '0 1px 8px rgba(0,0,0,.06)' }}>
-          <h2 style={{ fontSize: 15, fontWeight: 800, color: '#111', marginBottom: 4, marginTop: 0, display:'flex', alignItems:'center', gap:6 }}><LightningIcon size={16} color="#111" /> Puntos Dobles</h2>
+          <h2 style={{ fontSize: 15, fontWeight: 800, color: '#111', marginBottom: 4, marginTop: 0, display:'flex', alignItems:'center', gap:6 }}><LightningIcon size={16} color="#111" /> 🌲 Pinos Dobles</h2>
           <p style={{ fontSize: 11, color: '#aaa', margin: '0 0 16px' }}>
             {dpStatus.enabled
               ? dpStatus.expiry ? `Activo hasta ${new Date(dpStatus.expiry).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}` : 'Activo sin límite'
@@ -252,7 +254,7 @@ export default function Dashboard() {
                 color: '#92400e', opacity: (dpLoading || dpStatus.enabled) ? .5 : 1,
               }}
             >
-              <LightningIcon size={12} color="#92400e" /> Activar {dpHours}h
+              🌲 Activar {dpHours}h
             </button>
             <button
               onClick={() => handleToggleDoublePoints(false)}
@@ -275,7 +277,8 @@ export default function Dashboard() {
 
         {/* Distribución por nivel - Bar */}
         <div style={{ background: '#fff', borderRadius: 18, padding: '20px 24px', boxShadow: '0 1px 8px rgba(0,0,0,.06)' }}>
-          <h2 style={{ fontSize: 15, fontWeight: 800, color: '#111', marginBottom: 16, marginTop: 0 }}>Distribución por Nivel</h2>
+          <h2 style={{ fontSize: 15, fontWeight: 800, color: '#111', marginBottom: 4, marginTop: 0 }}>Distribución de Engagement 🌲</h2>
+          <p style={{ fontSize: 11, color: '#aaa', margin: '0 0 14px' }}>Basado en Pinos totales históricos por cliente</p>
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={levelData} barCategoryGap="30%">
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} />
@@ -293,7 +296,7 @@ export default function Dashboard() {
         {/* Pie chart de niveles */}
         {pieData.length > 0 && (
           <div style={{ background: '#fff', borderRadius: 18, padding: '20px 24px', boxShadow: '0 1px 8px rgba(0,0,0,.06)' }}>
-            <h2 style={{ fontSize: 15, fontWeight: 800, color: '#111', marginBottom: 16, marginTop: 0 }}>Porcentaje por Nivel</h2>
+            <h2 style={{ fontSize: 15, fontWeight: 800, color: '#111', marginBottom: 16, marginTop: 0 }}>Mix de Fidelización</h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
               <ResponsiveContainer width={140} height={140}>
                 <PieChart>
@@ -350,7 +353,7 @@ export default function Dashboard() {
                   </p>
                 </div>
                 <span style={{ fontWeight: 800, fontSize: 14, color: tx.points > 0 ? '#16a34a' : '#dc2626', flexShrink: 0 }}>
-                  {tx.points > 0 ? '+' : ''}{tx.points}
+                  {tx.points > 0 ? '+' : ''}{(tx.points / 10) % 1 === 0 ? tx.points / 10 : (tx.points / 10).toFixed(1)} 🌲
                 </span>
               </div>
             ))}
