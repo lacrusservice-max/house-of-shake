@@ -122,7 +122,8 @@ async function addPoints(customerId, orderAmount, shopifyOrderId, shopifyOrderNu
   await invalidateCache(customerId);
   logger.info(`+${pointsWithBonus} puntos para cliente ${customerId} (orden ${shopifyOrderNum})${doublePoints ? ' [2x]' : ''}`);
 
-  const newBalance = updatedCustomer.availablePoints + pointsWithBonus;
+  // updatedCustomer already reflects the post-increment value from Prisma
+  const newBalance = updatedCustomer.availablePoints;
   const finalLevel = newLevel || updatedCustomer.level;
 
   // Send emails async — never block the POS flow
@@ -166,7 +167,7 @@ async function addBirthdayBonus(customerId, bonusPoints = 200) {
         customerId,
         type: 'BIRTHDAY',
         points: bonusPoints,
-        description: `🎂 ¡Feliz cumpleaños! Premio de ${bonusPoints} puntos`,
+        description: `🎂 ¡Feliz cumpleaños! +${bonusPoints / 10} Pinos de regalo`,
         expiresAt,
       },
     }),
@@ -291,7 +292,7 @@ async function addWelcomeBonus(customerId) {
         customerId,
         type: 'WELCOME_BONUS',
         points: config.welcomeBonus,
-        description: '¡Bienvenido a House of Shake! Puntos de bienvenida',
+        description: `🌲 ¡Bienvenido a House of Shake! +${config.welcomeBonus / 10} Pinos de regalo`,
         expiresAt,
       },
     }),

@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 
-const CATEGORIES = ['café', 'frío', 'especiales', 'alimentos'];
+const CATEGORIES = ['frío', 'especiales', 'alimentos', 'café'];
 const CATEGORY_LABELS = {
-  café: '☕ Cafés Calientes',
-  frío: '🧊 Bebidas Frías',
-  especiales: '✨ Especiales',
-  alimentos: '🥐 Alimentos',
+  frío:       '🧊 Cold Coffees & Cold Brew',
+  especiales: '✨ Matcha, Fitfresh, Chai & Milkshakes',
+  alimentos:  '🥐 Repostería',
+  café:       '☕ Cafés Calientes',
 };
 
 const EMPTY_FORM = { name: '', description: '', price: '', pointsValue: '', category: 'café', sortOrder: '0', active: true };
@@ -111,7 +111,7 @@ export default function Products() {
                       <tr>
                         <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Producto</th>
                         <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Precio</th>
-                        <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Puntos</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Pinos</th>
                         <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Estado</th>
                         <th className="px-4 py-3" />
                       </tr>
@@ -125,7 +125,9 @@ export default function Products() {
                           </td>
                           <td className="px-4 py-3 text-right text-gray-700 font-semibold">${p.price} MXN</td>
                           <td className="px-4 py-3 text-right">
-                            <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-1 rounded-full">+{p.pointsValue} pts</span>
+                            <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-1 rounded-full">
+                              {Math.ceil(p.pointsValue / 10)} 🌲
+                            </span>
                           </td>
                           <td className="px-4 py-3 text-center">
                             <span className={`text-xs font-semibold px-2 py-1 rounded-full ${p.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
@@ -187,10 +189,12 @@ export default function Products() {
                     className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Puntos *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Pinos × 10 (pts internos) *</label>
                   <input required type="number" min="0" value={form.pointsValue}
                     onChange={e => setForm(p => ({ ...p, pointsValue: e.target.value }))}
+                    placeholder="ej: 90 = 9 Pinos"
                     className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500" />
+                  <p className="text-xs text-gray-400 mt-1">1 Pino = 10 pts. Ej: $88 MXN → 90 pts → 9 Pinos 🌲</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">

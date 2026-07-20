@@ -121,16 +121,13 @@ async function addPointsForPurchase(req, res) {
     const updated = await prisma.customer.findUnique({ where: { id: customerId } });
     await walletService.sendPushUpdate(updated).catch(() => {});
 
-    const { affordable, almostAffordable } = await getAffordableProducts(result.newBalance);
-
     res.json({
       success: true,
       pointsAdded: result.pointsAdded,
       newBalance: result.newBalance,
-      level: result.level,
-      levelChanged: result.level !== customer.level,
-      affordableProducts: affordable,
-      almostAffordableProducts: almostAffordable,
+      newAvailablePoints: updated.availablePoints,
+      customerName: customer.firstName,
+      doublePoints: result.doublePoints,
     });
   } catch (err) {
     logger.error('POS addPoints error:', err.message);

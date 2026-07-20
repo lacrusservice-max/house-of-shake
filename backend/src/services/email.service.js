@@ -66,54 +66,35 @@ function baseLayout(body) {
 </body></html>`;
 }
 
-async function sendPointsEarned({ to, firstName, pointsAdded, newBalance, level, affordableProducts = [] }) {
-  const productsHtml = affordableProducts.length > 0
-    ? `<p style="font-weight:700;color:#333;margin:20px 0 8px">Con tus puntos puedes canjear:</p>
-       ${affordableProducts.slice(0, 3).map(p =>
-         `<div class="product-row"><span>${p.name}</span><span class="product-pts">${p.pointsValue} pts</span></div>`
-       ).join('')}`
-    : '';
+async function sendPointsEarned({ to, firstName, pointsAdded, newBalance }) {
+  const pinesAdded   = Math.floor(pointsAdded / 10);
+  const pinesTotal   = Math.floor(newBalance / 10);
+  const pinesInCycle = pinesTotal % 120;
+  const pinesLeft    = 120 - pinesInCycle;
 
   const body = `
     <p>Hola <strong>${firstName}</strong>,</p>
-    <p>¡Acabas de acumular puntos en tu visita a House of Shake!</p>
+    <p>¡Acabas de acumular Pinos en tu visita a House of Shake! 🌲</p>
     <div class="pts-box">
-      <div class="pts-num">+${pointsAdded}</div>
-      <div class="pts-lbl">puntos ganados</div>
+      <div class="pts-num">+${pinesAdded} 🌲</div>
+      <div class="pts-lbl">Pinos ganados</div>
     </div>
     <p style="text-align:center;color:#666;font-size:14px">
-      Tu saldo actual: <strong style="color:${NAVY}">${newBalance} puntos</strong>
-      &nbsp;·&nbsp; Nivel: <span class="level-badge">${level}</span>
+      Pinos en tu ciclo: <strong style="color:${NAVY}">${pinesInCycle} / 120</strong>
+      ${pinesInCycle >= 120 ? '&nbsp;·&nbsp; <strong style="color:#16a34a">¡Bebida lista!</strong>' : `&nbsp;·&nbsp; Te faltan <strong>${pinesLeft}</strong> para bebida gratis`}
     </p>
-    ${productsHtml}
     <p style="text-align:center;margin-top:24px">
-      <a class="btn" href="https://house-of-shake.vercel.app/mi-cuenta">Ver mi cuenta</a>
+      <a class="btn" href="https://house-of-shake.vercel.app/mi-cuenta">Ver mis Pinos</a>
     </p>
-    <p style="color:#aaa;font-size:12px;margin-top:20px">Recuerda: 100 pts = $5 MXN de descuento en tu próxima compra.</p>
+    <p style="color:#aaa;font-size:12px;margin-top:20px">1 Pino = $10 MXN · 120 Pinos = bebida gratis hasta $90 MXN</p>
   `;
-  await send(to, `+${pointsAdded} puntos en House of Shake`, baseLayout(body));
+  await send(to, `+${pinesAdded} Pinos 🌲 en House of Shake`, baseLayout(body));
 }
 
 async function sendLevelUp({ to, firstName, newLevel, newBalance }) {
-  const LEVEL_NAMES = { SILVER: 'Plata', GOLD: 'Oro' };
-  const LEVEL_PERKS = {
-    SILVER: '10% de bonus en puntos por cada compra',
-    GOLD:   '20% de bonus en puntos + beneficios exclusivos',
-  };
-  const body = `
-    <p>Hola <strong>${firstName}</strong>,</p>
-    <p>¡Felicidades! Acabas de subir de nivel en tu membresía House of Shake.</p>
-    <div class="pts-box">
-      <div style="font-size:48px;margin-bottom:8px">🎖</div>
-      <div class="pts-num" style="font-size:32px">NIVEL ${(LEVEL_NAMES[newLevel] || newLevel).toUpperCase()}</div>
-      <div class="pts-lbl" style="margin-top:8px">${LEVEL_PERKS[newLevel] || ''}</div>
-    </div>
-    <p style="text-align:center;color:#666;font-size:14px">Saldo actual: <strong style="color:${NAVY}">${newBalance} puntos</strong></p>
-    <p style="text-align:center;margin-top:24px">
-      <a class="btn" href="https://house-of-shake.vercel.app/mi-cuenta">Ver mi cuenta</a>
-    </p>
-  `;
-  await send(to, `¡Subiste a nivel ${LEVEL_NAMES[newLevel] || newLevel}! 🎖`, baseLayout(body));
+  // En el sistema de Pinos no hay niveles visibles; este email solo se usa internamente.
+  // Lo mantenemos silencioso (no enviamos nada al cliente).
+  logger.debug(`sendLevelUp skipped for ${to} — no hay niveles en el sistema de Pinos`);
 }
 
 async function sendPointsRedeemed({ to, firstName, pointsRedeemed, discountMxn, newBalance }) {
@@ -135,25 +116,28 @@ async function sendPointsRedeemed({ to, firstName, pointsRedeemed, discountMxn, 
 }
 
 async function sendWelcome({ to, firstName, availablePoints = 0 }) {
+  const pinesBonus = Math.floor(availablePoints / 10);
   const body = `
     <p>Hola <strong>${firstName}</strong>,</p>
-    <p>Bienvenido a la membresía House of Shake. A partir de ahora, cada visita suma.</p>
+    <p>Bienvenido a la membresía House of Shake. A partir de ahora, cada visita suma Pinos. 🌲</p>
     <div class="pts-box">
-      <div class="pts-num" style="font-size:32px">BIENVENIDO</div>
-      <div class="pts-lbl" style="margin-top:4px">Membresía activa · ${availablePoints > 0 ? availablePoints + ' pts de bienvenida' : 'listo para acumular'}</div>
+      <div class="pts-num" style="font-size:32px">🌲 BIENVENIDO</div>
+      <div class="pts-lbl" style="margin-top:4px">
+        ${pinesBonus > 0 ? `+${pinesBonus} Pinos de regalo — ya puedes usarlos` : 'Membresía activa — listo para acumular'}
+      </div>
     </div>
-    <p>¿Cómo funciona?</p>
+    <p><strong>¿Cómo funciona?</strong></p>
     <ul style="color:#555;font-size:14px;line-height:2">
-      <li>Acumulas <strong>1 punto por cada $1 MXN</strong> que gastes</li>
-      <li>Con <strong>100 puntos</strong> obtienes $5 MXN de descuento</li>
-      <li>Muestra tu código QR al staff al pagar para acumular</li>
-      <li>Sube de nivel: Bronce → Plata (+10% bonus) → Oro (+20% bonus)</li>
+      <li>Ganas <strong>1 Pino por cada $10 MXN</strong> que consumas</li>
+      <li>Con <strong>120 Pinos</strong> obtienes una bebida gratis hasta $90 MXN</li>
+      <li>Muestra tu código QR al staff antes de pagar</li>
+      <li>Bonus: +20 Pinos en tu cumpleaños 🎂 · Pinos dobles en temporadas especiales ⚡</li>
     </ul>
     <p style="text-align:center;margin-top:24px">
-      <a class="btn" href="https://house-of-shake.vercel.app/mi-cuenta">Ver mi cuenta</a>
+      <a class="btn" href="https://house-of-shake.vercel.app/mi-cuenta">Ver mis Pinos</a>
     </p>
   `;
-  await send(to, 'Bienvenido a House of Shake — Membresía activa', baseLayout(body));
+  await send(to, 'Bienvenido a House of Shake — Membresía activa 🌲', baseLayout(body));
 }
 
 async function sendInactiveReminder({ to, firstName, availablePoints, daysSinceVisit }) {
@@ -162,19 +146,19 @@ async function sendInactiveReminder({ to, firstName, availablePoints, daysSinceV
     <p>Hace ${daysSinceVisit} días que no te vemos por House of Shake — ¡te extrañamos!</p>
     ${availablePoints > 0
       ? `<div class="pts-box">
-           <div class="pts-num">${availablePoints}</div>
-           <div class="pts-lbl">puntos esperándote</div>
+           <div class="pts-num">${Math.floor(availablePoints / 10)} 🌲</div>
+           <div class="pts-lbl">Pinos esperándote</div>
          </div>
          <p style="text-align:center;color:#666;font-size:14px">
-           Equivalen a <strong style="color:${NAVY}">$${Math.floor(availablePoints / 100) * 5} MXN de descuento</strong>
+           Te faltan <strong style="color:${NAVY}">${120 - (Math.floor(availablePoints / 10) % 120)} Pinos</strong> para tu bebida gratis
          </p>`
-      : `<p>Todavía no tienes puntos acumulados — tu próxima visita es el mejor momento para empezar.</p>`
+      : `<p>Todavía no tienes Pinos — tu próxima visita es el mejor momento para empezar.</p>`
     }
     <p style="text-align:center;margin-top:24px">
       <a class="btn" href="https://house-of-shake.vercel.app">Visitarnos hoy</a>
     </p>
   `;
-  await send(to, 'Te extrañamos en House of Shake ☕', baseLayout(body));
+  await send(to, `Te extrañamos en House of Shake ☕ — tienes ${Math.floor(availablePoints / 10)} Pinos`, baseLayout(body));
 }
 
 module.exports = { sendPointsEarned, sendLevelUp, sendPointsRedeemed, sendWelcome, sendInactiveReminder };
