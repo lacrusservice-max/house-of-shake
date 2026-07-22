@@ -16,7 +16,7 @@ const fs         = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const prisma     = require('../config/prisma');
 const logger     = require('../config/logger');
-const { generateStripImage } = require('./stamp.composer');
+const { generateBackgroundImage } = require('./stamp.composer');
 
 // ─── Certificate loading & cache ─────────────────────────────────────────────
 
@@ -164,19 +164,16 @@ async function generatePassBuffer(customerData) {
     }
   );
 
-  // Inyectar strip image dinámica con los pinos del cliente
+  // Inyectar background image dinámica con los pinos del cliente (pass tipo: generic)
   try {
-    const [strip2x, strip1x] = await Promise.all([
-      generateStripImage(stampsEarned, '2x'),
-      generateStripImage(stampsEarned, '1x'),
-    ]);
-    pass.addBuffer('strip.png',    strip1x);
-    pass.addBuffer('strip@2x.png', strip2x);
-    pass.addBuffer('strip@3x.png', strip2x); // @3x usa el @2x como fallback
-    logger.info(`Wallet strip generado: ${stampsEarned}/10 slots (${pinesInCycle}/120 Pinos) — cliente ${customerData.id.substring(0, 8)}`);
+    const bgBuf = await generateBackgroundImage(stampsEarned);
+    pass.addBuffer('background.png',    bgBuf);
+    pass.addBuffer('background@2x.png', bgBuf);
+    pass.addBuffer('background@3x.png', bgBuf);
+    logger.info(`Wallet background generado: ${stampsEarned}/10 slots (${pinesInCycle}/120 Pinos) — cliente ${customerData.id.substring(0, 8)}`);
   } catch (err) {
     logger.error(`Stamp composer falló: ${err.message}`);
-    // Fallback silencioso: queda el strip estático del template
+    // Fallback silencioso: queda el fondo del template
   }
 
   pass.setBarcodes({
