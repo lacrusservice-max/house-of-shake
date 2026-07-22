@@ -27,22 +27,24 @@ const STRIP_W = 750;
 const STRIP_H = 600;
 
 // ─── Section layout @2x ──────────────────────────────────────────────────────
-const TOP_H = 270; // blue wood: Y 0 → 270
+// TOP_H grande (420) para que el logo quede debajo del header overlay de Apple
+// El header de Apple Wallet cubre ~176px del strip desde arriba.
+const TOP_H = 420;
 
 // BORDE: 2400×341 original, bar center Y≈157, scale=750/2400=0.3125
 // scaled: 750×107, bar_center_scaled = 49
 const BORDE_SCALE   = STRIP_W / 2400;              // 0.3125
 const BORDE_H_SCL   = Math.round(341 * BORDE_SCALE); // 107
 const BORDE_BAR_SCL = Math.round(157 * BORDE_SCALE); // 49
-const BORDE_TOP     = TOP_H - BORDE_BAR_SCL;       // 221
+const BORDE_TOP     = TOP_H - BORDE_BAR_SCL;       // 371
 
 // Cream section starts just below the bar bottom (original bar bottom Y≈185)
-const CREAM_START = BORDE_TOP + Math.round(185 * BORDE_SCALE); // ≈ 279
+const CREAM_START = BORDE_TOP + Math.round(185 * BORDE_SCALE); // ≈ 429
 
-// Pino slots: centered in cream section (Y 279 → 600)
+// Pino slots: centered in cream section (Y 429 → 600)
 const SLOT_X = [100, 165, 222, 277, 335, 392, 450, 510, 567, 622];
-const SLOT_Y = Math.round(CREAM_START + (STRIP_H - CREAM_START) / 2); // ≈ 440
-const PINE_W = 54; // slightly larger, more breathing room
+const SLOT_Y = Math.round(CREAM_START + (STRIP_H - CREAM_START) / 2); // ≈ 515
+const PINE_W = 54;
 
 // ─── Build base strip ────────────────────────────────────────────────────────
 
@@ -67,14 +69,15 @@ async function buildBaseStrip(w, h) {
     .resize(w, bordeH, { fit: 'fill' })
     .toBuffer();
 
-  // 4. Logo — trim transparent, scale to fit blue section
+  // 4. Logo — trim transparent, posicionar DEBAJO del header overlay de Apple
+  // El header overlay cubre ~42% de topH desde arriba; colocamos el logo al 50%
   const textoTrimBuf = await sharp(TEXTO_PATH).trim().toBuffer();
   const textoMeta    = await sharp(textoTrimBuf).metadata();
   const ar = textoMeta.width / textoMeta.height;
 
-  // At @2x full size, logo fits inside 680×160 box
-  const maxTW = Math.round(680 * scale);
-  const maxTH = Math.round(160 * (h / STRIP_H));
+  // Caja 640×120 a @2x para que quepa entre el header overlay y el borde
+  const maxTW = Math.round(640 * scale);
+  const maxTH = Math.round(120 * (h / STRIP_H));
   let tw, th;
   if (ar >= maxTW / maxTH) {
     tw = maxTW; th = Math.round(maxTW / ar);
@@ -84,7 +87,8 @@ async function buildBaseStrip(w, h) {
 
   const textoBuf  = await sharp(textoTrimBuf).resize(tw, th).toBuffer();
   const textoLeft = Math.round((w - tw) / 2);
-  const textoTop  = Math.round((topH - th) / 2);
+  // Posición: 50% del topH → debajo del header, encima del borde
+  const textoTop  = Math.round(topH * 0.50);
 
   // 5. Composite
   return sharp(creamBuf)
