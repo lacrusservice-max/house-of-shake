@@ -16,7 +16,7 @@ const fs         = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const prisma     = require('../config/prisma');
 const logger     = require('../config/logger');
-const { generateBackgroundImage } = require('./stamp.composer');
+const { generateStripImage } = require('./stamp.composer');
 
 // ─── Certificate loading & cache ─────────────────────────────────────────────
 
@@ -164,16 +164,18 @@ async function generatePassBuffer(customerData) {
     }
   );
 
-  // Inyectar background image dinámica con los pinos del cliente (pass tipo: generic)
+  // Inyectar strip image dinámica con los pinos del cliente
   try {
-    const bgBuf = await generateBackgroundImage(stampsEarned);
-    pass.addBuffer('background.png',    bgBuf);
-    pass.addBuffer('background@2x.png', bgBuf);
-    pass.addBuffer('background@3x.png', bgBuf);
-    logger.info(`Wallet background generado: ${stampsEarned}/10 slots (${pinesInCycle}/120 Pinos) — cliente ${customerData.id.substring(0, 8)}`);
+    const [strip2x, strip1x] = await Promise.all([
+      generateStripImage(stampsEarned, '2x'),
+      generateStripImage(stampsEarned, '1x'),
+    ]);
+    pass.addBuffer('strip.png',    strip1x);
+    pass.addBuffer('strip@2x.png', strip2x);
+    pass.addBuffer('strip@3x.png', strip2x);
+    logger.info(`Wallet strip generado: ${stampsEarned}/10 slots (${pinesInCycle}/120 Pinos) — cliente ${customerData.id.substring(0, 8)}`);
   } catch (err) {
     logger.error(`Stamp composer falló: ${err.message}`);
-    // Fallback silencioso: queda el fondo del template
   }
 
   pass.setBarcodes({
@@ -189,13 +191,10 @@ async function generatePassBuffer(customerData) {
     value:         `${pinesInCycle}/120`,
     textAlignment: 'PKTextAlignmentRight',
   });
-  // Para generic pass, primaryFields aparece grande en el centro de la tarjeta
-  pass.primaryFields.push({
-    key:   'name',
-    label: 'CLIENTE',
-    value: `${customerData.firstName} ${customerData.lastName}`,
-  });
-  pass.secondaryFields.push({
+  pass.secondaryFields.push(
+    { key: 'name', label: 'CLIENTE', value: `${customerData.firstName} ${customerData.lastName}` }
+  );
+  pass.auxiliaryFields.push({
     key:   'reward',
     label: pinesLeft === 0 ? '🎉 BEBIDA LISTA' : 'PARA BEBIDA GRATIS',
     value: pinesLeft === 0 ? '¡Canjea con el staff!' : `${pinesLeft} Pinos más`,

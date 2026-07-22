@@ -10,7 +10,7 @@
   "serialNumber": "PLACEHOLDER-0000000000000",
   "webServiceURL": "https://backend-production-a4f91.up.railway.app/api/wallet/",
   "authenticationToken": "PLACEHOLDER-TOKEN-0000",
-  "generic": {
+  "storeCard": {
     "headerFields": [],
     "primaryFields": [],
     "secondaryFields": [],
