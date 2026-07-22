@@ -3,22 +3,24 @@
  * stamp.composer.js
  * Genera strip.png para Apple Wallet (storeCard).
  *
- * Strip @2x: 750×600 px — más alto para cubrir más de la tarjeta.
+ * Strip @2x: 750×600 px
  * Layout:
- *   Y 0-270  → Fondo Azul (madera) + logo HOUSE OF SHAKE centrado
- *   Y 270-320 → BORDE (barra de madera café + pino central)
- *   Y 320-600 → Fondo Claro (crema) + acumulador-pino stamps
+ *   Y 0-270  → Azul marino sólido (#1B2F56) + logo HOUSE OF SHAKE centrado
+ *   Y 270-320 → BORDE (barra café + pino central)
+ *   Y 320-600 → Crema sólido (#E7DEC7) + acumulador-pino stamps
  */
 const sharp = require('sharp');
 const path  = require('path');
 
 const ASSETS = path.resolve(__dirname, '../../assets');
 
-const FONDO_AZUL_PATH  = path.join(ASSETS, 'fondo-azul.jpg');
-const FONDO_CLARO_PATH = path.join(ASSETS, 'fondo-claro.jpg');
-const BORDE_PATH       = path.join(ASSETS, 'borde.png');
-const TEXTO_PATH       = path.join(ASSETS, 'texto-blanco.png');
-const PINO_PATH        = path.join(ASSETS, 'acumulador-pino.png');
+const BORDE_PATH = path.join(ASSETS, 'borde.png');
+const TEXTO_PATH = path.join(ASSETS, 'texto-blanco.png');
+const PINO_PATH  = path.join(ASSETS, 'acumulador-pino.png');
+
+// Colores sólidos — sin texturas
+const NAVY  = { r: 27,  g: 47,  b: 86  };
+const CREAM = { r: 231, g: 222, b: 199 };
 
 // ─── Strip dimensions @2x ────────────────────────────────────────────────────
 const STRIP_W = 750;
@@ -50,15 +52,15 @@ async function buildBaseStrip(w, h) {
   const bordeTop  = Math.round(BORDE_TOP * (h / STRIP_H));
   const scale     = w / STRIP_W;
 
-  // 1. Full cream background
-  const creamBuf = await sharp(FONDO_CLARO_PATH)
-    .resize(w, h, { fit: 'cover', position: 'centre' })
-    .toBuffer();
+  // 1. Full cream background (sólido)
+  const creamBuf = await sharp({
+    create: { width: w, height: h, channels: 3, background: CREAM },
+  }).png().toBuffer();
 
-  // 2. Blue wood top section
-  const blueBuf = await sharp(FONDO_AZUL_PATH)
-    .resize(w, topH, { fit: 'cover', position: 'centre' })
-    .toBuffer();
+  // 2. Navy top section (sólido)
+  const blueBuf = await sharp({
+    create: { width: w, height: topH, channels: 3, background: NAVY },
+  }).png().toBuffer();
 
   // 3. Borde divider
   const bordeBuf = await sharp(BORDE_PATH)
