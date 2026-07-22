@@ -27,20 +27,21 @@ const STRIP_W = 750;
 const STRIP_H = 600;
 
 // ─── Section layout @2x ──────────────────────────────────────────────────────
-// TOP_H=370: textoTop al 54% = Y≈200 → 24px debajo del header overlay real (~176px).
-// BORDE_TOP=321, borde completo Y=321-428 ≤ 440 (área visible). CREAM_START=379.
-const TOP_H = 370;
+// Posición fija del logo en @2x: 245px (bien debajo del header overlay real).
+// TOP_H=400 da BORDE_TOP=351, borde Y=351-458, dentro del área visible (~470px).
+const TOP_H = 400;
+const TEXTO_TOP_2X = 245; // Y fija @2x donde empieza el logo, sin adivinar %
 
 const BORDE_SCALE   = STRIP_W / 2400;              // 0.3125
 const BORDE_H_SCL   = Math.round(341 * BORDE_SCALE); // 107
 const BORDE_BAR_SCL = Math.round(157 * BORDE_SCALE); // 49
-const BORDE_TOP     = TOP_H - BORDE_BAR_SCL;       // 321
+const BORDE_TOP     = TOP_H - BORDE_BAR_SCL;       // 351
 
-const CREAM_START = BORDE_TOP + Math.round(185 * BORDE_SCALE); // 379
+const CREAM_START = BORDE_TOP + Math.round(185 * BORDE_SCALE); // 409
 
-// Stamps: 32px debajo del borde
+// Stamps: 40px debajo del inicio de la sección crema
 const SLOT_X = [100, 165, 222, 277, 335, 392, 450, 510, 567, 622];
-const SLOT_Y = BORDE_TOP + BORDE_H_SCL + 32; // 321 + 107 + 32 = 460
+const SLOT_Y = CREAM_START + 40; // 449
 const PINE_W = 54;
 
 // ─── Build base strip ────────────────────────────────────────────────────────
@@ -73,9 +74,9 @@ async function buildBaseStrip(w, h) {
   const textoMeta    = await sharp(textoTrimBuf).metadata();
   const ar = textoMeta.width / textoMeta.height;
 
-  // Caja 680×100 @2x — logo bien visible, 21px de respiro antes del borde
+  // Caja 680×95 @2x — logo visible, 11px de respiro antes del borde
   const maxTW = Math.round(680 * scale);
-  const maxTH = Math.round(100 * (h / STRIP_H));
+  const maxTH = Math.round(95 * (h / STRIP_H));
   let tw, th;
   if (ar >= maxTW / maxTH) {
     tw = maxTW; th = Math.round(maxTW / ar);
@@ -85,8 +86,8 @@ async function buildBaseStrip(w, h) {
 
   const textoBuf  = await sharp(textoTrimBuf).resize(tw, th).toBuffer();
   const textoLeft = Math.round((w - tw) / 2);
-  // 54% del topH → Y≈200 @2x, 24px debajo del header overlay real (~176px)
-  const textoTop  = Math.round(topH * 0.54);
+  // Posición fija escalada desde TEXTO_TOP_2X=245: garantiza clearance del header
+  const textoTop  = Math.round(TEXTO_TOP_2X * (h / STRIP_H));
 
   // 5. Composite
   return sharp(creamBuf)
