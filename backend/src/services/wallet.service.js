@@ -165,10 +165,15 @@ async function generatePassBuffer(customerData) {
   );
 
   // Inyectar strip image dinámica con los pinos del cliente
+  const customerInfo = {
+    name:         `${customerData.firstName} ${customerData.lastName}`,
+    pinesInCycle,
+    pinesLeft,
+  };
   try {
     const [strip2x, strip1x] = await Promise.all([
-      generateStripImage(stampsEarned, '2x'),
-      generateStripImage(stampsEarned, '1x'),
+      generateStripImage(stampsEarned, '2x', customerInfo),
+      generateStripImage(stampsEarned, '1x', customerInfo),
     ]);
     pass.addBuffer('strip.png',    strip1x);
     pass.addBuffer('strip@2x.png', strip2x);
@@ -190,14 +195,6 @@ async function generatePassBuffer(customerData) {
     label:         'PINOS',
     value:         `${pinesInCycle}/120`,
     textAlignment: 'PKTextAlignmentRight',
-  });
-  pass.secondaryFields.push(
-    { key: 'name', label: 'CLIENTE', value: `${customerData.firstName} ${customerData.lastName}` }
-  );
-  pass.auxiliaryFields.push({
-    key:   'reward',
-    label: pinesLeft === 0 ? '🎉 BEBIDA LISTA' : 'PARA BEBIDA GRATIS',
-    value: pinesLeft === 0 ? '¡Canjea con el staff!' : `${pinesLeft} Pinos más`,
   });
   pass.backFields.push(
     { key: 'how',      label: '¿Cómo funciona?',    value: '1 Pino por cada $10 MXN gastados. Muestra tu tarjeta al staff antes de pagar.' },

@@ -121,41 +121,98 @@ async function preparePino(targetWidth) {
     .png().toBuffer();
 }
 
+// ─── XML escape helper ────────────────────────────────────────────────────────
+
+function escXml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+// ─── SVG bold text overlay (sección crema) ───────────────────────────────────
+
+async function buildTextOverlay(w, h, customerInfo) {
+  const { name, pinesInCycle, pinesLeft } = customerInfo;
+  const sc = w / STRIP_W;
+
+  const nameStr = String(name).toUpperCase();
+
+  const labelFontSz  = Math.round(11 * sc);
+  const nameFontSz   = Math.round((nameStr.length > 22 ? 19 : 23) * sc);
+  const pinesFontSz  = Math.round(20 * sc);
+  const rewardFontSz = Math.round(16 * sc);
+
+  // Baselines relativas a CREAM_START — todo dentro del área visible @2x (~Y<467)
+  const labelY  = Math.round((CREAM_START + 13) * sc);  // 422 @2x
+  const nameY   = Math.round((CREAM_START + 34) * sc);  // 443 @2x
+  const rewardY = Math.round((CREAM_START + 54) * sc);  // 463 @2x
+
+  const padX   = Math.round(40 * sc);
+  const rightX = Math.round(710 * sc);
+  const lspc   = Math.round(2 * sc);
+
+  const pinesStr  = pinesLeft === 0 ? '¡BEBIDA LISTA!' : `${pinesInCycle}/120 PINOS`;
+  const rewardStr = pinesLeft === 0
+    ? 'Muéstrame al staff para canjear'
+    : `${pinesLeft} Pinos más para tu bebida gratis`;
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+  <text x="${padX}" y="${labelY}" font-family="sans-serif" font-weight="700" font-size="${labelFontSz}" letter-spacing="${lspc}" fill="#8C5F0F">CLIENTE</text>
+  <text x="${rightX}" y="${labelY}" font-family="sans-serif" font-weight="700" font-size="${labelFontSz}" letter-spacing="${lspc}" fill="#8C5F0F" text-anchor="end">PINOS</text>
+  <text x="${padX}" y="${nameY}" font-family="sans-serif" font-weight="900" font-size="${nameFontSz}" letter-spacing="${Math.round(1 * sc)}" fill="#1B2F56">${escXml(nameStr)}</text>
+  <text x="${rightX}" y="${nameY}" font-family="sans-serif" font-weight="900" font-size="${pinesFontSz}" fill="#1B2F56" text-anchor="end">${escXml(pinesStr)}</text>
+  <text x="${padX}" y="${rewardY}" font-family="sans-serif" font-weight="700" font-size="${rewardFontSz}" fill="#8C5F0F">${escXml(rewardStr)}</text>
+</svg>`;
+
+  return Buffer.from(svg);
+}
+
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 /**
- * Genera strip.png con N pino stamps.
+ * Genera strip.png con N pino stamps y texto en negrita del cliente.
  * @param {number} stampsEarned 0–10
  * @param {'2x'|'1x'} resolution
+ * @param {{ name: string, pinesInCycle: number, pinesLeft: number }|null} customerInfo
  * @returns {Promise<Buffer>} PNG buffer
  */
-async function generateStripImage(stampsEarned, resolution = '2x') {
+async function generateStripImage(stampsEarned, resolution = '2x', customerInfo = null) {
   const is2x = resolution === '2x';
   const w    = is2x ? STRIP_W : Math.round(STRIP_W / 2);
   const h    = is2x ? STRIP_H : Math.round(STRIP_H / 2);
   const sc   = is2x ? 1 : 0.5;
 
   const pineW  = Math.round(PINE_W * sc);
-  const slotY  = Math.round(SLOT_Y * sc);
+  // Con texto en la sección crema, los stamps bajan a Y≈490 @2x (visibles en iPhone)
+  const stampY = Math.round((customerInfo ? 490 : SLOT_Y) * sc);
   const slotXs = SLOT_X.map(x => Math.round(x * sc));
 
-  const baseBuf = await buildBaseStrip(w, h);
+  const baseBuf    = await buildBaseStrip(w, h);
+  const composites = [];
 
-  if (stampsEarned <= 0) {
-    return sharp(baseBuf).png({ compressionLevel: 6 }).toBuffer();
+  if (stampsEarned > 0) {
+    const pinoBuf  = await preparePino(pineW);
+    const pinoMeta = await sharp(pinoBuf).metadata();
+    const pineH    = pinoMeta.height;
+    for (let i = 0; i < Math.min(stampsEarned, 10); i++) {
+      composites.push({
+        input: pinoBuf,
+        left:  Math.round(slotXs[i] - pineW / 2),
+        top:   Math.round(stampY - pineH / 2),
+      });
+    }
   }
 
-  const pinoBuf  = await preparePino(pineW);
-  const pinoMeta = await sharp(pinoBuf).metadata();
-  const pineH    = pinoMeta.height;
+  if (customerInfo) {
+    const textBuf = await buildTextOverlay(w, h, customerInfo);
+    composites.push({ input: textBuf, left: 0, top: 0 });
+  }
 
-  const composites = [];
-  for (let i = 0; i < Math.min(stampsEarned, 10); i++) {
-    composites.push({
-      input: pinoBuf,
-      left:  Math.round(slotXs[i] - pineW / 2),
-      top:   Math.round(slotY - pineH / 2),
-    });
+  if (!composites.length) {
+    return sharp(baseBuf).png({ compressionLevel: 6 }).toBuffer();
   }
 
   return sharp(baseBuf)
