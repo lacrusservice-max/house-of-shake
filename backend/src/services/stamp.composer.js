@@ -27,20 +27,20 @@ const STRIP_W = 750;
 const STRIP_H = 600;
 
 // ─── Section layout @2x ──────────────────────────────────────────────────────
-// TOP_H=320: logo al 44% del topH (Y≈141), 20px de respiro antes del borde.
-// CREAM_START=329 dentro del área visible del strip.
-const TOP_H = 320;
+// TOP_H=340: logo al 50% del topH (Y≈170) → 40px debajo del header overlay (~130px).
+// Gap borde: 291-280 = 11px. CREAM_START=349 dentro del área visible.
+const TOP_H = 340;
 
 const BORDE_SCALE   = STRIP_W / 2400;              // 0.3125
 const BORDE_H_SCL   = Math.round(341 * BORDE_SCALE); // 107
 const BORDE_BAR_SCL = Math.round(157 * BORDE_SCALE); // 49
-const BORDE_TOP     = TOP_H - BORDE_BAR_SCL;       // 271
+const BORDE_TOP     = TOP_H - BORDE_BAR_SCL;       // 291
 
-const CREAM_START = BORDE_TOP + Math.round(185 * BORDE_SCALE); // 329
+const CREAM_START = BORDE_TOP + Math.round(185 * BORDE_SCALE); // 349
 
-// Stamps: 42px debajo del borde, dentro del área visible del strip
+// Stamps: 42px debajo del borde
 const SLOT_X = [100, 165, 222, 277, 335, 392, 450, 510, 567, 622];
-const SLOT_Y = BORDE_TOP + BORDE_H_SCL + 42; // 271 + 107 + 42 = 420
+const SLOT_Y = BORDE_TOP + BORDE_H_SCL + 42; // 291 + 107 + 42 = 440
 const PINE_W = 54;
 
 // ─── Build base strip ────────────────────────────────────────────────────────
@@ -85,8 +85,8 @@ async function buildBaseStrip(w, h) {
 
   const textoBuf  = await sharp(textoTrimBuf).resize(tw, th).toBuffer();
   const textoLeft = Math.round((w - tw) / 2);
-  // 44% del topH → debajo del header overlay (~130px), 20px antes del borde
-  const textoTop  = Math.round(topH * 0.44);
+  // 50% del topH → 40px debajo del header overlay (~130px), 11px antes del borde
+  const textoTop  = Math.round(topH * 0.50);
 
   // 5. Composite
   return sharp(creamBuf)
