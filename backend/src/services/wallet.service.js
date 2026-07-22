@@ -189,10 +189,13 @@ async function generatePassBuffer(customerData) {
     value:         `${pinesInCycle}/120`,
     textAlignment: 'PKTextAlignmentRight',
   });
-  pass.secondaryFields.push(
-    { key: 'name', label: 'CLIENTE', value: `${customerData.firstName} ${customerData.lastName}` }
-  );
-  pass.auxiliaryFields.push({
+  // Para generic pass, primaryFields aparece grande en el centro de la tarjeta
+  pass.primaryFields.push({
+    key:   'name',
+    label: 'CLIENTE',
+    value: `${customerData.firstName} ${customerData.lastName}`,
+  });
+  pass.secondaryFields.push({
     key:   'reward',
     label: pinesLeft === 0 ? '🎉 BEBIDA LISTA' : 'PARA BEBIDA GRATIS',
     value: pinesLeft === 0 ? '¡Canjea con el staff!' : `${pinesLeft} Pinos más`,
