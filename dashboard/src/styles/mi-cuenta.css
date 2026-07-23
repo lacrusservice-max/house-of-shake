@@ -669,3 +669,23 @@
   .mc-card-body { padding: 20px; }
   .mc-nav { padding: 0 16px; }
 }
+
+/* ── Menu.jsx responsive (/menu page) ── */
+@media (max-width: 480px) {
+  /* Nav: brand logo + text wraps and overflows the fixed 64px height when the
+     Rappi/Uber Eats pills are also crammed in — drop the pills here, the
+     Order Banner right below already gives them full-size prominence. */
+  .menu-nav { padding: 0 16px; }
+  /* !important needed on both: these elements also carry inline styles for
+     the same properties (fontSize / display), which always outrank an
+     external class rule regardless of media query. */
+  .menu-nav-brand-txt { font-size: 16px !important; }
+  .menu-nav-orders { display: none !important; }
+}
+
+@media (max-width: 560px) {
+  /* Modal order buttons: the wide Uber Eats wordmark + "Pedir en" text don't
+     fit side-by-side in a 50%-width column — wraps to 2 lines and bloats
+     both buttons' height. Stack them full-width instead. */
+  .modal-order-row { flex-direction: column; }
+}

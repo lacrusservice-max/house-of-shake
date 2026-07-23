@@ -140,16 +140,16 @@ export default function Menu() {
     <div style={{ minHeight: '100vh', background: '#f7f5f0', fontFamily: "'Montserrat', sans-serif" }}>
 
       {/* ── NAV ── */}
-      <nav style={{
+      <nav className="menu-nav" style={{
         position: 'sticky', top: 0, zIndex: 100,
         background: '#1B2F56', borderBottom: '1px solid rgba(200,150,30,.2)',
         padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64,
       }}>
-        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-          <img src="/logo.png" alt="House of Shake" style={{ width: 34, height: 34, objectFit: 'contain', borderRadius: 8 }} />
-          <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 20, color: '#c8961e', letterSpacing: 2 }}>HOUSE OF SHAKE</span>
+        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', minWidth: 0 }}>
+          <img src="/logo.png" alt="House of Shake" style={{ width: 34, height: 34, objectFit: 'contain', borderRadius: 8, flexShrink: 0 }} />
+          <span className="menu-nav-brand-txt" style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 20, color: '#c8961e', letterSpacing: 2, whiteSpace: 'nowrap' }}>HOUSE OF SHAKE</span>
         </Link>
-        <div style={{ display: 'flex', gap: 12 }}>
+        <div className="menu-nav-orders" style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
           <OrderBtn href={RAPPI_URL} color="#FF441F" logo={RAPPI_LOGO_WHITE} alt="Rappi" />
           <OrderBtn href={UBER_URL}  color="#06C167" logo={UBER_LOGO_WHITE}  alt="Uber Eats" />
         </div>
@@ -239,12 +239,12 @@ export default function Menu() {
             <div style={{
               width: 56, height: 56, borderRadius: 16, background: currentCat.gradient,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: `0 8px 24px ${currentCat.color}40`,
+              boxShadow: `0 8px 24px ${currentCat.color}40`, flexShrink: 0,
             }}>
               {(() => { const CatIcon = CAT_ICONS[currentCat.id] || CoffeeIcon; return <CatIcon size={28} color="#fff" />; })()}
             </div>
-            <div>
-              <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 38, color: '#111', margin: 0, letterSpacing: 1 }}>
+            <div style={{ minWidth: 0 }}>
+              <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 'clamp(26px,7vw,38px)', color: '#111', margin: 0, letterSpacing: 1, whiteSpace: 'nowrap' }}>
                 {currentCat.name}
               </h2>
               <p style={{ color: '#999', fontSize: 13, margin: 0 }}>{filtered.length} productos</p>
@@ -265,25 +265,25 @@ export default function Menu() {
         {activeCategory === 'all' && !search ? (
           MENU.map(cat => (
             <div key={cat.id} style={{ marginBottom: 60 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, flexWrap: 'wrap', rowGap: 10 }}>
                 <div style={{
                   width: 40, height: 40, borderRadius: 12, background: cat.gradient,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: `0 4px 12px ${cat.color}30`,
+                  boxShadow: `0 4px 12px ${cat.color}30`, flexShrink: 0,
                 }}>
                   {(() => { const CatIcon = CAT_ICONS[cat.id] || CoffeeIcon; return <CatIcon size={20} color="#fff" />; })()}
                 </div>
-                <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 30, color: '#111', margin: 0, letterSpacing: 1 }}>
+                <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 'clamp(20px,5vw,30px)', color: '#111', margin: 0, letterSpacing: 1, whiteSpace: 'nowrap' }}>
                   {cat.name}
                 </h2>
-                <div style={{ flex: 1, height: 1, background: '#f0ede6', marginLeft: 8 }} />
+                <div style={{ flex: '1 1 20px', height: 1, background: '#f0ede6', marginLeft: 8 }} />
                 <button
                   onClick={() => setActiveCategory(cat.name)}
                   style={{
                     background: 'none', border: `1px solid ${cat.color}40`, color: cat.color,
                     padding: '4px 14px', borderRadius: 20, fontSize: 11, fontWeight: 700,
                     cursor: 'pointer', letterSpacing: 1, fontFamily: 'inherit',
-                    textTransform: 'uppercase',
+                    textTransform: 'uppercase', whiteSpace: 'nowrap', flexShrink: 0,
                   }}
                 >
                   Ver todos →
@@ -530,22 +530,22 @@ function ProductModal({ item, onClose }) {
           <p style={{ fontSize: 14, color: '#666', lineHeight: 1.7, margin: '0 0 24px' }}>
             {item.desc}
           </p>
-          <div style={{ display: 'flex', gap: 12 }}>
-            <a href={RAPPI_URL} target="_blank" rel="noopener noreferrer" style={{
+          <div className="modal-order-row" style={{ display: 'flex', gap: 12 }}>
+            <a href={RAPPI_URL} target="_blank" rel="noopener noreferrer" className="modal-order-btn" style={{
               flex: 1, background: '#FF441F', color: '#fff', textDecoration: 'none',
               padding: '14px', borderRadius: 14, fontSize: 14, fontWeight: 800,
               textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             }}>
-              <span>Pedir en</span>
-              <img src={RAPPI_LOGO_WHITE} alt="Rappi" style={{ height: 15, width: 'auto' }} />
+              <span style={{ whiteSpace: 'nowrap' }}>Pedir en</span>
+              <img src={RAPPI_LOGO_WHITE} alt="Rappi" style={{ height: 15, width: 'auto', flexShrink: 0 }} />
             </a>
-            <a href={UBER_URL} target="_blank" rel="noopener noreferrer" style={{
+            <a href={UBER_URL} target="_blank" rel="noopener noreferrer" className="modal-order-btn" style={{
               flex: 1, background: '#06C167', color: '#fff', textDecoration: 'none',
               padding: '14px', borderRadius: 14, fontSize: 14, fontWeight: 800,
               textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             }}>
-              <span>Pedir en</span>
-              <img src={UBER_LOGO_WHITE} alt="Uber Eats" style={{ height: 15, width: 'auto' }} />
+              <span style={{ whiteSpace: 'nowrap' }}>Pedir en</span>
+              <img src={UBER_LOGO_WHITE} alt="Uber Eats" style={{ height: 15, width: 'auto', flexShrink: 0 }} />
             </a>
           </div>
         </div>

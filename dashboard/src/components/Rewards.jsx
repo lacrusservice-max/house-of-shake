@@ -92,9 +92,10 @@ export default function Rewards({ isLoggedIn = false }) {
                 <div className="hs-node-dot">
                   {n.final ? <GiftIcon size={30} color="#1B2F56" animated /> : n.pinos}
                 </div>
-                {!n.final && <span className="hs-node-pinos">{n.pinos} Pinos</span>}
-                {n.final && <span className="hs-node-pinos">120 Pinos</span>}
-                <span className="hs-node-lbl">{n.label}</span>
+                <div className="hs-node-text">
+                  <span className="hs-node-pinos">{n.final ? '120 Pinos' : `${n.pinos} Pinos`}</span>
+                  <span className="hs-node-lbl">{n.label}</span>
+                </div>
               </div>
             ))}
           </div>

@@ -15,6 +15,12 @@
   position:fixed;pointer-events:none;z-index:9999;
   transition:transform .16s ease,background .16s ease;top:0;left:0;transform:translate(-50%,-50%) }
 #hs-cur.h { transform:translate(-50%,-50%) scale(2.5);background:rgba(245,200,66,.15) }
+/* Touch devices have no mouse — hide the fake cursor dot, it just sits stuck at 0,0.
+   Also covers narrow viewports (phones/small tablets) as a safety net for
+   browsers/tools that don't report hover:none on resize. */
+@media (hover:none), (pointer:coarse), (max-width:900px) {
+  #hs-cur { display:none }
+}
 
 
 /* ── keyframes ── */
@@ -370,9 +376,10 @@
 .hs-node.final .hs-node-dot { background:linear-gradient(135deg,var(--gold),#ffd968);border-color:#fff3cf;
   box-shadow:0 0 34px rgba(245,200,66,.65);width:64px;height:64px }
 .hs-ladder-box.on .hs-node.final .hs-node-dot { animation:ladderPop .6s var(--tr) 1.6s backwards, badgepulse 2.4s ease-in-out 2.3s infinite }
-.hs-node-pinos { font-family:'Bebas Neue',sans-serif;font-size:1.45rem;letter-spacing:1px;
+.hs-node-text { display:block }
+.hs-node-pinos { display:block;font-family:'Bebas Neue',sans-serif;font-size:1.45rem;letter-spacing:1px;
   color:var(--gold);margin-top:14px }
-.hs-node-lbl { font-size:10.5px;letter-spacing:.5px;color:rgba(251,247,240,.6);margin-top:4px;
+.hs-node-lbl { display:block;font-size:10.5px;letter-spacing:.5px;color:rgba(251,247,240,.6);margin-top:4px;
   text-align:center;max-width:110px;line-height:1.4 }
 .hs-node.final .hs-node-lbl { color:var(--gold);font-weight:700 }
 
@@ -465,8 +472,27 @@
   .hs-ftgrid { grid-template-columns:1fr }
   /* rewards mobile */
   .hs-benefits { grid-template-columns:1fr }
-  .hs-ladder { flex-wrap:wrap;gap:22px 0;justify-content:center }
+  /* Ladder: horizontal row-of-circles breaks down at narrow widths (labels
+     overflow into neighboring nodes) — switch to a vertical timeline list:
+     dot on the left, text on the right, one milestone per row. */
   .hs-ladder-track { display:none }
-  .hs-node { width:33.33% }
-  .hs-node-lbl { max-width:90px }
+  .hs-ladder { flex-direction:column;align-items:stretch;gap:18px }
+  .hs-node { width:100%;flex-direction:row;align-items:center;justify-content:flex-start;
+    gap:16px;text-align:left }
+  .hs-node-dot { flex-shrink:0 }
+  .hs-node-text { flex:1;min-width:0 }
+  .hs-node-pinos { margin-top:0 }
+  .hs-node-lbl { text-align:left;max-width:none }
+  /* Accordion: 5 horizontal flex tabs shrink to ~29px on narrow screens —
+     untappable and the vertical label text is unreadable. Switch to a
+     stacked vertical accordion: collapsed rows, tap to expand downward. */
+  #hs-accordion { padding:56px 16px }
+  .hs-acc-wrap { flex-direction:column;height:auto;gap:8px }
+  .hs-ap, .hs-ap:first-child, .hs-ap.apon { flex:none;width:100%;height:68px;
+    transition:height .5s var(--tr) }
+  .hs-ap.apon { height:300px }
+  .hs-ap-lbl { writing-mode:horizontal-tb;left:20px;right:20px;top:50%;
+    transform:translateY(-50%);font-size:.95rem;letter-spacing:2px;text-align:left }
+  .hs-ap-txt { left:20px;right:20px;bottom:20px }
+  .hs-ap-title { font-size:1.7rem }
 }
