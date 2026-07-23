@@ -438,12 +438,10 @@ export default function Landing() {
             </a>
             <div className="hs-del-btns">
               <a href="https://www.uber.com" target="_blank" rel="noreferrer" className="hs-dchip">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="4" fill="#1A4DB3"/><path d="M6 12h12M12 6v12" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>
-                Uber Eats
+                <img src="/images/uber-eats-logo.svg" alt="Uber Eats" style={{ height: 13, width: 'auto' }} />
               </a>
               <a href="https://www.rappi.com.mx" target="_blank" rel="noreferrer" className="hs-dchip">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="4" fill="#FF441F"/><path d="M8 8l4 4-4 4M12 8l4 4-4 4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                Rappi
+                <img src="/images/rappi-logo.svg" alt="Rappi" style={{ height: 13, width: 'auto' }} />
               </a>
             </div>
           </div>
@@ -461,8 +459,12 @@ export default function Landing() {
             <p className="hs-ft-p">Specialty coffee & cold shakes.<br />Av. Teziutlán Nte. 42, La Paz,<br />Puebla, Pue. México.</p>
             <div style={{ display:'flex', gap:10, marginTop:20 }}>
               <a href="https://instagram.com" target="_blank" rel="noreferrer" className="hs-dchip" style={{ padding:'7px 12px' }}>IG</a>
-              <a href="https://www.uber.com" target="_blank" rel="noreferrer" className="hs-dchip" style={{ padding:'7px 12px' }}>Uber</a>
-              <a href="https://www.rappi.com.mx" target="_blank" rel="noreferrer" className="hs-dchip" style={{ padding:'7px 12px' }}>Rappi</a>
+              <a href="https://www.uber.com" target="_blank" rel="noreferrer" className="hs-dchip" style={{ padding:'7px 12px' }}>
+                <img src="/images/uber-eats-logo.svg" alt="Uber Eats" style={{ height: 11, width: 'auto' }} />
+              </a>
+              <a href="https://www.rappi.com.mx" target="_blank" rel="noreferrer" className="hs-dchip" style={{ padding:'7px 12px' }}>
+                <img src="/images/rappi-logo.svg" alt="Rappi" style={{ height: 11, width: 'auto' }} />
+              </a>
             </div>
           </div>
           <div>

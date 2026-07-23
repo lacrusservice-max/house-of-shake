@@ -5,6 +5,8 @@ import { CoffeeIcon, IceIcon, LeafIcon, BerryIcon, ChaiIcon, ShakeIcon, PastryIc
 
 const RAPPI_URL = 'https://www.rappi.com.mx/restaurantes/1930210777-house-of-shake';
 const UBER_URL  = 'https://www.ubereats.com/mx/store/house-of-shake-puebla/x1IW6WRuX1mMKK2aNKKVEQ';
+const RAPPI_LOGO_WHITE = '/images/rappi-logo-white.svg';
+const UBER_LOGO_WHITE  = '/images/uber-eats-logo-white.svg';
 const IMG = (hash) => `https://tb-static.uber.com/prod/image-proc/processed_images/${hash}/c67fc65e9b4e16a553eb7574fba090f1.jpeg`;
 
 const CAT_ICONS = {
@@ -148,8 +150,8 @@ export default function Menu() {
           <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 20, color: '#c8961e', letterSpacing: 2 }}>HOUSE OF SHAKE</span>
         </Link>
         <div style={{ display: 'flex', gap: 12 }}>
-          <OrderBtn href={RAPPI_URL} color="#FF441F" label="Rappi" />
-          <OrderBtn href={UBER_URL}  color="#06C167" label="Uber Eats" />
+          <OrderBtn href={RAPPI_URL} color="#FF441F" logo={RAPPI_LOGO_WHITE} alt="Rappi" />
+          <OrderBtn href={UBER_URL}  color="#06C167" logo={UBER_LOGO_WHITE}  alt="Uber Eats" />
         </div>
       </nav>
 
@@ -193,8 +195,8 @@ export default function Menu() {
       {/* ── ORDER BANNER ── */}
       <div style={{ background: '#fff', borderBottom: '1px solid #f0ede6', padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 13, color: '#666', fontWeight: 600, display:'flex', alignItems:'center', gap:6 }}><DeliveryIcon size={16} color="#666" /> Pide a domicilio ahora:</span>
-        <OrderBtn href={RAPPI_URL} color="#FF441F" label="Ordenar en Rappi" large />
-        <OrderBtn href={UBER_URL}  color="#06C167" label="Ordenar en Uber Eats" large />
+        <OrderBtn href={RAPPI_URL} color="#FF441F" logo={RAPPI_LOGO_WHITE} alt="Rappi" prefix="Ordenar en" large />
+        <OrderBtn href={UBER_URL}  color="#06C167" logo={UBER_LOGO_WHITE}  alt="Uber Eats" prefix="Ordenar en" large />
       </div>
 
       {/* ── CATEGORY TABS ── */}
@@ -322,8 +324,8 @@ export default function Menu() {
           Delivery a tu puerta en ~35 minutos
         </p>
         <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <OrderBtn href={RAPPI_URL} color="#FF441F" label="Pedir en Rappi" large />
-          <OrderBtn href={UBER_URL}  color="#06C167" label="Pedir en Uber Eats" large />
+          <OrderBtn href={RAPPI_URL} color="#FF441F" logo={RAPPI_LOGO_WHITE} alt="Rappi" prefix="Pedir en" large />
+          <OrderBtn href={UBER_URL}  color="#06C167" logo={UBER_LOGO_WHITE}  alt="Uber Eats" prefix="Pedir en" large />
         </div>
       </div>
 
@@ -429,7 +431,7 @@ function ProductCard({ item, color, gradient, onSelect, showCategory }) {
               transition: 'opacity .15s',
             }}
           >
-            <DeliveryIcon size={13} color="#fff" /> Rappi
+            <img src={RAPPI_LOGO_WHITE} alt="Rappi" style={{ height: 12, width: 'auto' }} />
           </a>
           <a
             href={UBER_URL}
@@ -443,7 +445,7 @@ function ProductCard({ item, color, gradient, onSelect, showCategory }) {
               transition: 'opacity .15s',
             }}
           >
-            <DeliveryIcon size={13} color="#fff" /> Uber Eats
+            <img src={UBER_LOGO_WHITE} alt="Uber Eats" style={{ height: 12, width: 'auto' }} />
           </a>
         </div>
       </div>
@@ -534,14 +536,16 @@ function ProductModal({ item, onClose }) {
               padding: '14px', borderRadius: 14, fontSize: 14, fontWeight: 800,
               textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             }}>
-              <DeliveryIcon size={16} color="#fff" /> Pedir en Rappi
+              <span>Pedir en</span>
+              <img src={RAPPI_LOGO_WHITE} alt="Rappi" style={{ height: 15, width: 'auto' }} />
             </a>
             <a href={UBER_URL} target="_blank" rel="noopener noreferrer" style={{
               flex: 1, background: '#06C167', color: '#fff', textDecoration: 'none',
               padding: '14px', borderRadius: 14, fontSize: 14, fontWeight: 800,
               textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             }}>
-              <DeliveryIcon size={16} color="#fff" /> Pedir en Uber Eats
+              <span>Pedir en</span>
+              <img src={UBER_LOGO_WHITE} alt="Uber Eats" style={{ height: 15, width: 'auto' }} />
             </a>
           </div>
         </div>
@@ -571,7 +575,7 @@ function TabBtn({ active, onClick, label, icon, color }) {
 }
 
 /* ─── Order Button ─── */
-function OrderBtn({ href, color, label, large }) {
+function OrderBtn({ href, color, logo, alt, prefix, large }) {
   return (
     <a
       href={href}
@@ -582,7 +586,7 @@ function OrderBtn({ href, color, label, large }) {
         padding: large ? '12px 24px' : '8px 16px',
         borderRadius: 50,
         fontSize: large ? 14 : 12,
-        fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6,
+        fontWeight: 800, display: 'flex', alignItems: 'center', gap: large ? 8 : 6,
         fontFamily: "'Montserrat',sans-serif",
         boxShadow: `0 4px 16px ${color}40`,
         transition: 'transform .15s, box-shadow .15s',
@@ -590,7 +594,8 @@ function OrderBtn({ href, color, label, large }) {
       onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.04)'; }}
       onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
     >
-      <DeliveryIcon size={large ? 16 : 13} color="#fff" /> {label}
+      {prefix && <span>{prefix}</span>}
+      <img src={logo} alt={alt} style={{ height: large ? 15 : 12, width: 'auto', display: 'block' }} />
     </a>
   );
 }
