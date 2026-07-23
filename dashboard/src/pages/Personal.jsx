@@ -10,8 +10,8 @@ const PERIODS = [
 ];
 
 const ROLE_LABEL = { admin: '👑 Admin', staff: '👤 Staff' };
-const ROLE_COLOR = { admin: '#c85032', staff: '#555' };
-const ROLE_BG    = { admin: '#fff4f2', staff: '#f5f5f5' };
+const ROLE_COLOR = { admin: '#8A6205', staff: '#555' };
+const ROLE_BG    = { admin: 'rgba(245,200,66,.14)', staff: '#f5f5f5' };
 
 export default function Personal() {
   const [staff, setStaff]       = useState([]);
@@ -116,13 +116,13 @@ export default function Personal() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 3, color: '#c85032', textTransform: 'uppercase', marginBottom: 6 }}>Gestión de accesos</div>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 3, color: '#8A6205', textTransform: 'uppercase', marginBottom: 6 }}>Gestión de accesos</div>
           <h1 style={{ fontSize: 30, fontWeight: 900, color: '#111', margin: 0 }}>Personal</h1>
           <p style={{ color: '#888', fontSize: 13, marginTop: 4 }}>Cuentas de acceso al sistema</p>
         </div>
         <button onClick={() => { setShowForm(true); setError(''); setSuccess(''); }} style={{
-          padding: '10px 20px', background: '#c85032', color: '#fff',
-          border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13,
+          padding: '10px 20px', background: '#F5C842', color: '#1B2F56',
+          border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 13,
           cursor: 'pointer', fontFamily: 'inherit',
         }}>
           + Nuevo usuario
@@ -131,9 +131,9 @@ export default function Personal() {
 
       {/* Alerts */}
       {error && (
-        <div style={{ background: '#fff0ee', border: '1px solid #ffd0c8', color: '#c85032', borderRadius: 10, padding: '12px 16px', marginBottom: 16, fontSize: 13 }}>
+        <div style={{ background: 'rgba(224,92,92,.08)', border: '1px solid rgba(224,92,92,.25)', color: '#E05C5C', borderRadius: 10, padding: '12px 16px', marginBottom: 16, fontSize: 13 }}>
           {error}
-          <button onClick={() => setError('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: '#c85032', fontSize: 16, lineHeight: 1 }}>✕</button>
+          <button onClick={() => setError('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: '#E05C5C', fontSize: 16, lineHeight: 1 }}>✕</button>
         </div>
       )}
       {success && (
@@ -145,7 +145,7 @@ export default function Personal() {
 
       {/* Create form */}
       {showForm && (
-        <div style={{ background: '#fff', borderRadius: 16, padding: '24px', marginBottom: 24, border: '2px solid #c85032' }}>
+        <div style={{ background: '#fff', borderRadius: 16, padding: '24px', marginBottom: 24, border: '2px solid #F5C842' }}>
           <h3 style={{ fontSize: 16, fontWeight: 800, color: '#111', marginBottom: 20 }}>Crear nueva cuenta</h3>
           <form onSubmit={handleCreate}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
@@ -176,9 +176,9 @@ export default function Personal() {
               <strong>Staff:</strong> puede escanear QR, acumular y canjear puntos. No ve datos privados de clientes.<br/>
               <strong>Admin:</strong> acceso total al sistema: clientes, transacciones, finanzas, configuración.
             </div>
-            {error && <div style={{ color: '#c85032', fontSize: 12, marginBottom: 10 }}>{error}</div>}
+            {error && <div style={{ color: '#E05C5C', fontSize: 12, marginBottom: 10 }}>{error}</div>}
             <div style={{ display: 'flex', gap: 10 }}>
-              <button type="submit" disabled={saving} style={{ padding: '10px 24px', background: '#c85032', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+              <button type="submit" disabled={saving} style={{ padding: '10px 24px', background: '#F5C842', color: '#1B2F56', border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
                 {saving ? 'Creando…' : 'Crear cuenta'}
               </button>
               <button type="button" onClick={() => setShowForm(false)} style={{ padding: '10px 20px', background: '#f5f5f5', color: '#555', border: 'none', borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -248,8 +248,8 @@ export default function Personal() {
                   title={user.permanent && user.active ? 'Cuenta permanente' : user.active ? 'Desactivar' : 'Activar'}
                   style={{
                     ...S.actionBtn,
-                    background: user.active ? '#fff0ee' : '#f0fff4',
-                    color: user.active ? '#c85032' : '#2c9e5e',
+                    background: user.active ? 'rgba(245,200,66,.14)' : '#f0fff4',
+                    color: user.active ? '#8A6205' : '#2c9e5e',
                     opacity: user.permanent && user.active ? 0.4 : 1,
                     cursor: user.permanent && user.active ? 'not-allowed' : 'pointer',
                   }}>
@@ -276,8 +276,8 @@ export default function Personal() {
               <button key={p.value} onClick={() => { setStatsPeriod(p.value); loadStaffStats(p.value); }} style={{
                 padding: '5px 12px', borderRadius: 20, border: 'none', cursor: 'pointer',
                 fontWeight: 700, fontSize: 11, fontFamily: 'inherit',
-                background: statsPeriod === p.value ? '#c85032' : '#f5f5f5',
-                color: statsPeriod === p.value ? '#fff' : '#555',
+                background: statsPeriod === p.value ? '#F5C842' : '#f5f5f5',
+                color: statsPeriod === p.value ? '#1B2F56' : '#555',
               }}>
                 {p.label}
               </button>
@@ -313,7 +313,7 @@ export default function Personal() {
                     </td>
                     <td style={{ padding: '10px 10px', color: '#2c9e5e', fontWeight: 700 }}>+{s.ptsEarned.toLocaleString()}</td>
                     <td style={{ padding: '10px 10px', color: '#e8a020', fontWeight: 700 }}>-{s.ptsRedeemed.toLocaleString()}</td>
-                    <td style={{ padding: '10px 10px', color: '#c85032', fontWeight: 700 }}>
+                    <td style={{ padding: '10px 10px', color: '#8A6205', fontWeight: 700 }}>
                       {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(s.amountMxn)}
                     </td>
                     <td style={{ padding: '10px 10px', color: '#aaa', fontSize: 11 }}>

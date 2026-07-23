@@ -150,7 +150,7 @@ export default function Customers() {
               )}
               {!loading && customers.map(c => (
                 <tr key={c.id} style={{ borderBottom: '1px solid #f9f9f9', transition: 'background .1s' }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#fff4f2'}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(245,200,66,.08)'}
                   onMouseLeave={e => e.currentTarget.style.background = ''}>
                   <td style={{ padding: '12px 16px', fontWeight: 600, color: '#111' }}>{c.firstName} {c.lastName}</td>
                   <td style={{ padding: '12px 16px', color: '#888' }}>{c.email}</td>
@@ -159,7 +159,7 @@ export default function Customers() {
                   <td style={{ padding: '12px 16px', textAlign: 'center' }}>
                     <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
                       <button onClick={() => setSelected(c)}
-                        style={{ fontSize: 11, padding: '5px 10px', background: '#fff4f2', color: '#c85032', border: '1px solid #fecaca', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit' }}>
+                        style={{ fontSize: 11, padding: '5px 10px', background: 'rgba(245,200,66,.14)', color: '#8A6205', border: '1px solid rgba(245,200,66,.4)', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit' }}>
                         Ajustar
                       </button>
                       <button onClick={() => handlePush(c.id)}
@@ -203,7 +203,7 @@ export default function Customers() {
               </span>
               <div style={{ display: 'flex', gap: 6 }}>
                 <button onClick={() => setSelected(c)}
-                  style={{ fontSize: 11, padding: '6px 12px', background: '#fff4f2', color: '#c85032', border: '1px solid #fecaca', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit' }}>
+                  style={{ fontSize: 11, padding: '6px 12px', background: 'rgba(245,200,66,.14)', color: '#8A6205', border: '1px solid rgba(245,200,66,.4)', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit' }}>
                   Ajustar
                 </button>
                 <button onClick={() => handlePush(c.id)}
@@ -245,7 +245,7 @@ export default function Customers() {
                 Cancelar
               </button>
               <button onClick={handleAdjust}
-                style={{ flex: 1, padding: '11px', borderRadius: 10, background: '#c85032', color: '#fff', border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ flex: 1, padding: '11px', borderRadius: 10, background: '#F5C842', color: '#1B2F56', border: 'none', fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>
                 Aplicar
               </button>
             </div>
@@ -254,7 +254,7 @@ export default function Customers() {
 
             {!showResetPw ? (
               <button onClick={() => { setShowResetPw(true); setResetPwMsg(''); setNewPassword(''); }}
-                style={{ width: '100%', padding: '10px', borderRadius: 10, background: '#fef3e2', color: '#b45309', border: '1px solid #fde3b8', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ width: '100%', padding: '10px', borderRadius: 10, background: 'rgba(245,200,66,.14)', color: '#8A6205', border: '1px solid rgba(245,200,66,.4)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                 🔑 Restablecer contraseña — cliente no puede entrar
               </button>
             ) : (
@@ -272,7 +272,7 @@ export default function Customers() {
                     Cancelar
                   </button>
                   <button onClick={handleResetPassword}
-                    style={{ flex: 1, padding: '11px', borderRadius: 10, background: '#b45309', color: '#fff', border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    style={{ flex: 1, padding: '11px', borderRadius: 10, background: '#F5C842', color: '#1B2F56', border: 'none', fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>
                     Guardar contraseña
                   </button>
                 </div>

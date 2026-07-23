@@ -119,7 +119,7 @@ export default function Products() {
             {recomputing ? 'Recalculando…' : '🌲 Recalcular Pinos'}
           </button>
           <button onClick={openCreate}
-            className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition">
+            className="bg-[#F5C842] hover:bg-[#D9A62B] text-[#1B2F56] px-5 py-2.5 rounded-xl font-bold text-sm transition">
             + Agregar producto
           </button>
         </div>
@@ -204,12 +204,12 @@ export default function Products() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
                 <input required value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500" />
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#F5C842]" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
                 <input value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500" />
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#F5C842]" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -226,14 +226,14 @@ export default function Products() {
                           : p.pinosCost,
                       }));
                     }}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500" />
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#F5C842]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Costo de canje (Pinos) *</label>
                   <input required type="number" min="0" value={form.pinosCost}
                     onChange={e => setForm(p => ({ ...p, pinosCost: e.target.value }))}
                     placeholder="ej: 90"
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500" />
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#F5C842]" />
                   <p className="text-xs text-gray-400 mt-1">
                     1 Pino = $1. Se llena solo desde el precio; edítalo para una promo 🌲
                   </p>
@@ -243,7 +243,7 @@ export default function Products() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
                   <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#F5C842]">
                     {CATEGORIES.map(c => <option key={c} value={c}>{CATEGORY_LABELS[c] || c}</option>)}
                   </select>
                 </div>
@@ -251,7 +251,7 @@ export default function Products() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Orden</label>
                   <input type="number" min="0" value={form.sortOrder}
                     onChange={e => setForm(p => ({ ...p, sortOrder: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500" />
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#F5C842]" />
                 </div>
               </div>
               {editing && (
@@ -268,7 +268,7 @@ export default function Products() {
                   Cancelar
                 </button>
                 <button type="submit" disabled={saving}
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl text-sm font-semibold transition disabled:opacity-50">
+                  className="flex-1 bg-[#F5C842] hover:bg-[#D9A62B] text-[#1B2F56] py-2.5 rounded-xl text-sm font-bold transition disabled:opacity-50">
                   {saving ? 'Guardando...' : 'Guardar'}
                 </button>
               </div>

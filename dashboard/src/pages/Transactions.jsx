@@ -5,7 +5,7 @@ import { es } from 'date-fns/locale';
 
 const TX_TYPE = {
   EARN:          { label: 'Compra',     color: '#16a34a', bg: '#f0fdf4', border: '#86efac' },
-  REDEEM:        { label: 'Canje',      color: '#c85032', bg: '#fff4f2', border: '#fecaca' },
+  REDEEM:        { label: 'Canje',      color: '#8A6205', bg: 'rgba(245,200,66,.14)', border: 'rgba(245,200,66,.4)' },
   WELCOME_BONUS: { label: 'Bienvenida', color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
   EXPIRY:        { label: 'Expiración', color: '#666',    bg: '#f9fafb', border: '#e5e7eb' },
   ADJUSTMENT:    { label: 'Ajuste',     color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe' },

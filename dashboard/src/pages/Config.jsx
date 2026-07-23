@@ -64,7 +64,7 @@ export default function Config() {
               step={f.step}
               value={form[f.key] ?? ''}
               onChange={e => setForm({ ...form, [f.key]: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+              className="w-full px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#F5C842]"
             />
             {f.hint && <p className="text-xs text-gray-400 mt-1">{f.hint}</p>}
           </div>
@@ -75,7 +75,7 @@ export default function Config() {
         <button
           onClick={handleSave}
           disabled={loading}
-          className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition-colors disabled:opacity-60"
+          className="w-full py-3 bg-[#F5C842] hover:bg-[#D9A62B] text-[#1B2F56] font-bold rounded-xl transition-colors disabled:opacity-60"
         >
           {loading ? 'Guardando...' : 'Guardar Configuración'}
         </button>

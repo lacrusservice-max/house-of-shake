@@ -5,26 +5,27 @@ import { es } from 'date-fns/locale';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { PeopleIcon, StarIcon, GiftIcon, UserPlusIcon, LightningIcon, FlameIcon, RankIcon, CakeIcon, TrophyIcon, CheckIcon } from '../components/Icons';
 
-const engagementColors = { BRONZE: '#22c55e', SILVER: '#3b82f6', GOLD: '#f5c842' };
+const engagementColors = { BRONZE: '#5EC97A', SILVER: '#1A5BB5', GOLD: '#F5C842' };
 const engagementLabels = { BRONZE: 'Nuevos (1–39 🌲)', SILVER: 'Activos (40–119 🌲)', GOLD: 'Fieles (120+ 🌲)' };
 const txTypeLabel = {
   EARN: 'Pinos ganados', REDEEM: 'Canje', WELCOME_BONUS: 'Bienvenida',
   EXPIRY: 'Expiración', ADJUSTMENT: 'Ajuste manual', REVERSAL: 'Reversión',
 };
 
-function StatCard({ title, value, subtitle, gradient, icon }) {
+function StatCard({ title, value, subtitle, gradient, dark, icon }) {
+  const textColor = dark ? '#1B2F56' : '#fff';
   return (
     <div style={{
       background: gradient, borderRadius: 18, padding: '20px 24px',
-      color: '#fff', minWidth: 0,
+      color: textColor, minWidth: 0,
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <p style={{ fontSize: 11, fontWeight: 600, opacity: .8, marginBottom: 6, letterSpacing: .5 }}>{title}</p>
+          <p style={{ fontSize: 11, fontWeight: 700, opacity: dark ? .7 : .85, marginBottom: 6, letterSpacing: .5, textTransform: 'uppercase' }}>{title}</p>
           <p style={{ fontSize: 32, fontWeight: 900, lineHeight: 1, marginBottom: 2 }}>{value}</p>
-          {subtitle && <p style={{ fontSize: 11, opacity: .65 }}>{subtitle}</p>}
+          {subtitle && <p style={{ fontSize: 11, opacity: dark ? .6 : .7 }}>{subtitle}</p>}
         </div>
-        {icon && <span style={{ opacity: .7 }}>{icon}</span>}
+        {icon && <span style={{ opacity: dark ? .55 : .75 }}>{icon}</span>}
       </div>
     </div>
   );
@@ -43,7 +44,7 @@ function MiniTopCustomer({ customer, rank }) {
           {totalPines >= 120 ? '🌲 Fiel' : totalPines >= 40 ? '🌱 Activo' : '🪴 Nuevo'}
         </p>
       </div>
-      <span style={{ fontWeight: 900, fontSize: 14, color: '#c85032', flexShrink: 0 }}>
+      <span style={{ fontWeight: 900, fontSize: 14, color: '#D9A62B', flexShrink: 0 }}>
         {totalPines.toLocaleString()} 🌲
       </span>
     </div>
@@ -145,8 +146,8 @@ export default function Dashboard() {
         </div>
         <button onClick={handleSetupShopify} disabled={setupLoading}
           style={{
-            padding: '9px 18px', background: '#16a34a', color: '#fff',
-            border: 'none', borderRadius: 10, fontSize: 12, fontWeight: 700,
+            padding: '9px 18px', background: '#F5C842', color: '#1B2F56',
+            border: 'none', borderRadius: 10, fontSize: 12, fontWeight: 800,
             cursor: 'pointer', opacity: setupLoading ? .6 : 1,
             fontFamily: 'inherit',
           }}>
@@ -163,16 +164,16 @@ export default function Dashboard() {
 
       {/* Primary stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 14 }}>
-        <StatCard icon={<PeopleIcon size={28} color="white" />} title="Total Clientes" value={stats?.totalCustomers?.toLocaleString() || 0} gradient="linear-gradient(135deg,#c85032,#e8401a)" />
-        <StatCard icon={<StarIcon size={28} color="white" />} title="Pinos Activos" value={Math.floor((stats?.totalAvailablePoints || 0) / 10).toLocaleString()} subtitle="en circulación 🌲" gradient="linear-gradient(135deg,#f59e0b,#ea580c)" />
-        <StatCard icon={<GiftIcon size={28} color="white" animated={false} />} title="Canjes Hoy" value={stats?.redemptionsToday || 0} gradient="linear-gradient(135deg,#16a34a,#059669)" />
+        <StatCard icon={<PeopleIcon size={28} color="white" />} title="Total Clientes" value={stats?.totalCustomers?.toLocaleString() || 0} gradient="linear-gradient(135deg,#0F448A,#071E3D)" />
+        <StatCard icon={<StarIcon size={28} color="#1B2F56" />} title="Pinos Activos" value={Math.floor((stats?.totalAvailablePoints || 0) / 10).toLocaleString()} subtitle="en circulación 🌲" gradient="linear-gradient(135deg,#F5C842,#D9A62B)" dark />
+        <StatCard icon={<GiftIcon size={28} color="white" animated={false} />} title="Canjes Hoy" value={stats?.redemptionsToday || 0} gradient="linear-gradient(135deg,#5EC97A,#3FA860)" />
       </div>
 
       {/* Loyalty KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 24 }}>
-        <StatCard icon={<UserPlusIcon size={28} color="white" />} title="Nuevos este mes" value={stats?.newCustomersThisMonth || 0} subtitle="clientes registrados" gradient="linear-gradient(135deg,#7c3aed,#6d28d9)" />
-        <StatCard icon={<LightningIcon size={28} color="white" />} title="Pinos Ganados (Mes)" value={Math.floor((stats?.pointsEarnedThisMonth || 0) / 10).toLocaleString()} subtitle="🌲 acumulados" gradient="linear-gradient(135deg,#0284c7,#0369a1)" />
-        <StatCard icon={<FlameIcon size={28} color="white" />} title="Activos 30 días" value={stats?.activeCustomers30d || 0} subtitle={`${engagementRate}% engagement`} gradient="linear-gradient(135deg,#db2777,#be185d)" />
+        <StatCard icon={<UserPlusIcon size={28} color="white" />} title="Nuevos este mes" value={stats?.newCustomersThisMonth || 0} subtitle="clientes registrados" gradient="linear-gradient(135deg,#1A5BB5,#0F448A)" />
+        <StatCard icon={<LightningIcon size={28} color="#1B2F56" />} title="Pinos Ganados (Mes)" value={Math.floor((stats?.pointsEarnedThisMonth || 0) / 10).toLocaleString()} subtitle="🌲 acumulados" gradient="linear-gradient(135deg,#F5C842,#D9A62B)" dark />
+        <StatCard icon={<FlameIcon size={28} color="white" />} title="Activos 30 días" value={stats?.activeCustomers30d || 0} subtitle={`${engagementRate}% engagement`} gradient="linear-gradient(135deg,#0A2850,#071E3D)" />
       </div>
 
       {/* Birthday customers today + Double Points toggle */}
@@ -192,7 +193,7 @@ export default function Dashboard() {
                     <p style={{ fontSize: 13, fontWeight: 700, color: '#111', margin: 0 }}>{c.firstName} {c.lastName}</p>
                     <p style={{ fontSize: 11, color: '#aaa', margin: 0 }}>{c.email} · {Math.floor((c.lifetimePoints || 0) / 10)} Pinos 🌲</p>
                   </div>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: Number(c.birthday_reward_year) === new Date().getFullYear() ? '#16a34a' : '#f59e0b', flexShrink: 0 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: Number(c.birthday_reward_year) === new Date().getFullYear() ? '#5EC97A' : '#D9A62B', flexShrink: 0 }}>
                     {Number(c.birthday_reward_year) === new Date().getFullYear() ? '✓ Reclamado' : 'Pendiente'}
                   </span>
                 </div>
@@ -213,7 +214,7 @@ export default function Dashboard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
             <div style={{
               width: 52, height: 28, borderRadius: 99, cursor: 'pointer',
-              background: dpStatus.enabled ? '#f59e0b' : '#e5e7eb',
+              background: dpStatus.enabled ? '#F5C842' : '#e5e7eb',
               position: 'relative', transition: 'background .2s', flexShrink: 0,
             }} onClick={() => !dpLoading && handleToggleDoublePoints(!dpStatus.enabled)}>
               <div style={{
@@ -223,7 +224,7 @@ export default function Dashboard() {
                 transition: 'left .2s', boxShadow: '0 1px 4px rgba(0,0,0,.2)',
               }} />
             </div>
-            <span style={{ fontSize: 13, fontWeight: 700, color: dpStatus.enabled ? '#f59e0b' : '#6b7280' }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: dpStatus.enabled ? '#D9A62B' : '#6b7280' }}>
               {dpStatus.enabled ? <span style={{ display:'flex', alignItems:'center', gap:4 }}><FlameIcon size={12} color="currentColor" /> ACTIVO</span> : 'Inactivo'}
             </span>
           </div>
@@ -234,9 +235,9 @@ export default function Dashboard() {
               {[4, 8, 12, 24].map(h => (
                 <button key={h} onClick={() => setDpHours(h)} style={{
                   flex: 1, padding: '8px 4px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700,
-                  background: dpHours === h ? '#fef3c7' : '#f9fafb',
-                  border: `1px solid ${dpHours === h ? '#f59e0b' : '#e5e7eb'}`,
-                  color: dpHours === h ? '#92400e' : '#6b7280',
+                  background: dpHours === h ? 'rgba(245,200,66,.16)' : '#f9fafb',
+                  border: `1px solid ${dpHours === h ? '#F5C842' : '#e5e7eb'}`,
+                  color: dpHours === h ? '#8A6205' : '#6b7280',
                 }}>
                   {h}h
                 </button>
@@ -249,9 +250,9 @@ export default function Dashboard() {
               onClick={() => handleToggleDoublePoints(true)}
               disabled={dpLoading || dpStatus.enabled}
               style={{
-                padding: '10px', background: '#fef3c7', border: '1px solid #fbbf24',
+                padding: '10px', background: 'rgba(245,200,66,.16)', border: '1px solid #F5C842',
                 borderRadius: 10, fontSize: 12, fontWeight: 800, cursor: 'pointer',
-                color: '#92400e', opacity: (dpLoading || dpStatus.enabled) ? .5 : 1,
+                color: '#8A6205', opacity: (dpLoading || dpStatus.enabled) ? .5 : 1,
               }}
             >
               🌲 Activar {dpHours}h
@@ -286,7 +287,7 @@ export default function Dashboard() {
               <Tooltip contentStyle={{ borderRadius: 10, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,.12)', fontSize: 12 }} />
               <Bar dataKey="clientes" radius={[6, 6, 0, 0]}>
                 {levelData.map((entry, idx) => (
-                  <Cell key={idx} fill={entry.color || '#c85032'} />
+                  <Cell key={idx} fill={entry.color || '#D9A62B'} />
                 ))}
               </Bar>
             </BarChart>

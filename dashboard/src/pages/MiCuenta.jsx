@@ -577,7 +577,7 @@ export default function MiCuenta() {
               )}
 
               {/* Catálogo */}
-              <div style={{ display: 'grid', gap: 8 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {shown.map(p => {
                   const cost = pinosDe(p.pointsValue);
                   const unlocked = cost <= availPines;

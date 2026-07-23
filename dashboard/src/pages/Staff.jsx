@@ -334,7 +334,7 @@ function POSView({ token, onLogout }) {
               <p style={{ textAlign: 'center', color: 'rgba(251,247,240,.35)', fontSize: 13, padding: '30px 0' }}>Cargando menú…</p>
             )}
 
-            <div style={{ display: 'grid', gap: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {shownProducts.map(p => (
                 <div key={p.id} style={{
                   display: 'flex', alignItems: 'center', gap: 12,
@@ -478,7 +478,7 @@ function POSView({ token, onLogout }) {
               onBlur={e => e.target.style.borderColor = 'rgba(251,247,240,.12)'} />
             {error && <div style={S.err}>{error}</div>}
             {nameResults.length > 0 && (
-              <div style={{ marginTop: 14, display: 'grid', gap: 8 }}>
+              <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {nameResults.map(c => {
                   const cp = calcPines(c.availablePoints || 0);
                   return (
@@ -888,7 +888,7 @@ function POSView({ token, onLogout }) {
             )}
 
             {/* Lista de productos con costo en Pinos */}
-            <div style={{ display: 'grid', gap: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {shownProducts.map(p => {
                 const cost = pinosDe(p.pointsValue);
                 const canAfford = cost <= availPinos;

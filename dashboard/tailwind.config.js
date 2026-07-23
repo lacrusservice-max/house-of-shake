@@ -4,7 +4,11 @@ export default {
   theme: {
     extend: {
       colors: {
-        'hos-primary': '#c85032',
+        'hos-primary': '#F5C842',
+        'hos-navy': '#1B2F56',
+        'hos-navy-dark': '#071E3D',
+        'hos-gold': '#F5C842',
+        'hos-cream': '#FBF7F0',
       },
     },
   },

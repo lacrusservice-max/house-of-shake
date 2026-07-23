@@ -68,7 +68,7 @@ export default function Finanzas() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 3, color: '#c85032', textTransform: 'uppercase', marginBottom: 6 }}>Panel financiero</div>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 3, color: '#8A6205', textTransform: 'uppercase', marginBottom: 6 }}>Panel financiero</div>
           <h1 style={{ fontSize: 30, fontWeight: 900, color: '#111', margin: 0 }}>Finanzas</h1>
           <p style={{ color: '#888', fontSize: 13, marginTop: 4 }}>Ingresos, canjes y actividad del personal</p>
         </div>
@@ -88,8 +88,8 @@ export default function Finanzas() {
           <button key={p.value} onClick={() => setPeriod(p.value)} style={{
             padding: '8px 18px', borderRadius: 20, border: 'none', cursor: 'pointer',
             fontWeight: 700, fontSize: 12, fontFamily: 'inherit',
-            background: period === p.value ? '#c85032' : '#f5f5f5',
-            color: period === p.value ? '#fff' : '#555',
+            background: period === p.value ? '#F5C842' : '#f5f5f5',
+            color: period === p.value ? '#1B2F56' : '#555',
             transition: 'all .15s',
           }}>
             {p.label}
@@ -104,7 +104,7 @@ export default function Finanzas() {
       )}
 
       {error && (
-        <div style={{ background: '#fff0ee', border: '1px solid #ffd0c8', color: '#c85032', borderRadius: 12, padding: '14px 18px', marginBottom: 20 }}>
+        <div style={{ background: 'rgba(224,92,92,.08)', border: '1px solid rgba(224,92,92,.25)', color: '#E05C5C', borderRadius: 12, padding: '14px 18px', marginBottom: 20 }}>
           {error}
         </div>
       )}
@@ -117,7 +117,7 @@ export default function Finanzas() {
               title="Ingresos registrados"
               value={fmt(data.ingresos?.total)}
               sub={`${data.ingresos?.transacciones || 0} transacciones`}
-              color="#c85032"
+              color="#D9A62B"
               icon="💰"
             />
             <KpiCard
@@ -151,15 +151,15 @@ export default function Finanzas() {
                 <AreaChart data={graficaData}>
                   <defs>
                     <linearGradient id="gradRed" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#c85032" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="#c85032" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#D9A62B" stopOpacity={0.25}/>
+                      <stop offset="95%" stopColor="#D9A62B" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" />
                   <XAxis dataKey="fecha" tick={{ fontSize: 10, fill: '#aaa' }} />
                   <YAxis tick={{ fontSize: 10, fill: '#aaa' }} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
                   <Tooltip formatter={(v) => [fmt(v), 'Ingresos']} labelStyle={{ fontSize: 11 }} />
-                  <Area type="monotone" dataKey="ingresos" stroke="#c85032" fill="url(#gradRed)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="ingresos" stroke="#D9A62B" fill="url(#gradRed)" strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -204,8 +204,8 @@ export default function Finanzas() {
           )}
 
           {/* Summary insight */}
-          <div style={{ background: 'linear-gradient(135deg, #fff8f6, #fff)', borderRadius: 16, padding: '20px 24px', border: '1px solid #ffe0d8' }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, color: '#c85032', marginBottom: 12 }}>Resumen del período</h3>
+          <div style={{ background: 'linear-gradient(135deg, rgba(245,200,66,.08), #fff)', borderRadius: 16, padding: '20px 24px', border: '1px solid rgba(245,200,66,.3)' }}>
+            <h3 style={{ fontSize: 13, fontWeight: 700, color: '#8A6205', marginBottom: 12 }}>Resumen del período</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 13 }}>
               <div>
                 <span style={{ color: '#888' }}>Ingreso promedio por transacción: </span>

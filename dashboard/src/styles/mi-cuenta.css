@@ -12,6 +12,8 @@
 /* ── base ── */
 .mc-root {
   min-height: 100vh;
+  overflow-x: hidden;
+  max-width: 100vw;
   background: var(--pine);
   color: var(--cream);
   font-family: 'Montserrat', sans-serif;
