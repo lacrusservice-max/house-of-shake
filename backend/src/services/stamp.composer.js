@@ -27,20 +27,21 @@ const STRIP_W = 750;
 const STRIP_H = 600;
 
 // ─── Section layout @2x ──────────────────────────────────────────────────────
-// TEXTO_TOP_2X=245: logo sale bien debajo del header overlay real (~200px).
-// TOP_H=374 → BORDE_TOP=325, borde Y=325-432.
-// Sección crema visible: Y=383-467 (~84px) → suficiente para texto + stamps.
+// TEXTO_TOP_2X=245: logo bien debajo del header overlay (~240px @2x).
+// Borde comprimido a 80px (crop centrado) → más espacio crema visible en preview.
+// TOP_H=374 → BORDE_BAR_SCL=35 (crop) → BORDE_TOP=339, borde Y=339-419.
+// CREAM_START=383, texto visible en Mac preview (cutoff ~440px @2x).
 const TOP_H = 374;
-const TEXTO_TOP_2X = 245; // Y fija @2x donde empieza el logo
+const TEXTO_TOP_2X = 245;
 
-const BORDE_SCALE   = STRIP_W / 2400;              // 0.3125
-const BORDE_H_SCL   = Math.round(341 * BORDE_SCALE); // 107
-const BORDE_BAR_SCL = Math.round(157 * BORDE_SCALE); // 49
-const BORDE_TOP     = TOP_H - BORDE_BAR_SCL;       // 325
+const BORDE_SCALE   = STRIP_W / 2400;   // 0.3125
+const BORDE_H_SCL   = 80;               // px @2x — borde crop centrado (era 107)
+const BORDE_BAR_SCL = 35;               // px desde top del borde recortado al centro de la barra
+const BORDE_TOP     = TOP_H - BORDE_BAR_SCL; // 339
 
-const CREAM_START = BORDE_TOP + Math.round(185 * BORDE_SCALE); // 383
+const CREAM_START = BORDE_TOP + 44;     // 383 — donde empieza la parte crema del borde
 
-// Stamps: 40px debajo del inicio de la sección crema
+// Stamps: debajo del texto (cuando hay customerInfo van a Y=490, iPhone sólo)
 const SLOT_X = [100, 165, 222, 277, 335, 392, 450, 510, 567, 622];
 const SLOT_Y = CREAM_START + 40; // 423
 const PINE_W = 54;
@@ -63,9 +64,9 @@ async function buildBaseStrip(w, h) {
     create: { width: w, height: topH, channels: 3, background: NAVY },
   }).png().toBuffer();
 
-  // 3. Borde divider
+  // 3. Borde divider — crop centrado para preservar el pino sin distorsionar
   const bordeBuf = await sharp(BORDE_PATH)
-    .resize(w, bordeH, { fit: 'fill' })
+    .resize(w, bordeH, { fit: 'cover', position: 'centre' })
     .toBuffer();
 
   // 4. Logo — trim transparent, posicionar al 52% del topH
@@ -141,29 +142,25 @@ async function buildTextOverlay(w, h, customerInfo) {
 
   const nameStr = String(name).toUpperCase();
 
-  const labelFontSz  = Math.round(11 * sc);
-  const nameFontSz   = Math.round((nameStr.length > 22 ? 19 : 23) * sc);
-  const pinesFontSz  = Math.round(20 * sc);
-  const rewardFontSz = Math.round(16 * sc);
+  const nameFontSz   = Math.round((nameStr.length > 22 ? 20 : 25) * sc);
+  const pinesFontSz  = Math.round(22 * sc);
+  const rewardFontSz = Math.round(17 * sc);
 
-  // Baselines relativas a CREAM_START — texto bien por debajo del pino (~Y=399)
-  const labelY  = Math.round((CREAM_START + 33) * sc);  // 416 @2x (17px bajo el pino)
-  const nameY   = Math.round((CREAM_START + 55) * sc);  // 438 @2x (en sección crema sólida)
-  const rewardY = Math.round((CREAM_START + 74) * sc);  // 457 @2x (visible en Mac preview)
+  // nameY: 34px sobre CREAM_START → 17px bajo el pino del borde, visible en preview
+  // rewardY: 56px sobre CREAM_START → segunda línea, visible en Mac preview (~440px @2x)
+  const nameY   = Math.round((CREAM_START + 34) * sc);  // 417 @2x
+  const rewardY = Math.round((CREAM_START + 56) * sc);  // 439 @2x
 
   const padX   = Math.round(40 * sc);
   const rightX = Math.round(710 * sc);
-  const lspc   = Math.round(2 * sc);
 
   const pinesStr  = pinesLeft === 0 ? '¡BEBIDA LISTA!' : `${pinesInCycle}/120 PINOS`;
   const rewardStr = pinesLeft === 0
-    ? 'Muéstrame al staff para canjear'
-    : `${pinesLeft} Pinos más para tu bebida gratis`;
+    ? 'Muestrame al staff para canjear'
+    : `${pinesLeft} Pinos mas para tu bebida gratis`;
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
-  <text x="${padX}" y="${labelY}" font-family="DejaVu Sans, sans-serif" font-weight="700" font-size="${labelFontSz}" letter-spacing="${lspc}" fill="#8C5F0F">CLIENTE</text>
-  <text x="${rightX}" y="${labelY}" font-family="DejaVu Sans, sans-serif" font-weight="700" font-size="${labelFontSz}" letter-spacing="${lspc}" fill="#8C5F0F" text-anchor="end">PINOS</text>
-  <text x="${padX}" y="${nameY}" font-family="DejaVu Sans, sans-serif" font-weight="900" font-size="${nameFontSz}" letter-spacing="${Math.round(1 * sc)}" fill="#1B2F56">${escXml(nameStr)}</text>
+  <text x="${padX}" y="${nameY}" font-family="DejaVu Sans, sans-serif" font-weight="900" font-size="${nameFontSz}" fill="#1B2F56">${escXml(nameStr)}</text>
   <text x="${rightX}" y="${nameY}" font-family="DejaVu Sans, sans-serif" font-weight="900" font-size="${pinesFontSz}" fill="#1B2F56" text-anchor="end">${escXml(pinesStr)}</text>
   <text x="${padX}" y="${rewardY}" font-family="DejaVu Sans, sans-serif" font-weight="700" font-size="${rewardFontSz}" fill="#8C5F0F">${escXml(rewardStr)}</text>
 </svg>`;
