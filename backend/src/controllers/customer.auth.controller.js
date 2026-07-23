@@ -80,19 +80,90 @@ async function login(req, res) {
   try {
     const customer = await prisma.customer.findUnique({ where: { email } });
     if (!customer || !customer.password) {
+      logger.warn(`🔒 Login cliente fallido (sin cuenta o sin contraseña): ${email}`);
       return res.status(401).json({ error: 'Email o contraseña incorrectos' });
     }
 
     const valid = await bcrypt.compare(password, customer.password);
     if (!valid) {
+      logger.warn(`🔒 Login cliente fallido (contraseña incorrecta): ${email}`);
       return res.status(401).json({ error: 'Email o contraseña incorrectos' });
     }
 
+    logger.info(`🔓 Login cliente exitoso: ${email}`);
     const token = signToken(customer);
     res.json({ token, customer: safeCustomer(customer) });
   } catch (err) {
     logger.error('Customer login error:', err.message);
     res.status(500).json({ error: 'Error al iniciar sesión' });
+  }
+}
+
+// Cuentas creadas por sincronización con Shopify o registro rápido en el POS
+// nunca reciben contraseña (Shopify no comparte contraseñas con terceros), así
+// que "olvidé mi contraseña" también es como ESAS cuentas consiguen una por
+// primera vez, no solo un reseteo.
+async function forgotPassword(req, res) {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email requerido' });
+
+  try {
+    const customer = await prisma.customer.findUnique({ where: { email: email.toLowerCase().trim() } });
+    // Respuesta genérica siempre — no revelar si el email existe o no.
+    const genericMsg = 'Si existe una cuenta con ese email, enviamos un enlace para restablecer tu contraseña.';
+
+    if (customer) {
+      const resetToken = jwt.sign(
+        { id: customer.id, purpose: 'password_reset' },
+        process.env.JWT_SECRET,
+        { expiresIn: '30m' }
+      );
+      const resetLink = `https://house-of-shake.vercel.app/reset-password?token=${resetToken}`;
+      setImmediate(() => {
+        emailService.sendPasswordReset({ to: customer.email, firstName: customer.firstName, resetLink })
+          .catch(e => logger.warn('Email password-reset error:', e.message));
+      });
+      logger.info(`🔑 Reset de contraseña solicitado: ${customer.email}`);
+    }
+
+    res.json({ success: true, message: genericMsg });
+  } catch (err) {
+    logger.error('forgotPassword error:', err.message);
+    res.status(500).json({ error: 'Error al procesar la solicitud' });
+  }
+}
+
+async function resetPassword(req, res) {
+  const { token, newPassword } = req.body;
+  if (!token || !newPassword) return res.status(400).json({ error: 'Token y nueva contraseña requeridos' });
+  if (newPassword.length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+
+  try {
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch {
+      return res.status(400).json({ error: 'El enlace expiró o no es válido. Solicita uno nuevo.' });
+    }
+    if (decoded.purpose !== 'password_reset') {
+      return res.status(400).json({ error: 'Enlace inválido' });
+    }
+
+    const hashed = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    const customer = await prisma.customer.update({
+      where: { id: decoded.id },
+      data: { password: hashed },
+    }).catch(() => null);
+    if (!customer) return res.status(404).json({ error: 'Cliente no encontrado' });
+
+    logger.info(`🔑 Contraseña restablecida (self-service): ${customer.email}`);
+
+    // Log in inmediato — evita que el cliente tenga que iniciar sesión dos veces
+    const authToken = signToken(customer);
+    res.json({ success: true, token: authToken, customer: safeCustomer(customer) });
+  } catch (err) {
+    logger.error('resetPassword error:', err.message);
+    res.status(500).json({ error: 'Error al restablecer la contraseña' });
   }
 }
 
@@ -212,4 +283,4 @@ async function getMyTransactions(req, res) {
   }
 }
 
-module.exports = { register, login, getMe, getMyTransactions, updateProfile, claimBirthdayReward };
+module.exports = { register, login, forgotPassword, resetPassword, getMe, getMyTransactions, updateProfile, claimBirthdayReward };

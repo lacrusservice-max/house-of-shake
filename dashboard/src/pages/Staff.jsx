@@ -565,6 +565,46 @@ function POSView({ token, onLogout }) {
               </div>
             )}
 
+            {/* ── Decisión primero: ¿acumular o canjear? Con el saldo canjeable
+                visible en ambas opciones, para que staff y cliente decidan juntos ── */}
+            <p style={{ fontSize: 11, letterSpacing: 2, textTransform: 'uppercase', fontWeight: 700, color: 'rgba(251,247,240,.4)', marginBottom: 10 }}>
+              {customer.firstName} tiene {availPinos} Pinos — ¿qué va a hacer?
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
+              <button onClick={() => { setScreen('addPoints'); setError(''); }} style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                padding: '20px 16px', borderRadius: 16,
+                background: 'rgba(94,201,122,.1)', border: '1px solid rgba(94,201,122,.3)',
+                color: '#5EC97A', cursor: 'pointer', fontFamily: "'Montserrat', sans-serif",
+              }}>
+                <span style={{ fontSize: 28 }}>✚</span>
+                <span style={{ fontWeight: 800, fontSize: 13 }}>Acumular Pinos</span>
+                <span style={{ fontSize: 10, opacity: .8, textAlign: 'center' }}>
+                  {affordableCount > 0
+                    ? `Ya le alcanza para ${affordableCount} — puede seguir sumando`
+                    : `Va por ${availPinos} Pinos ($${availPinos})`}
+                </span>
+              </button>
+
+              <button
+                disabled={loading}
+                onClick={() => { setScreen('redeem'); setError(''); setCatFilter('all'); }}
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                  padding: '20px 16px', borderRadius: 16,
+                  background: affordableCount > 0 ? 'rgba(245,200,66,.14)' : 'rgba(251,247,240,.04)',
+                  border: `1px solid ${affordableCount > 0 ? 'rgba(245,200,66,.4)' : 'rgba(251,247,240,.1)'}`,
+                  color: affordableCount > 0 ? 'var(--gold)' : 'rgba(251,247,240,.35)',
+                  cursor: 'pointer', fontFamily: "'Montserrat', sans-serif",
+                }}>
+                <GiftIcon size={28} color={affordableCount > 0 ? '#F5C842' : 'rgba(251,247,240,.35)'} animated={affordableCount > 0} />
+                <span style={{ fontWeight: 800, fontSize: 13 }}>Canjear premio</span>
+                <span style={{ fontSize: 10, opacity: .8, textAlign: 'center' }}>
+                  {affordableCount > 0 ? `Le alcanza para ${affordableCount} productos` : 'Aún no le alcanza — sigue sumando'}
+                </span>
+              </button>
+            </div>
+
             {/* Customer card */}
             <div style={{ background: 'linear-gradient(135deg, #0A2850, #071E3D)', border: '2px solid rgba(245,200,66,.25)', borderRadius: 20, padding: '20px 22px', marginBottom: 16 }}>
               <div style={{ marginBottom: 16 }}>
@@ -624,38 +664,6 @@ function POSView({ token, onLogout }) {
               </div>
             </div>
 
-            {/* Actions */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
-              <button onClick={() => { setScreen('addPoints'); setError(''); }} style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-                padding: '20px 16px', borderRadius: 16,
-                background: 'rgba(94,201,122,.1)', border: '1px solid rgba(94,201,122,.3)',
-                color: '#5EC97A', cursor: 'pointer', fontFamily: "'Montserrat', sans-serif",
-              }}>
-                <span style={{ fontSize: 28 }}>✚</span>
-                <span style={{ fontWeight: 800, fontSize: 13 }}>Acumular</span>
-                <span style={{ fontSize: 10, opacity: .7 }}>Agregar Pinos</span>
-              </button>
-
-              <button
-                disabled={loading}
-                onClick={() => { setScreen('redeem'); setError(''); setCatFilter('all'); }}
-                style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-                  padding: '20px 16px', borderRadius: 16,
-                  background: affordableCount > 0 ? 'rgba(245,200,66,.14)' : 'rgba(251,247,240,.04)',
-                  border: `1px solid ${affordableCount > 0 ? 'rgba(245,200,66,.4)' : 'rgba(251,247,240,.1)'}`,
-                  color: affordableCount > 0 ? 'var(--gold)' : 'rgba(251,247,240,.35)',
-                  cursor: 'pointer', fontFamily: "'Montserrat', sans-serif",
-                }}>
-                <GiftIcon size={28} color={affordableCount > 0 ? '#F5C842' : 'rgba(251,247,240,.35)'} animated={affordableCount > 0} />
-                <span style={{ fontWeight: 800, fontSize: 13 }}>Canjear premio</span>
-                <span style={{ fontSize: 10, opacity: .75 }}>
-                  {affordableCount > 0 ? `${affordableCount} productos gratis` : 'Ver menú y costos'}
-                </span>
-              </button>
-            </div>
-
             {/* Balance canjeable — lo que el staff necesita saber de un vistazo */}
             <div style={{
               background: 'rgba(245,200,66,.07)', border: '1px solid rgba(245,200,66,.22)',
@@ -711,8 +719,28 @@ function POSView({ token, onLogout }) {
               Para: <strong style={{ color: 'var(--cream)' }}>{customer.firstName} {customer.lastName}</strong>
             </p>
 
-            <div style={{ background: 'rgba(245,200,66,.06)', border: '1px solid rgba(245,200,66,.2)', borderRadius: 12, padding: '10px 16px', textAlign: 'center', color: 'var(--gold)', fontSize: 12, fontWeight: 700, letterSpacing: 1, marginBottom: 20 }}>
+            <div style={{ background: 'rgba(245,200,66,.06)', border: '1px solid rgba(245,200,66,.2)', borderRadius: 12, padding: '10px 16px', textAlign: 'center', color: 'var(--gold)', fontSize: 12, fontWeight: 700, letterSpacing: 1, marginBottom: 14 }}>
               {customer.doublePointsActive ? '🌲🌲 PINOS DOBLES ACTIVOS — gana el doble hoy' : '1 Pino por cada $10 MXN · 120 Pinos = bebida gratis'}
+            </div>
+
+            {/* Antes de acumular más: ¿ya le alcanza para algo? Staff decide con el cliente */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+              background: affordableCount > 0 ? 'rgba(94,201,122,.08)' : 'rgba(251,247,240,.03)',
+              border: `1px solid ${affordableCount > 0 ? 'rgba(94,201,122,.28)' : 'rgba(251,247,240,.08)'}`,
+              borderRadius: 12, padding: '12px 16px', marginBottom: 20,
+            }}>
+              <p style={{ fontSize: 12, color: affordableCount > 0 ? '#5EC97A' : 'rgba(251,247,240,.5)', margin: 0, fontWeight: 700 }}>
+                {affordableCount > 0
+                  ? `🎁 Ya le alcanza para ${affordableCount} productos (${availPinos} Pinos)`
+                  : `Tiene ${availPinos} Pinos — aún no le alcanza para nada`}
+              </p>
+              {affordableCount > 0 && (
+                <button type="button" onClick={() => { setScreen('redeem'); setError(''); setCatFilter('all'); }}
+                  style={{ flexShrink: 0, background: 'none', border: 'none', color: '#5EC97A', fontSize: 11, fontWeight: 800, cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit' }}>
+                  Canjear en vez de acumular →
+                </button>
+              )}
             </div>
 
             <form onSubmit={handleAddPoints}>

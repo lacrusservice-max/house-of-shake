@@ -3,6 +3,8 @@ import Layout from './components/Layout';
 
 import Landing from './pages/Landing';
 import CustomerLogin from './pages/CustomerLogin';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Register from './pages/Register';
 import MiCuenta from './pages/MiCuenta';
 import Staff from './pages/Staff';
@@ -37,6 +39,8 @@ export default function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/menu" element={<Menu />} />
         <Route path="/login" element={<CustomerLogin />} />
+        <Route path="/olvide-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/registro" element={<Register />} />
 
         {/* Customer protected */}

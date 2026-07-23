@@ -86,7 +86,7 @@ export default function CustomerLogin() {
                 onBlur={e => e.target.style.borderColor = 'rgba(251,247,240,.12)'}
               />
             </div>
-            <div style={{ marginBottom: 20 }}>
+            <div style={{ marginBottom: 10 }}>
               <label style={S.label}>Contraseña</label>
               <input type="password" required
                 value={form.password}
@@ -97,6 +97,12 @@ export default function CustomerLogin() {
                 onBlur={e => e.target.style.borderColor = 'rgba(251,247,240,.12)'}
               />
             </div>
+
+            <p style={{ textAlign: 'right', marginBottom: 20 }}>
+              <Link to="/olvide-password" style={{ color: 'rgba(251,247,240,.45)', fontSize: 12, textDecoration: 'none' }}>
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </p>
 
             {error && <div style={S.error}>{error}</div>}
 

@@ -28,6 +28,9 @@ export default function Customers() {
   const [selected, setSelected] = useState(null);
   const [adjustForm, setAdjustForm] = useState({ points: '', description: '' });
   const [adjustMsg, setAdjustMsg] = useState('');
+  const [showResetPw, setShowResetPw] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [resetPwMsg, setResetPwMsg] = useState('');
 
   const limit = 20;
   const totalPages = Math.ceil(total / limit);
@@ -65,6 +68,21 @@ export default function Customers() {
       setTimeout(() => { setAdjustMsg(''); setSelected(null); load(); }, 1500);
     } catch (err) {
       setAdjustMsg('❌ ' + (err.response?.data?.error || 'Error'));
+    }
+  }
+
+  async function handleResetPassword() {
+    if (!selected || newPassword.length < 6) {
+      setResetPwMsg('❌ Mínimo 6 caracteres');
+      return;
+    }
+    try {
+      await customersApi.resetPassword(selected.id, newPassword);
+      setResetPwMsg(`✅ Contraseña actualizada para ${selected.email}`);
+      setNewPassword('');
+      setTimeout(() => { setResetPwMsg(''); setShowResetPw(false); }, 2000);
+    } catch (err) {
+      setResetPwMsg('❌ ' + (err.response?.data?.error || 'Error'));
     }
   }
 
@@ -231,6 +249,35 @@ export default function Customers() {
                 Aplicar
               </button>
             </div>
+
+            <hr style={{ border: 'none', borderTop: '1px solid #eee', margin: '18px 0' }} />
+
+            {!showResetPw ? (
+              <button onClick={() => { setShowResetPw(true); setResetPwMsg(''); setNewPassword(''); }}
+                style={{ width: '100%', padding: '10px', borderRadius: 10, background: '#fef3e2', color: '#b45309', border: '1px solid #fde3b8', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                🔑 Restablecer contraseña — cliente no puede entrar
+              </button>
+            ) : (
+              <div>
+                <p style={{ fontSize: 12, color: '#999', margin: '0 0 8px' }}>
+                  Nueva contraseña para {selected.email}. Compártela con el cliente para que inicie sesión.
+                </p>
+                <input type="text" placeholder="Nueva contraseña (mín. 6 caracteres)"
+                  value={newPassword} onChange={e => setNewPassword(e.target.value)}
+                  style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #e5e7eb', borderRadius: 10, fontSize: 14, marginBottom: 10, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                {resetPwMsg && <p style={{ fontSize: 13, marginBottom: 10 }}>{resetPwMsg}</p>}
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button onClick={() => setShowResetPw(false)}
+                    style={{ flex: 1, padding: '11px', borderRadius: 10, background: '#f5f5f5', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    Cancelar
+                  </button>
+                  <button onClick={handleResetPassword}
+                    style={{ flex: 1, padding: '11px', borderRadius: 10, background: '#b45309', color: '#fff', border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    Guardar contraseña
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

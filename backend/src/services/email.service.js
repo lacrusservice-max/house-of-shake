@@ -140,6 +140,20 @@ async function sendWelcome({ to, firstName, availablePoints = 0 }) {
   await send(to, 'Bienvenido a House of Shake — Membresía activa 🌲', baseLayout(body));
 }
 
+async function sendPasswordReset({ to, firstName, resetLink }) {
+  const body = `
+    <p>Hola <strong>${firstName}</strong>,</p>
+    <p>Recibimos una solicitud para restablecer tu contraseña de House of Shake Rewards.</p>
+    <p style="text-align:center;margin-top:24px">
+      <a class="btn" href="${resetLink}">Crear nueva contraseña</a>
+    </p>
+    <p style="color:#888;font-size:12px;margin-top:20px">
+      Este enlace expira en 30 minutos. Si tú no solicitaste esto, puedes ignorar este correo — tu contraseña actual sigue funcionando normalmente.
+    </p>
+  `;
+  await send(to, 'Restablece tu contraseña — House of Shake', baseLayout(body));
+}
+
 async function sendInactiveReminder({ to, firstName, availablePoints, daysSinceVisit }) {
   const body = `
     <p>Hola <strong>${firstName}</strong>,</p>
@@ -161,4 +175,4 @@ async function sendInactiveReminder({ to, firstName, availablePoints, daysSinceV
   await send(to, `Te extrañamos en House of Shake ☕ — tienes ${Math.floor(availablePoints / 10)} Pinos`, baseLayout(body));
 }
 
-module.exports = { sendPointsEarned, sendLevelUp, sendPointsRedeemed, sendWelcome, sendInactiveReminder };
+module.exports = { sendPointsEarned, sendLevelUp, sendPointsRedeemed, sendWelcome, sendPasswordReset, sendInactiveReminder };

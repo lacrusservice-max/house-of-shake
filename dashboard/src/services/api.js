@@ -33,6 +33,8 @@ export const customersApi = {
   list: (params) => api.get('/admin/customers', { params }),
   adjustPoints: (id, points, description) =>
     api.post(`/admin/customers/${id}/adjust-points`, { points, description }),
+  resetPassword: (id, newPassword) =>
+    api.post(`/admin/customers/${id}/reset-password`, { newPassword }),
   forceWalletUpdate: (id) => api.post(`/admin/customers/${id}/push`),
   exportCSV: () => api.get('/admin/export/customers', { responseType: 'blob' }),
 };

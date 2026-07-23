@@ -15,10 +15,18 @@ async function login(req, res, next) {
 
     const admin = await prisma.adminUser.findUnique({ where: { email } });
     // active may not exist yet if columns haven't been added — treat null/undefined as active
-    if (!admin || admin.active === false) return res.status(401).json({ error: 'Credenciales inválidas' });
+    if (!admin || admin.active === false) {
+      logger.warn(`🔒 Login admin/staff fallido (sin cuenta o inactiva): ${email}`);
+      return res.status(401).json({ error: 'Credenciales inválidas' });
+    }
 
     const valid = await bcrypt.compare(password, admin.password);
-    if (!valid) return res.status(401).json({ error: 'Credenciales inválidas' });
+    if (!valid) {
+      logger.warn(`🔒 Login admin/staff fallido (contraseña incorrecta): ${email}`);
+      return res.status(401).json({ error: 'Credenciales inválidas' });
+    }
+
+    logger.info(`🔓 Login ${admin.role} exitoso: ${email}`);
 
     await prisma.adminUser.update({
       where: { id: admin.id },
@@ -184,6 +192,32 @@ async function forceUpdateWalletPass(req, res, next) {
 
     await walletService.sendPushUpdate(customer);
     res.json({ success: true, message: `Push enviado a ${customer.email}` });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Restablece la contraseña de un cliente. Necesario porque las cuentas creadas
+// vía sincronización con Shopify o registro rápido en el POS NUNCA reciben
+// contraseña (Shopify no comparte contraseñas en texto plano con terceros) —
+// esos clientes ven "email o contraseña incorrectos" para siempre hasta que
+// alguien les asigna una acá o usan el flujo de "olvidé mi contraseña".
+async function resetCustomerPassword(req, res, next) {
+  try {
+    const { customerId } = req.params;
+    const { newPassword } = req.body;
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 6 caracteres' });
+    }
+
+    const customer = await prisma.customer.findUnique({ where: { id: customerId } });
+    if (!customer) return res.status(404).json({ error: 'Cliente no encontrado' });
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await prisma.customer.update({ where: { id: customerId }, data: { password: hashed } });
+
+    logger.info(`🔑 Contraseña restablecida por admin (${req.admin?.email}) para cliente ${customer.email}`);
+    res.json({ success: true, message: `Contraseña actualizada para ${customer.email}` });
   } catch (err) {
     next(err);
   }
@@ -683,6 +717,7 @@ module.exports = {
   updateConfig,
   forceUpdateWalletPass,
   adjustPoints,
+  resetCustomerPassword,
   exportCustomersCSV,
   exportTransactionsCSV,
   getStaffStats,

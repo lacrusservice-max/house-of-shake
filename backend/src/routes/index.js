@@ -56,6 +56,8 @@ router.post('/webhooks/shopify/customers-create', verifyShopifyWebhook, webhookC
 // === CUSTOMER AUTH ===
 router.post('/auth/register', authLimiter, customerAuthController.register);
 router.post('/auth/login', authLimiter, customerAuthController.login);
+router.post('/auth/forgot-password', authLimiter, customerAuthController.forgotPassword);
+router.post('/auth/reset-password', authLimiter, customerAuthController.resetPassword);
 router.get('/me', authenticateCustomer, customerAuthController.getMe);
 router.get('/me/transactions', authenticateCustomer, customerAuthController.getMyTransactions);
 router.put('/me/profile', authenticateCustomer, customerAuthController.updateProfile);
@@ -123,6 +125,7 @@ router.get('/admin/config', authenticateAdmin, adminController.getConfig);
 router.put('/admin/config', authenticateAdmin, adminController.updateConfig);
 router.post('/admin/customers/:customerId/push', authenticateAdmin, adminController.forceUpdateWalletPass);
 router.post('/admin/customers/:customerId/adjust-points', authenticateAdmin, adminController.adjustPoints);
+router.post('/admin/customers/:customerId/reset-password', authenticateAdmin, adminController.resetCustomerPassword);
 router.get('/admin/export/customers', authenticateAdmin, adminController.exportCustomersCSV);
 router.post('/admin/setup-shopify', authenticateAdmin, adminController.setupShopify);
 
