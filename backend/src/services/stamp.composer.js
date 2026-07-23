@@ -160,11 +160,11 @@ async function buildTextOverlay(w, h, customerInfo) {
     : `${pinesLeft} Pinos más para tu bebida gratis`;
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
-  <text x="${padX}" y="${labelY}" font-family="sans-serif" font-weight="700" font-size="${labelFontSz}" letter-spacing="${lspc}" fill="#8C5F0F">CLIENTE</text>
-  <text x="${rightX}" y="${labelY}" font-family="sans-serif" font-weight="700" font-size="${labelFontSz}" letter-spacing="${lspc}" fill="#8C5F0F" text-anchor="end">PINOS</text>
-  <text x="${padX}" y="${nameY}" font-family="sans-serif" font-weight="900" font-size="${nameFontSz}" letter-spacing="${Math.round(1 * sc)}" fill="#1B2F56">${escXml(nameStr)}</text>
-  <text x="${rightX}" y="${nameY}" font-family="sans-serif" font-weight="900" font-size="${pinesFontSz}" fill="#1B2F56" text-anchor="end">${escXml(pinesStr)}</text>
-  <text x="${padX}" y="${rewardY}" font-family="sans-serif" font-weight="700" font-size="${rewardFontSz}" fill="#8C5F0F">${escXml(rewardStr)}</text>
+  <text x="${padX}" y="${labelY}" font-family="DejaVu Sans, sans-serif" font-weight="700" font-size="${labelFontSz}" letter-spacing="${lspc}" fill="#8C5F0F">CLIENTE</text>
+  <text x="${rightX}" y="${labelY}" font-family="DejaVu Sans, sans-serif" font-weight="700" font-size="${labelFontSz}" letter-spacing="${lspc}" fill="#8C5F0F" text-anchor="end">PINOS</text>
+  <text x="${padX}" y="${nameY}" font-family="DejaVu Sans, sans-serif" font-weight="900" font-size="${nameFontSz}" letter-spacing="${Math.round(1 * sc)}" fill="#1B2F56">${escXml(nameStr)}</text>
+  <text x="${rightX}" y="${nameY}" font-family="DejaVu Sans, sans-serif" font-weight="900" font-size="${pinesFontSz}" fill="#1B2F56" text-anchor="end">${escXml(pinesStr)}</text>
+  <text x="${padX}" y="${rewardY}" font-family="DejaVu Sans, sans-serif" font-weight="700" font-size="${rewardFontSz}" fill="#8C5F0F">${escXml(rewardStr)}</text>
 </svg>`;
 
   return Buffer.from(svg);

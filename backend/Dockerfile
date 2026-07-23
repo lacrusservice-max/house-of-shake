@@ -2,8 +2,10 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Instalar dependencias del sistema para node-forge y archiver
-RUN apk add --no-cache python3 make g++ openssl
+# Instalar dependencias del sistema + fuentes para librsvg (SVG text rendering)
+RUN apk add --no-cache python3 make g++ openssl \
+    ttf-dejavu fontconfig \
+    && fc-cache -f
 
 COPY package*.json ./
 RUN npm ci --omit=dev
