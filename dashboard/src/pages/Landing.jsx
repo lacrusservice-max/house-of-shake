@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../styles/landing.css';
-import { TentIcon, GiftIcon, RegisterIcon, CoffeeIcon, PeopleIcon } from '../components/Icons';
+import { TentIcon, CoffeeIcon } from '../components/Icons';
+import Rewards from '../components/Rewards';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -59,16 +60,14 @@ export default function Landing() {
   const [reviewSlide, setReviewSlide] = useState(0);
   const [openSched, setOpenSched] = useState(null);
   const [counts, setCounts] = useState({ ratings: 0, stars: 0, ig: 0, months: 0 });
-  const [publicStats, setPublicStats] = useState({ totalCustomers: 0, totalPointsRedeemed: 0 });
   const statsRef = useRef(null);
   const statsAnimated = useRef(false);
   const navigate = useNavigate();
   const isLoggedIn = !!localStorage.getItem('hos_customer_token');
 
-  // Load products + public stats
+  // Load products
   useEffect(() => {
     fetch(`${API}/products`).then(r => r.json()).then(setProducts).catch(() => {});
-    fetch(`${API}/stats/public`).then(r => r.json()).then(d => setPublicStats(d)).catch(() => {});
   }, []);
 
   // Navbar scroll + progress bar + reveal
@@ -153,8 +152,9 @@ export default function Landing() {
           <span className="hs-nav-logo-txt">HOUSE OF SHAKE</span>
         </a>
         <ul className="hs-nav-links">
+          <li><a onClick={() => scrollTo('hs-menu')}>Menú</a></li>
+          <li><a onClick={() => scrollTo('hs-rewards')}>Rewards</a></li>
           <li><a onClick={() => scrollTo('hs-about')}>Nosotros</a></li>
-          <li><Link to="/menu" style={{ color: 'rgba(251,247,240,.8)', textDecoration: 'none' }}>Menú</Link></li>
           <li><a onClick={() => scrollTo('hs-reviews')}>Reseñas</a></li>
           <li><a onClick={() => scrollTo('hs-location')}>Encuéntranos</a></li>
         </ul>
@@ -205,6 +205,43 @@ export default function Landing() {
           </div>
         </div>
       </section>
+
+      {/* ── MENU (productos primero, tras el hero) ── */}
+      <section id="hs-menu">
+        <div className="hs-menu-hdr hs-rev">
+          <p className="hs-eyebrow" style={{ justifyContent:'center' }}>Specialty Drinks</p>
+          <h2 className="hs-h-dark">NUESTRO MENÚ</h2>
+          <p className="hs-sub-dark">Cada bebida, diseñada para que vuelvas.</p>
+        </div>
+        <div className="hs-mgrid">
+          {FEATURED_ITEMS.map((p, i) => (
+            <Link key={i} to="/menu" className="hs-mcard hs-rev" style={{ textDecoration:'none', display:'block' }}>
+              <div className="hs-cimg" style={{ position:'relative', overflow:'hidden' }}>
+                {p.img ? (
+                  <img src={p.img} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover', position:'absolute', inset:0 }} onError={e => { e.target.style.display='none'; }} />
+                ) : null}
+                <div className="hs-cimg-ph" style={{ position:'absolute', bottom:12, left:12, zIndex:3, background:'rgba(7,30,61,0.55)', backdropFilter:'blur(6px)', borderRadius:'50%', padding:8, display:'flex', alignItems:'center', justifyContent:'center' }}><CoffeeIcon size={28} color="#F5C842" animated /></div>
+                <span className="hs-cbadge" style={{ zIndex:2 }}>{p.tag}</span>
+              </div>
+              <div className="hs-cbody">
+                <p className="hs-cname">{p.name}</p>
+                <p className="hs-cdesc">{p.desc}</p>
+                <div className="hs-cfoot">
+                  <span className="hs-cprice">${p.price}</span>
+                  <span className="hs-ctag">MXN</span>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+        <div style={{ textAlign:'center', marginTop:48, display:'flex', gap:16, justifyContent:'center', flexWrap:'wrap' }}>
+          <Link to="/menu" className="hs-btn hs-btn-gold">VER MENÚ COMPLETO — 39 PRODUCTOS</Link>
+          <Link to="/registro" className="hs-btn hs-btn-blue">ÚNETE Y GANA PUNTOS</Link>
+        </div>
+      </section>
+
+      {/* ── REWARDS (programa de fidelización, estilo Starbucks) ── */}
+      <Rewards isLoggedIn={isLoggedIn} />
 
       {/* ── ABOUT ── */}
       <section id="hs-about">
@@ -261,77 +298,6 @@ export default function Landing() {
               </div>
             </div>
           ))}
-        </div>
-      </section>
-
-      {/* ── MENU ── */}
-      <section id="hs-menu">
-        <div className="hs-menu-hdr hs-rev">
-          <p className="hs-eyebrow" style={{ justifyContent:'center' }}>Specialty Drinks</p>
-          <h2 className="hs-h-dark">NUESTRO MENÚ</h2>
-          <p className="hs-sub-dark">Cada bebida, diseñada para que vuelvas.</p>
-        </div>
-        <div className="hs-mgrid">
-          {FEATURED_ITEMS.map((p, i) => (
-            <Link key={i} to="/menu" className="hs-mcard hs-rev" style={{ textDecoration:'none', display:'block' }}>
-              <div className="hs-cimg" style={{ position:'relative', overflow:'hidden' }}>
-                {p.img ? (
-                  <img src={p.img} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover', position:'absolute', inset:0 }} onError={e => { e.target.style.display='none'; }} />
-                ) : null}
-                <div className="hs-cimg-ph" style={{ position:'absolute', bottom:12, left:12, zIndex:3, background:'rgba(7,30,61,0.55)', backdropFilter:'blur(6px)', borderRadius:'50%', padding:8, display:'flex', alignItems:'center', justifyContent:'center' }}><CoffeeIcon size={28} color="#F5C842" animated /></div>
-                <span className="hs-cbadge" style={{ zIndex:2 }}>{p.tag}</span>
-              </div>
-              <div className="hs-cbody">
-                <p className="hs-cname">{p.name}</p>
-                <p className="hs-cdesc">{p.desc}</p>
-                <div className="hs-cfoot">
-                  <span className="hs-cprice">${p.price}</span>
-                  <span className="hs-ctag">MXN</span>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-        <div style={{ textAlign:'center', marginTop:48, display:'flex', gap:16, justifyContent:'center', flexWrap:'wrap' }}>
-          <Link to="/menu" className="hs-btn hs-btn-gold">VER MENÚ COMPLETO — 39 PRODUCTOS</Link>
-          <Link to="/registro" className="hs-btn hs-btn-blue">ÚNETE Y GANA PUNTOS</Link>
-        </div>
-      </section>
-
-      {/* ── LOYALTY CTA ── */}
-      <section id="hs-loyalty">
-        <div style={{ maxWidth:900, margin:'0 auto', textAlign:'center' }}>
-          <p className="hs-eyebrow hs-rev" style={{ justifyContent:'center' }}>Programa de Fidelización</p>
-          <h2 className="hs-h-dark hs-rev" style={{ fontSize:'clamp(2.5rem,6vw,5.5rem)' }}>
-            CADA CAFÉ<br /><span style={{ color:'#F5C842' }}>TE RECOMPENSA</span>
-          </h2>
-          <p className="hs-sub-dark hs-rev">Acumula 1 punto por cada $1 MXN gastado. 100 puntos = $5 MXN de descuento. Sin complicaciones.</p>
-          <div className="hs-rev" style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16, marginBottom:48, maxWidth:700, margin:'0 auto 48px' }}>
-            {[
-              { Icon: RegisterIcon, title:'Regístrate gratis', desc:'En menos de un minuto desde esta página.' },
-              { Icon: CoffeeIcon,   title:'Compra y acumula', desc:'Muestra tu QR al staff en cada visita.' },
-              { Icon: GiftIcon,     title:'Canjea beneficios', desc:'100 puntos = $5 MXN. Niveles Bronze, Silver y Gold.' },
-            ].map(s => (
-              <div key={s.title} style={{ background:'rgba(251,247,240,.04)', border:'1px solid rgba(245,200,66,.1)', borderRadius:10, padding:28 }}>
-                <div style={{ marginBottom:12, display:'flex', justifyContent:'center' }}><s.Icon size={36} color="#F5C842" animated /></div>
-                <p style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:'1.2rem', letterSpacing:2, color:'#FBF7F0', marginBottom:6 }}>{s.title}</p>
-                <p style={{ fontSize:12, color:'rgba(251,247,240,.45)', lineHeight:1.7 }}>{s.desc}</p>
-              </div>
-            ))}
-          </div>
-          {publicStats.totalCustomers > 0 && (
-            <div className="hs-rev" style={{ display:'inline-flex', alignItems:'center', gap:10, background:'rgba(245,200,66,.08)', border:'1px solid rgba(245,200,66,.2)', borderRadius:40, padding:'10px 24px', marginBottom:28 }}>
-              <PeopleIcon size={20} color="#F5C842" />
-              <span style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:'1.5rem', color:'#F5C842', letterSpacing:2 }}>
-                {publicStats.totalCustomers.toLocaleString()}
-              </span>
-              <span style={{ fontSize:13, color:'rgba(251,247,240,.55)', fontWeight:600 }}>clientes en el programa</span>
-            </div>
-          )}
-          <div className="hs-rev" style={{ display:'flex', gap:12, justifyContent:'center', flexWrap:'wrap' }}>
-            <Link to="/registro" className="hs-btn hs-btn-gold">CREAR MI CUENTA GRATIS</Link>
-            {isLoggedIn && <Link to="/mi-cuenta" className="hs-btn hs-btn-ghost">VER MIS PUNTOS</Link>}
-          </div>
         </div>
       </section>
 
