@@ -302,4 +302,4 @@ async function addWelcomeBonus(customerId) {
   logger.info(`Bono de bienvenida (${config.welcomeBonus} puntos) para cliente ${customerId}`);
 }
 
-module.exports = { addPoints, redeemPoints, reversePoints, addWelcomeBonus, addBirthdayBonus, getCustomerPoints, getConfig, isDoublePointsActive };
+module.exports = { addPoints, redeemPoints, reversePoints, addWelcomeBonus, addBirthdayBonus, getCustomerPoints, getConfig, isDoublePointsActive, invalidateCache };

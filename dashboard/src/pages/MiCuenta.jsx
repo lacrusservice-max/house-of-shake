@@ -6,6 +6,17 @@ import { CoffeeIcon, GiftIcon, ShakeIcon, StarIcon, LightningIcon, TrophyIcon, C
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
+// Canje: 1 Pino = $1 MXN. 1 Pino = 10 puntos internos.
+const pinosDe = (pointsValue = 0) => Math.round(pointsValue / 10);
+
+const CAT_LABEL = {
+  'bebida': 'Bebidas', 'bebidas': 'Bebidas', 'cold-coffees': 'Cold Coffees',
+  'cold-brew': 'Cold Brew', 'matcha': 'Matcha', 'fitfresh': 'Fitfresh',
+  'chai': 'Chai', 'milkshakes': 'Milkshakes', 'reposteria': 'Repostería',
+  'alimentos': 'Alimentos', 'especiales': 'Especiales',
+};
+const catLabel = (c) => CAT_LABEL[c] || (c ? c[0].toUpperCase() + c.slice(1) : 'Otros');
+
 const TX_TYPE = {
   EARN:          { label: 'Pinos ganados',      color: '#5EC97A' },
   REDEEM:        { label: 'Canje',              color: '#4a9fd4' },
@@ -33,6 +44,9 @@ export default function MiCuenta() {
 
   const [claimingBd, setClaimingBd] = useState(false);
   const [bdMsg, setBdMsg] = useState('');
+
+  const [products, setProducts] = useState([]);
+  const [rewardCat, setRewardCat] = useState('all');
 
   const TX_PAGE_SIZE = 10;
   const navigate = useNavigate();
@@ -65,6 +79,12 @@ export default function MiCuenta() {
       })
       .catch(() => {})
       .finally(() => setTxLoading(false));
+
+    // Catálogo de premios — todo el menú con su costo en Pinos
+    fetch(`${API}/products`)
+      .then(r => r.json())
+      .then(d => setProducts(Array.isArray(d) ? d : []))
+      .catch(() => {});
   }, []);
 
   async function loadMoreTransactions() {
@@ -301,6 +321,7 @@ export default function MiCuenta() {
         <div className="mc-tabs">
           {[
             { key: 'tarjeta',   Icon: CardIcon,    label: 'Tarjeta' },
+            { key: 'premios',   Icon: GiftIcon,    label: 'Premios' },
             { key: 'historial', Icon: CheckIcon,   label: 'Historial' },
             { key: 'lealtad',   Icon: TrophyIcon,  label: 'Lealtad' },
             { key: 'perfil',    Icon: StarIcon,    label: 'Perfil' },
@@ -478,6 +499,136 @@ export default function MiCuenta() {
             </button>
           </div>
         )}
+
+        {/* TAB — PREMIOS (catálogo canjeable) */}
+        {activeTab === 'premios' && (() => {
+          const cats = [...new Set(products.map(p => p.category).filter(Boolean))];
+          const shown = (rewardCat === 'all' ? products : products.filter(p => p.category === rewardCat))
+            .slice().sort((a, b) => a.pointsValue - b.pointsValue);
+          const canGet = products.filter(p => pinosDe(p.pointsValue) <= availPines);
+          const nextUp = products
+            .filter(p => pinosDe(p.pointsValue) > availPines)
+            .sort((a, b) => a.pointsValue - b.pointsValue)[0];
+
+          return (
+            <div>
+              {/* Saldo canjeable */}
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(245,200,66,.15), rgba(245,200,66,.04))',
+                border: '1px solid rgba(245,200,66,.3)', borderRadius: 18,
+                padding: '22px', marginBottom: 16, textAlign: 'center',
+              }}>
+                <p style={{ fontSize: 10, letterSpacing: 2, color: 'rgba(251,247,240,.45)', textTransform: 'uppercase', fontWeight: 700, margin: 0 }}>
+                  Tus Pinos para canjear
+                </p>
+                <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 64, color: 'var(--gold)', margin: '4px 0 0', lineHeight: 1 }}>
+                  {availPines}
+                </p>
+                <p style={{ fontSize: 13, color: 'rgba(251,247,240,.55)', margin: '6px 0 0' }}>
+                  Equivalen a <strong style={{ color: 'var(--gold)' }}>${availPines} MXN</strong> de menú
+                </p>
+                <p style={{
+                  fontSize: 13, fontWeight: 800, margin: '14px 0 0',
+                  color: canGet.length > 0 ? '#5EC97A' : 'rgba(251,247,240,.45)',
+                }}>
+                  {canGet.length > 0
+                    ? `🎁 Puedes canjear ${canGet.length} producto${canGet.length === 1 ? '' : 's'} gratis`
+                    : nextUp
+                      ? `Te faltan ${pinosDe(nextUp.pointsValue) - availPines} Pinos para tu primer premio`
+                      : 'Sigue acumulando Pinos'}
+                </p>
+              </div>
+
+              {canGet.length > 0 && (
+                <div style={{
+                  background: 'rgba(94,201,122,.08)', border: '1px solid rgba(94,201,122,.28)',
+                  borderRadius: 12, padding: '12px 16px', marginBottom: 16,
+                  display: 'flex', alignItems: 'center', gap: 10,
+                }}>
+                  <CheckIcon size={20} color="#5EC97A" />
+                  <p style={{ fontSize: 12, color: 'rgba(251,247,240,.65)', margin: 0, lineHeight: 1.5 }}>
+                    Muestra tu <strong style={{ color: '#5EC97A' }}>QR al staff</strong> y pide el producto que quieras canjear.
+                  </p>
+                </div>
+              )}
+
+              {/* Filtro categorías */}
+              {cats.length > 1 && (
+                <div style={{ display: 'flex', gap: 7, overflowX: 'auto', paddingBottom: 8, marginBottom: 12, WebkitOverflowScrolling: 'touch' }}>
+                  {['all', ...cats].map(c => (
+                    <button key={c} onClick={() => setRewardCat(c)} style={{
+                      flexShrink: 0, padding: '7px 14px', borderRadius: 20, cursor: 'pointer',
+                      fontFamily: "'Montserrat', sans-serif", fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
+                      background: rewardCat === c ? 'var(--gold)' : 'rgba(251,247,240,.05)',
+                      color: rewardCat === c ? '#2C1A0E' : 'rgba(251,247,240,.55)',
+                      border: `1px solid ${rewardCat === c ? 'var(--gold)' : 'rgba(251,247,240,.12)'}`,
+                    }}>
+                      {c === 'all' ? 'Todo' : catLabel(c)}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {products.length === 0 && (
+                <div className="mc-empty">
+                  <div className="mc-empty-icon"><GiftIcon size={48} color="#F5C842" /></div>
+                  <p className="mc-empty-title">Cargando premios…</p>
+                </div>
+              )}
+
+              {/* Catálogo */}
+              <div style={{ display: 'grid', gap: 8 }}>
+                {shown.map(p => {
+                  const cost = pinosDe(p.pointsValue);
+                  const unlocked = cost <= availPines;
+                  const faltan = cost - availPines;
+                  const pct = Math.min(100, Math.round((availPines / cost) * 100));
+                  return (
+                    <div key={p.id} style={{
+                      padding: '14px 16px', borderRadius: 14,
+                      background: unlocked ? 'rgba(94,201,122,.08)' : 'rgba(251,247,240,.03)',
+                      border: `1px solid ${unlocked ? 'rgba(94,201,122,.3)' : 'rgba(251,247,240,.07)'}`,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ flexShrink: 0 }}>
+                          {unlocked
+                            ? <GiftIcon size={24} color="#5EC97A" animated />
+                            : <CoffeeIcon size={24} color="rgba(251,247,240,.28)" animated={false} />}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontWeight: 800, fontSize: 14, color: unlocked ? 'var(--cream)' : 'rgba(251,247,240,.6)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {p.name}
+                          </p>
+                          <p style={{ fontSize: 11, color: 'rgba(251,247,240,.4)', margin: '2px 0 0' }}>
+                            ${p.price} MXN · {catLabel(p.category)}
+                          </p>
+                        </div>
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, lineHeight: 1, margin: 0, color: unlocked ? '#5EC97A' : 'rgba(251,247,240,.45)' }}>
+                            {cost}
+                          </p>
+                          <p style={{ fontSize: 9, color: unlocked ? 'rgba(94,201,122,.75)' : 'rgba(251,247,240,.3)', margin: 0, letterSpacing: .5, fontWeight: 700 }}>
+                            {unlocked ? 'PINOS ✓' : 'PINOS'}
+                          </p>
+                        </div>
+                      </div>
+                      {!unlocked && (
+                        <div style={{ marginTop: 10 }}>
+                          <div className="mc-bar-bg" style={{ height: 5 }}>
+                            <div className="mc-bar-fill" style={{ width: `${pct}%`, background: 'var(--gold)' }} />
+                          </div>
+                          <p style={{ fontSize: 10, color: 'rgba(251,247,240,.35)', margin: '5px 0 0' }}>
+                            Te faltan <strong style={{ color: 'var(--gold)' }}>{faltan} Pinos</strong> · gasta ${faltan * 10} MXN más
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* TAB — HISTORIAL */}
         {activeTab === 'historial' && (

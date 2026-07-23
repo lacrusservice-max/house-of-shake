@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/mi-cuenta.css';
 import { CoffeeIcon, GiftIcon, StarIcon, CakeIcon, LightningIcon, SearchIcon, WarningIcon, CheckIcon } from '../components/Icons';
@@ -6,6 +6,17 @@ import { CoffeeIcon, GiftIcon, StarIcon, CakeIcon, LightningIcon, SearchIcon, Wa
 const QRScanner = lazy(() => import('../components/QRScanner'));
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+// Canje: 1 Pino = $1 MXN. 1 Pino = 10 puntos internos.
+const pinosDe = (pointsValue = 0) => Math.round(pointsValue / 10);
+
+const CAT_LABEL = {
+  'bebida': 'Bebidas', 'bebidas': 'Bebidas', 'cold-coffees': 'Cold Coffees',
+  'cold-brew': 'Cold Brew', 'matcha': 'Matcha', 'fitfresh': 'Fitfresh',
+  'chai': 'Chai', 'milkshakes': 'Milkshakes', 'reposteria': 'Repostería',
+  'alimentos': 'Alimentos', 'especiales': 'Especiales',
+};
+const catLabel = (c) => CAT_LABEL[c] || (c ? c[0].toUpperCase() + c.slice(1) : 'Otros');
 
 // Pino calc: ciclo basado en availablePoints para que el canje reinicie el ciclo
 function calcPines(availablePoints = 0, lifetimePoints = 0) {
@@ -43,8 +54,40 @@ function POSView({ token, onLogout }) {
   const [amount, setAmount]         = useState('');
   const [result, setResult]         = useState(null);
   const [quickReg, setQuickReg]     = useState({ show: false, firstName: '', lastName: '', email: '', loading: false, error: '' });
+  const [products, setProducts]     = useState([]);
+  const [pickedProduct, setPickedProduct] = useState(null);
+  const [catFilter, setCatFilter]   = useState('all');
 
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+
+  // Menú completo con su costo en Pinos — el staff siempre lo tiene a la mano
+  useEffect(() => {
+    fetch(`${API}/products`)
+      .then(r => r.json())
+      .then(d => setProducts(Array.isArray(d) ? d : []))
+      .catch(() => {});
+  }, []);
+
+  async function handleRedeemProduct() {
+    if (!pickedProduct) return;
+    setLoading(true); setError('');
+    try {
+      const res = await fetch(`${API}/pos/customer/${customer.id}/redeem-product`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ productId: pickedProduct.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al canjear');
+      setResult({ type: 'redeemProduct', customerName: customer.firstName, ...data });
+      setCustomer(c => ({ ...c, availablePoints: data.newAvailablePoints }));
+      setPickedProduct(null);
+      setScreen('success');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   function extractCode(raw) {
     const uuid = raw?.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
@@ -170,11 +213,20 @@ function POSView({ token, onLogout }) {
     setScreen('home'); setCustomer(null); setError(''); setResult(null);
     setCodeInput(''); setEmailInput(''); setAmount('');
     setNameInput(''); setNameResults([]);
+    setPickedProduct(null); setCatFilter('all');
     setQuickReg({ show: false, firstName: '', lastName: '', email: '', loading: false, error: '' });
   }
 
   const pines = customer ? calcPines(customer.availablePoints, customer.lifetimePoints) : null;
   const pinesPreview = amount && parseFloat(amount) > 0 ? Math.floor(parseFloat(amount) / 10) : 0;
+
+  // Pinos canjeables del cliente (1 Pino = $1 de menú)
+  const availPinos = customer ? Math.floor((customer.availablePoints || 0) / 10) : 0;
+  const categories = [...new Set(products.map(p => p.category).filter(Boolean))];
+  const shownProducts = (catFilter === 'all' ? products : products.filter(p => p.category === catFilter))
+    .slice()
+    .sort((a, b) => a.pointsValue - b.pointsValue);
+  const affordableCount = products.filter(p => pinosDe(p.pointsValue) <= availPinos).length;
 
   return (
     <div className="mc-root" style={{ minHeight: '100vh' }}>
@@ -234,6 +286,71 @@ function POSView({ token, onLogout }) {
                 </div>
                 <span style={{ marginLeft: 'auto', fontSize: 18, opacity: .4 }}>›</span>
               </button>
+            </div>
+
+            {/* Consultar menú y costos en Pinos — sin necesidad de un cliente */}
+            <button onClick={() => { setCatFilter('all'); setScreen('menu'); }} style={{
+              ...S.bigBtn('rgba(245,200,66,.08)', 'var(--cream)', '1px solid rgba(245,200,66,.22)'),
+              marginTop: 10,
+            }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'center', width:32, height:32 }}><GiftIcon size={28} color="#F5C842" animated /></div>
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 2 }}>Ver menú y costos en Pinos</div>
+                <div style={{ fontSize: 11, opacity: .55 }}>Consulta cuánto cuesta canjear cada producto</div>
+              </div>
+              <span style={{ marginLeft: 'auto', fontSize: 18, opacity: .4 }}>›</span>
+            </button>
+          </div>
+        )}
+
+        {/* ── MENÚ DE REFERENCIA (sin cliente) ── */}
+        {screen === 'menu' && (
+          <div>
+            <button onClick={() => setScreen('home')} style={S.back}>← Volver</button>
+            <h2 className="mc-heading" style={{ fontSize: 34, marginBottom: 4 }}>
+              Menú y <span>Pinos</span>
+            </h2>
+            <p style={{ color: 'rgba(251,247,240,.45)', fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
+              1 Pino = $1 MXN · así se canjea cada producto
+            </p>
+
+            {categories.length > 1 && (
+              <div style={{ display: 'flex', gap: 7, overflowX: 'auto', paddingBottom: 8, marginBottom: 12, WebkitOverflowScrolling: 'touch' }}>
+                {['all', ...categories].map(c => (
+                  <button key={c} onClick={() => setCatFilter(c)} style={{
+                    flexShrink: 0, padding: '7px 14px', borderRadius: 20, cursor: 'pointer',
+                    fontFamily: "'Montserrat', sans-serif", fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
+                    background: catFilter === c ? 'var(--gold)' : 'rgba(251,247,240,.05)',
+                    color: catFilter === c ? '#2C1A0E' : 'rgba(251,247,240,.55)',
+                    border: `1px solid ${catFilter === c ? 'var(--gold)' : 'rgba(251,247,240,.12)'}`,
+                  }}>
+                    {c === 'all' ? 'Todo el menú' : catLabel(c)}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {products.length === 0 && (
+              <p style={{ textAlign: 'center', color: 'rgba(251,247,240,.35)', fontSize: 13, padding: '30px 0' }}>Cargando menú…</p>
+            )}
+
+            <div style={{ display: 'grid', gap: 8 }}>
+              {shownProducts.map(p => (
+                <div key={p.id} style={{
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  padding: '13px 16px', borderRadius: 14,
+                  background: 'rgba(251,247,240,.04)', border: '1px solid rgba(251,247,240,.08)',
+                }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontWeight: 800, fontSize: 14, color: 'var(--cream)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</p>
+                    <p style={{ fontSize: 11, color: 'rgba(251,247,240,.4)', margin: '2px 0 0' }}>${p.price} MXN · {catLabel(p.category)}</p>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, color: 'var(--gold)', margin: 0, lineHeight: 1 }}>{pinosDe(p.pointsValue)}</p>
+                    <p style={{ fontSize: 9, color: 'rgba(251,247,240,.3)', margin: 0, letterSpacing: .5, fontWeight: 700 }}>PINOS</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -521,23 +638,44 @@ function POSView({ token, onLogout }) {
               </button>
 
               <button
-                disabled={!pines.cardComplete || loading}
-                onClick={() => { setScreen('confirmDrink'); setError(''); }}
+                disabled={loading}
+                onClick={() => { setScreen('redeem'); setError(''); setCatFilter('all'); }}
                 style={{
                   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
                   padding: '20px 16px', borderRadius: 16,
-                  background: pines.cardComplete ? 'rgba(94,201,122,.15)' : 'rgba(251,247,240,.04)',
-                  border: `1px solid ${pines.cardComplete ? 'rgba(94,201,122,.4)' : 'rgba(251,247,240,.1)'}`,
-                  color: pines.cardComplete ? '#5EC97A' : 'rgba(251,247,240,.25)',
-                  cursor: pines.cardComplete ? 'pointer' : 'not-allowed',
-                  fontFamily: "'Montserrat', sans-serif",
+                  background: affordableCount > 0 ? 'rgba(245,200,66,.14)' : 'rgba(251,247,240,.04)',
+                  border: `1px solid ${affordableCount > 0 ? 'rgba(245,200,66,.4)' : 'rgba(251,247,240,.1)'}`,
+                  color: affordableCount > 0 ? 'var(--gold)' : 'rgba(251,247,240,.35)',
+                  cursor: 'pointer', fontFamily: "'Montserrat', sans-serif",
                 }}>
-                <span style={{ fontSize: 28 }}>🌲</span>
-                <span style={{ fontWeight: 800, fontSize: 13 }}>Bebida gratis</span>
-                <span style={{ fontSize: 10, opacity: .7 }}>
-                  {pines.cardComplete ? '120 Pinos ✓' : `Faltan ${pines.pinesLeft}`}
+                <GiftIcon size={28} color={affordableCount > 0 ? '#F5C842' : 'rgba(251,247,240,.35)'} animated={affordableCount > 0} />
+                <span style={{ fontWeight: 800, fontSize: 13 }}>Canjear premio</span>
+                <span style={{ fontSize: 10, opacity: .75 }}>
+                  {affordableCount > 0 ? `${affordableCount} productos gratis` : 'Ver menú y costos'}
                 </span>
               </button>
+            </div>
+
+            {/* Balance canjeable — lo que el staff necesita saber de un vistazo */}
+            <div style={{
+              background: 'rgba(245,200,66,.07)', border: '1px solid rgba(245,200,66,.22)',
+              borderRadius: 14, padding: '14px 18px', marginBottom: 14,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+            }}>
+              <div>
+                <p style={{ fontSize: 9, letterSpacing: 2, color: 'rgba(251,247,240,.4)', textTransform: 'uppercase', fontWeight: 700, margin: 0 }}>
+                  Saldo para canjear
+                </p>
+                <p style={{ fontSize: 12, color: 'rgba(251,247,240,.55)', margin: '3px 0 0' }}>
+                  Equivale a <strong style={{ color: 'var(--gold)' }}>${availPinos} MXN</strong> de menú
+                </p>
+              </div>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 38, color: 'var(--gold)', margin: 0, lineHeight: 1 }}>
+                  {availPinos}
+                </p>
+                <p style={{ fontSize: 9, color: 'rgba(251,247,240,.35)', margin: 0, letterSpacing: 1 }}>PINOS 🌲</p>
+              </div>
             </div>
 
             {/* Recent transactions */}
@@ -662,6 +800,172 @@ function POSView({ token, onLogout }) {
           </div>
         )}
 
+        {/* ── CANJEAR PREMIO — catálogo con costos en Pinos ── */}
+        {screen === 'redeem' && customer && (
+          <div>
+            <button onClick={() => { setScreen('customer'); setError(''); }} style={S.back}>← Volver al cliente</button>
+            <h2 className="mc-heading" style={{ fontSize: 34, marginBottom: 4 }}>
+              Canjear <span>premio</span>
+            </h2>
+            <p style={{ color: 'rgba(251,247,240,.45)', fontSize: 13, fontWeight: 600, marginBottom: 14 }}>
+              Para: <strong style={{ color: 'var(--cream)' }}>{customer.firstName} {customer.lastName}</strong>
+            </p>
+
+            {/* Saldo disponible */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(245,200,66,.14), rgba(245,200,66,.05))',
+              border: '1px solid rgba(245,200,66,.3)', borderRadius: 16,
+              padding: '16px 18px', marginBottom: 16,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+            }}>
+              <div>
+                <p style={{ fontSize: 9, letterSpacing: 2, color: 'rgba(251,247,240,.45)', textTransform: 'uppercase', fontWeight: 700, margin: 0 }}>
+                  Le alcanza para
+                </p>
+                <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--cream)', margin: '4px 0 0' }}>
+                  {affordableCount > 0
+                    ? `${affordableCount} producto${affordableCount === 1 ? '' : 's'} gratis`
+                    : 'Aún nada — sigue acumulando'}
+                </p>
+              </div>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 40, color: 'var(--gold)', margin: 0, lineHeight: 1 }}>{availPinos}</p>
+                <p style={{ fontSize: 9, color: 'rgba(251,247,240,.4)', margin: 0, letterSpacing: 1 }}>PINOS = ${availPinos}</p>
+              </div>
+            </div>
+
+            {error && <div style={{ ...S.err, marginBottom: 12 }}>{error}</div>}
+
+            {/* Filtro de categorías */}
+            {categories.length > 1 && (
+              <div style={{ display: 'flex', gap: 7, overflowX: 'auto', paddingBottom: 8, marginBottom: 12, WebkitOverflowScrolling: 'touch' }}>
+                {['all', ...categories].map(c => (
+                  <button key={c} onClick={() => setCatFilter(c)} style={{
+                    flexShrink: 0, padding: '7px 14px', borderRadius: 20, cursor: 'pointer',
+                    fontFamily: "'Montserrat', sans-serif", fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
+                    background: catFilter === c ? 'var(--gold)' : 'rgba(251,247,240,.05)',
+                    color: catFilter === c ? '#2C1A0E' : 'rgba(251,247,240,.55)',
+                    border: `1px solid ${catFilter === c ? 'var(--gold)' : 'rgba(251,247,240,.12)'}`,
+                  }}>
+                    {c === 'all' ? 'Todo el menú' : catLabel(c)}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {products.length === 0 && (
+              <p style={{ textAlign: 'center', color: 'rgba(251,247,240,.35)', fontSize: 13, padding: '30px 0' }}>
+                Cargando menú…
+              </p>
+            )}
+
+            {/* Lista de productos con costo en Pinos */}
+            <div style={{ display: 'grid', gap: 8 }}>
+              {shownProducts.map(p => {
+                const cost = pinosDe(p.pointsValue);
+                const canAfford = cost <= availPinos;
+                const faltan = cost - availPinos;
+                return (
+                  <button
+                    key={p.id}
+                    disabled={!canAfford}
+                    onClick={() => { setPickedProduct(p); setScreen('confirmProduct'); setError(''); }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left',
+                      padding: '14px 16px', borderRadius: 14, width: '100%',
+                      background: canAfford ? 'rgba(94,201,122,.09)' : 'rgba(251,247,240,.03)',
+                      border: `1px solid ${canAfford ? 'rgba(94,201,122,.32)' : 'rgba(251,247,240,.07)'}`,
+                      cursor: canAfford ? 'pointer' : 'not-allowed',
+                      opacity: canAfford ? 1 : .5,
+                      fontFamily: "'Montserrat', sans-serif",
+                    }}>
+                    <div style={{ flexShrink: 0 }}>
+                      {canAfford
+                        ? <CheckIcon size={22} color="#5EC97A" />
+                        : <CoffeeIcon size={22} color="rgba(251,247,240,.3)" animated={false} />}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontWeight: 800, fontSize: 14, color: 'var(--cream)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {p.name}
+                      </p>
+                      <p style={{ fontSize: 11, color: 'rgba(251,247,240,.4)', margin: '2px 0 0' }}>
+                        ${p.price} MXN · {catLabel(p.category)}
+                      </p>
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <p style={{
+                        fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, lineHeight: 1, margin: 0,
+                        color: canAfford ? '#5EC97A' : 'rgba(251,247,240,.45)',
+                      }}>
+                        {cost}
+                      </p>
+                      <p style={{ fontSize: 9, color: canAfford ? 'rgba(94,201,122,.75)' : 'rgba(251,247,240,.3)', margin: 0, letterSpacing: .5, fontWeight: 700 }}>
+                        {canAfford ? 'PINOS ✓' : `faltan ${faltan}`}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── CONFIRMAR CANJE DE PRODUCTO ── */}
+        {screen === 'confirmProduct' && customer && pickedProduct && (() => {
+          const cost = pinosDe(pickedProduct.pointsValue);
+          const after = availPinos - cost;
+          return (
+            <div>
+              <button onClick={() => { setScreen('redeem'); setError(''); }} style={S.back}>← Volver al menú</button>
+              <h2 className="mc-heading" style={{ fontSize: 34, marginBottom: 4 }}>
+                Confirmar <span>canje</span>
+              </h2>
+              <p style={{ color: 'rgba(251,247,240,.45)', fontSize: 13, fontWeight: 600, marginBottom: 20 }}>
+                Para: <strong style={{ color: 'var(--cream)' }}>{customer.firstName} {customer.lastName}</strong>
+              </p>
+
+              <div style={{
+                background: 'rgba(94,201,122,.08)', border: '1px solid rgba(94,201,122,.3)',
+                borderRadius: 20, padding: '26px 22px', textAlign: 'center', marginBottom: 18,
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+                  <GiftIcon size={52} color="#5EC97A" animated />
+                </div>
+                <div style={{ fontSize: 19, fontWeight: 900, color: 'var(--cream)', marginBottom: 6 }}>
+                  {pickedProduct.name}
+                </div>
+                <div style={{ fontSize: 13, color: 'rgba(251,247,240,.5)', marginBottom: 14 }}>
+                  Valor ${pickedProduct.price} MXN · <strong style={{ color: '#5EC97A' }}>GRATIS</strong>
+                </div>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 44, color: '#5EC97A', letterSpacing: 2, lineHeight: 1 }}>
+                  −{cost} PINOS
+                </div>
+              </div>
+
+              <div style={{ background: 'rgba(251,247,240,.04)', border: '1px solid rgba(251,247,240,.08)', borderRadius: 14, padding: '14px 18px', marginBottom: 20 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
+                  <span style={{ color: 'rgba(251,247,240,.5)' }}>Pinos antes</span>
+                  <span style={{ fontWeight: 800, color: 'var(--gold)' }}>{availPinos} 🌲</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                  <span style={{ color: 'rgba(251,247,240,.5)' }}>Pinos después</span>
+                  <span style={{ fontWeight: 800, color: 'rgba(251,247,240,.7)' }}>{after} 🌲</span>
+                </div>
+              </div>
+
+              {error && <div style={{ ...S.err, marginBottom: 14 }}>{error}</div>}
+
+              <button onClick={handleRedeemProduct} disabled={loading}
+                style={{ ...S.goldBtn, background: '#5EC97A', marginBottom: 10, fontSize: 15, height: 56, opacity: loading ? .6 : 1 }}>
+                {loading ? 'Procesando…' : `Entregar ${pickedProduct.name} gratis`}
+              </button>
+              <button onClick={() => { setScreen('redeem'); setError(''); }} style={S.ghostBtn}>
+                Cancelar
+              </button>
+            </div>
+          );
+        })()}
+
         {/* ── SUCCESS ── */}
         {screen === 'success' && result && (
           <SuccessScreen result={result} customer={customer} onViewProfile={() => { setScreen('customer'); setResult(null); }} onReset={reset} />
@@ -675,14 +979,33 @@ function POSView({ token, onLogout }) {
 /* ─── Success Screen ─── */
 function SuccessScreen({ result, customer, onViewProfile, onReset }) {
   const newPines = calcPines(result.newBalance || result.newAvailablePoints || 0);
+  const isProduct = result.type === 'redeemProduct';
 
   return (
     <div style={{ textAlign: 'center', paddingTop: 20 }}>
       <div style={{ marginBottom: 12, display:'flex', justifyContent:'center' }}>
         {result.type === 'earn'
           ? <StarIcon size={72} color="#F5C842" animated />
-          : <span style={{ fontSize: 72 }}>🌲</span>}
+          : isProduct
+            ? <GiftIcon size={72} color="#5EC97A" animated />
+            : <span style={{ fontSize: 72 }}>🌲</span>}
       </div>
+
+      {isProduct && (
+        <>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 40, letterSpacing: 2, lineHeight: 1.05, color: '#5EC97A', marginBottom: 8 }}>
+            ¡{result.productName} gratis!
+          </div>
+          <p style={{ color: 'rgba(251,247,240,.55)', fontSize: 14, marginBottom: 16 }}>
+            {result.pinosCost} Pinos canjeados por <strong style={{ color: 'var(--cream)' }}>{result.customerName || customer?.firstName}</strong>
+          </p>
+          <div style={{ background: 'rgba(94,201,122,.08)', border: '1px solid rgba(94,201,122,.25)', borderRadius: 14, padding: '12px 18px', marginBottom: 16 }}>
+            <p style={{ fontSize: 13, fontWeight: 800, color: '#5EC97A', margin: 0 }}>
+              ✓ Entrégale el producto al cliente
+            </p>
+          </div>
+        </>
+      )}
 
       {result.type === 'earn' && (
         <>
@@ -707,19 +1030,32 @@ function SuccessScreen({ result, customer, onViewProfile, onReset }) {
       )}
 
       <div style={{ background: 'rgba(251,247,240,.04)', border: '1px solid rgba(251,247,240,.09)', borderRadius: 18, padding: '16px 24px', marginBottom: 16 }}>
-        <div style={{ fontSize: 9, letterSpacing: 3, color: 'rgba(251,247,240,.3)', textTransform: 'uppercase', marginBottom: 6 }}>Pinos en ciclo actual</div>
-        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: newPines.cardComplete ? '#5EC97A' : 'var(--gold)', lineHeight: 1 }}>
-          {result.newPinesInCycle ?? newPines.pinesInCycle} / 120
-        </div>
-        {newPines.cardComplete && (
-          <div style={{ fontSize: 13, color: '#5EC97A', fontWeight: 800, marginTop: 8 }}>
-            🌲 ¡Tarjeta completa! El cliente puede canjear otra bebida
-          </div>
-        )}
-        {!newPines.cardComplete && (
-          <div style={{ fontSize: 11, color: 'rgba(251,247,240,.3)', marginTop: 6 }}>
-            {newPines.pinesLeft} Pinos más para bebida gratis
-          </div>
+        {isProduct ? (
+          <>
+            <div style={{ fontSize: 9, letterSpacing: 3, color: 'rgba(251,247,240,.3)', textTransform: 'uppercase', marginBottom: 6 }}>Pinos restantes</div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: 'var(--gold)', lineHeight: 1 }}>
+              {result.newAvailPinos ?? newPines.availPines}
+            </div>
+            <div style={{ fontSize: 11, color: 'rgba(251,247,240,.3)', marginTop: 6 }}>
+              Equivalen a ${result.newAvailPinos ?? newPines.availPines} MXN de menú
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize: 9, letterSpacing: 3, color: 'rgba(251,247,240,.3)', textTransform: 'uppercase', marginBottom: 6 }}>Pinos en ciclo actual</div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: newPines.cardComplete ? '#5EC97A' : 'var(--gold)', lineHeight: 1 }}>
+              {result.newPinesInCycle ?? newPines.pinesInCycle} / 120
+            </div>
+            {newPines.cardComplete ? (
+              <div style={{ fontSize: 13, color: '#5EC97A', fontWeight: 800, marginTop: 8 }}>
+                🌲 ¡Tarjeta completa! El cliente puede canjear otra bebida
+              </div>
+            ) : (
+              <div style={{ fontSize: 11, color: 'rgba(251,247,240,.3)', marginTop: 6 }}>
+                {newPines.pinesLeft} Pinos más para bebida gratis
+              </div>
+            )}
+          </>
         )}
       </div>
 

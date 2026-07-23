@@ -110,6 +110,7 @@ router.get('/pos/customer/:code', authenticateStaff, posController.lookupCustome
 router.post('/pos/customer/:customerId/add-points', authenticateStaff, posLimiter, posController.addPointsForPurchase);
 router.post('/pos/customer/:customerId/redeem', authenticateStaff, posLimiter, posController.redeemPoints);
 router.post('/pos/customer/:customerId/redeem-drink', authenticateStaff, posLimiter, posController.redeemFreeDrink);
+router.post('/pos/customer/:customerId/redeem-product', authenticateStaff, posLimiter, posController.redeemProduct);
 router.post('/pos/quick-register', authenticateStaff, customerController.quickRegisterFromPOS);
 
 // === ADMIN (solo role: admin) ===
@@ -142,6 +143,7 @@ router.get('/stats/public', adminController.getPublicStats);
 router.post('/admin/products', authenticateAdmin, productsController.createProduct);
 router.put('/admin/products/:id', authenticateAdmin, productsController.updateProduct);
 router.delete('/admin/products/:id', authenticateAdmin, productsController.deleteProduct);
+router.post('/admin/products/recompute-points', authenticateAdmin, productsController.recomputeAllPoints);
 
 // Admin: cumpleaños y puntos dobles
 router.get('/admin/birthday-customers', authenticateAdmin, adminController.getBirthdayCustomers);

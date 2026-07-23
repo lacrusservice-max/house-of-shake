@@ -225,6 +225,72 @@ async function redeemFreeDrink(req, res) {
   }
 }
 
+// Staff canjea un PRODUCTO específico gratis — descuenta su costo en Pinos (pointsValue)
+async function redeemProduct(req, res) {
+  const { customerId } = req.params;
+  const { productId } = req.body;
+  if (!productId) return res.status(400).json({ error: 'productId requerido' });
+
+  try {
+    const [customer, product] = await Promise.all([
+      prisma.customer.findUnique({ where: { id: customerId } }),
+      prisma.product.findUnique({ where: { id: productId } }),
+    ]);
+    if (!customer) return res.status(404).json({ error: 'Cliente no encontrado' });
+    if (!product || !product.active) return res.status(404).json({ error: 'Producto no encontrado' });
+
+    if (customer.availablePoints < product.pointsValue) {
+      const faltanPinos = Math.ceil((product.pointsValue - customer.availablePoints) / 10);
+      return res.status(400).json({
+        error: `Pinos insuficientes. ${product.name} cuesta ${Math.round(product.pointsValue / 10)} Pinos y al cliente le faltan ${faltanPinos}.`,
+        faltanPinos,
+      });
+    }
+
+    const pinosCost = Math.round(product.pointsValue / 10);
+    const [updatedCustomer] = await prisma.$transaction([
+      prisma.customer.update({
+        where: { id: customerId },
+        data: {
+          availablePoints: { decrement: product.pointsValue },
+          totalPoints: { decrement: product.pointsValue },
+        },
+      }),
+      prisma.transaction.create({
+        data: {
+          customerId,
+          type: 'REDEEM',
+          points: -product.pointsValue,
+          description: `🎁 Canje: ${product.name} gratis — ${pinosCost} Pinos`,
+          staffId: req.admin?.id || null,
+          staffEmail: req.admin?.email || null,
+        },
+      }),
+    ]);
+
+    await walletService.sendPushUpdate(updatedCustomer).catch(() => {});
+    await pointsService.invalidateCache(customerId).catch(() => {});
+
+    const newAvailablePoints = updatedCustomer.availablePoints;
+    const { affordable, almostAffordable } = await getAffordableProducts(newAvailablePoints);
+
+    logger.info(`🎁 Canje producto "${product.name}" (${pinosCost} Pinos) — cliente ${customerId}`);
+    res.json({
+      success: true,
+      productName: product.name,
+      pinosCost,
+      newAvailablePoints,
+      newAvailPinos: Math.floor(newAvailablePoints / 10),
+      customerName: customer.firstName,
+      affordableProducts: affordable,
+      almostAffordableProducts: almostAffordable,
+    });
+  } catch (err) {
+    logger.error('POS redeemProduct error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+}
+
 async function searchCustomers(req, res) {
   const { q = '' } = req.query;
   const term = q.trim();
@@ -260,4 +326,4 @@ async function searchCustomers(req, res) {
   }
 }
 
-module.exports = { lookupCustomer, addPointsForPurchase, redeemPoints, redeemFreeDrink, searchCustomers };
+module.exports = { lookupCustomer, addPointsForPurchase, redeemPoints, redeemFreeDrink, redeemProduct, searchCustomers };

@@ -9,7 +9,9 @@ const CATEGORY_LABELS = {
   café:       '☕ Cafés Calientes',
 };
 
-const EMPTY_FORM = { name: '', description: '', price: '', pointsValue: '', category: 'café', sortOrder: '0', active: true };
+// Canje: 1 Pino = $1 MXN. Internamente 1 Pino = 10 puntos.
+// El admin edita el costo en PINOS; se convierte a puntos al guardar.
+const EMPTY_FORM = { name: '', description: '', price: '', pinosCost: '', category: 'café', sortOrder: '0', active: true };
 
 export default function Products() {
   const [products, setProducts] = useState([]);
@@ -19,6 +21,7 @@ export default function Products() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [recomputing, setRecomputing] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -43,7 +46,7 @@ export default function Products() {
 
   function openEdit(p) {
     setEditing(p.id);
-    setForm({ name: p.name, description: p.description || '', price: String(p.price), pointsValue: String(p.pointsValue), category: p.category, sortOrder: String(p.sortOrder || 0), active: p.active });
+    setForm({ name: p.name, description: p.description || '', price: String(p.price), pinosCost: String(Math.round(p.pointsValue / 10)), category: p.category, sortOrder: String(p.sortOrder || 0), active: p.active });
     setError('');
     setShowModal(true);
   }
@@ -52,7 +55,14 @@ export default function Products() {
     e.preventDefault();
     setSaving(true); setError('');
     try {
-      const payload = { ...form, price: parseFloat(form.price), pointsValue: parseInt(form.pointsValue), sortOrder: parseInt(form.sortOrder) };
+      const { pinosCost, ...rest } = form;
+      const payload = {
+        ...rest,
+        price: parseFloat(form.price),
+        // Pinos → puntos internos (1 Pino = 10 pts)
+        pointsValue: Math.round(parseFloat(pinosCost || form.price)) * 10,
+        sortOrder: parseInt(form.sortOrder),
+      };
       if (editing) {
         await api.put(`/admin/products/${editing}`, payload);
       } else {
@@ -77,6 +87,20 @@ export default function Products() {
     }
   }
 
+  async function handleRecompute() {
+    if (!window.confirm('Recalcular el costo de canje de TODOS los productos desde su precio (1 Pino = $1)?\n\nEsto sobrescribe cualquier costo ajustado a mano.')) return;
+    setRecomputing(true);
+    try {
+      const { data } = await api.post('/admin/products/recompute-points');
+      await load();
+      alert(`✓ ${data.updated} de ${data.total} productos actualizados`);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al recalcular');
+    } finally {
+      setRecomputing(false);
+    }
+  }
+
   const grouped = CATEGORIES.reduce((acc, cat) => {
     acc[cat] = products.filter(p => p.category === cat);
     return acc;
@@ -87,12 +111,18 @@ export default function Products() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Menú / Productos</h1>
-          <p className="text-gray-500 text-sm mt-1">Gestiona los productos y sus puntos por compra</p>
+          <p className="text-gray-500 text-sm mt-1">Precio y costo de canje en Pinos (1 Pino = $1)</p>
         </div>
-        <button onClick={openCreate}
-          className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition">
-          + Agregar producto
-        </button>
+        <div className="flex items-center gap-3">
+          <button onClick={handleRecompute} disabled={recomputing}
+            className="border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-xl font-semibold text-sm transition disabled:opacity-50">
+            {recomputing ? 'Recalculando…' : '🌲 Recalcular Pinos'}
+          </button>
+          <button onClick={openCreate}
+            className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition">
+            + Agregar producto
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -126,7 +156,7 @@ export default function Products() {
                           <td className="px-4 py-3 text-right text-gray-700 font-semibold">${p.price} MXN</td>
                           <td className="px-4 py-3 text-right">
                             <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-1 rounded-full">
-                              {Math.ceil(p.pointsValue / 10)} 🌲
+                              {Math.round(p.pointsValue / 10)} 🌲
                             </span>
                           </td>
                           <td className="px-4 py-3 text-center">
@@ -185,16 +215,28 @@ export default function Products() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Precio MXN *</label>
                   <input required type="number" min="0" step="0.01" value={form.price}
-                    onChange={e => setForm(p => ({ ...p, price: e.target.value }))}
+                    onChange={e => {
+                      const price = e.target.value;
+                      // 1 Pino = $1: el costo de canje sigue al precio mientras el admin no lo edite a mano
+                      setForm(p => ({
+                        ...p,
+                        price,
+                        pinosCost: (p.pinosCost === '' || p.pinosCost === String(Math.round(parseFloat(p.price || 0))))
+                          ? (price === '' ? '' : String(Math.round(parseFloat(price))))
+                          : p.pinosCost,
+                      }));
+                    }}
                     className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Pinos × 10 (pts internos) *</label>
-                  <input required type="number" min="0" value={form.pointsValue}
-                    onChange={e => setForm(p => ({ ...p, pointsValue: e.target.value }))}
-                    placeholder="ej: 90 = 9 Pinos"
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Costo de canje (Pinos) *</label>
+                  <input required type="number" min="0" value={form.pinosCost}
+                    onChange={e => setForm(p => ({ ...p, pinosCost: e.target.value }))}
+                    placeholder="ej: 90"
                     className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500" />
-                  <p className="text-xs text-gray-400 mt-1">1 Pino = 10 pts. Ej: $88 MXN → 90 pts → 9 Pinos 🌲</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    1 Pino = $1. Se llena solo desde el precio; edítalo para una promo 🌲
+                  </p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
