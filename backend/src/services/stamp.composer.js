@@ -27,26 +27,24 @@ const STRIP_W = 750;
 const STRIP_H = 600;
 
 // ─── Section layout @2x ──────────────────────────────────────────────────────
-// Estrategia: texto del cliente en la SECCIÓN NAVY (texto blanco), no en la crema.
-// Así el texto es visible aunque la sección crema quede fuera del preview.
+// Logo grande en navy · BORDE COMPLETO (107px, sin recorte) · textos en la crema.
 //
 // TEXTO_TOP_2X=245: logo bien debajo del header overlay real.
-// Borde delgado 60px (crop centrado) como separador decorativo al final del navy.
-// TOP_H=404 → BORDE_TOP=378, borde Y=378-438.
-// Texto cliente: Y=350 (nombre) y Y=365 (pinos), en sección navy → siempre visible.
-const TOP_H = 404;
+// maxTH=85 → logo bottom ≈ 330. BORDE_TOP=348 (gap 18px). Borde Y=348-455.
+// Textos del cliente en la crema, debajo del borde completo.
+const TOP_H = 397;
 const TEXTO_TOP_2X = 245;
 
-const BORDE_SCALE   = STRIP_W / 2400;   // 0.3125
-const BORDE_H_SCL   = 60;               // px @2x — borde delgado, crop centrado
-const BORDE_BAR_SCL = 26;               // offset barra en crop centrado de 60px
-const BORDE_TOP     = TOP_H - BORDE_BAR_SCL; // 378
+const BORDE_SCALE   = STRIP_W / 2400;              // 0.3125
+const BORDE_H_SCL   = Math.round(341 * BORDE_SCALE); // 107 — borde COMPLETO
+const BORDE_BAR_SCL = Math.round(157 * BORDE_SCALE); // 49  — centro de la barra
+const BORDE_TOP     = TOP_H - BORDE_BAR_SCL;       // 348
 
-const CREAM_START = BORDE_TOP + 35;     // 413
+const CREAM_START = BORDE_TOP + BORDE_H_SCL;       // 455 — fin del borde de madera
 
-// Stamps en sección crema (iPhone — strip visible completo sin fields secundarios)
+// Stamps en sección crema, debajo de los textos del cliente
 const SLOT_X = [100, 165, 222, 277, 335, 392, 450, 510, 567, 622];
-const SLOT_Y = CREAM_START + 40; // 453
+const SLOT_Y = CREAM_START + 100; // 555
 const PINE_W = 54;
 
 // ─── Build base strip ────────────────────────────────────────────────────────
@@ -137,10 +135,9 @@ function escXml(str) {
     .replace(/'/g, '&apos;');
 }
 
-// ─── SVG bold text overlay (en sección NAVY, texto blanco) ──────────────────
-// Texto dentro de la franja azul marino, siempre visible en Mac preview.
-// Y=352 nombre | Y=368 recompensa — ambos muy por debajo del logo (Y~330) y
-// por encima del borde que empieza en Y=378.
+// ─── SVG bold text overlay (en sección CREMA, debajo del borde) ─────────────
+// Textos del cliente en la crema, debajo del borde de madera completo.
+// nameY=490 nombre + pinos | rewardY=515 recompensa. Colores oscuros sobre crema.
 
 async function buildTextOverlay(w, h, customerInfo) {
   const { name, pinesInCycle, pinesLeft } = customerInfo;
@@ -148,14 +145,13 @@ async function buildTextOverlay(w, h, customerInfo) {
 
   const nameStr = String(name).toUpperCase();
 
-  const nameFontSz   = Math.round((nameStr.length > 22 ? 18 : 22) * sc);
-  const pinesFontSz  = Math.round(20 * sc);
-  const rewardFontSz = Math.round(14 * sc);
+  const nameFontSz   = Math.round((nameStr.length > 22 ? 20 : 25) * sc);
+  const pinesFontSz  = Math.round(22 * sc);
+  const rewardFontSz = Math.round(16 * sc);
 
-  // Posiciones en sección NAVY (Y=245-404 @2x):
-  // logo fondo ≈ Y=330, nombre a Y=352, recompensa a Y=368, borde en Y=378
-  const nameY   = Math.round(352 * sc);
-  const rewardY = Math.round(368 * sc);
+  // Debajo del borde (fin en Y=455): nombre a Y=490, recompensa a Y=515
+  const nameY   = Math.round(490 * sc);
+  const rewardY = Math.round(515 * sc);
 
   const padX   = Math.round(40 * sc);
   const rightX = Math.round(710 * sc);
@@ -165,11 +161,11 @@ async function buildTextOverlay(w, h, customerInfo) {
     ? 'Muestrame al staff para canjear'
     : `${pinesLeft} Pinos mas para tu bebida gratis`;
 
-  // Texto blanco sobre azul marino — alta legibilidad, diseño premium
+  // Texto navy + café sobre crema — legible y con identidad de marca
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
-  <text x="${padX}" y="${nameY}" font-family="DejaVu Sans, sans-serif" font-weight="900" font-size="${nameFontSz}" fill="#FFFFFF">${escXml(nameStr)}</text>
-  <text x="${rightX}" y="${nameY}" font-family="DejaVu Sans, sans-serif" font-weight="900" font-size="${pinesFontSz}" fill="#FFFFFF" text-anchor="end">${escXml(pinesStr)}</text>
-  <text x="${padX}" y="${rewardY}" font-family="DejaVu Sans, sans-serif" font-weight="700" font-size="${rewardFontSz}" fill="#D4A840">${escXml(rewardStr)}</text>
+  <text x="${padX}" y="${nameY}" font-family="DejaVu Sans, sans-serif" font-weight="900" font-size="${nameFontSz}" fill="#1B2F56">${escXml(nameStr)}</text>
+  <text x="${rightX}" y="${nameY}" font-family="DejaVu Sans, sans-serif" font-weight="900" font-size="${pinesFontSz}" fill="#1B2F56" text-anchor="end">${escXml(pinesStr)}</text>
+  <text x="${padX}" y="${rewardY}" font-family="DejaVu Sans, sans-serif" font-weight="700" font-size="${rewardFontSz}" fill="#8C5F0F">${escXml(rewardStr)}</text>
 </svg>`;
 
   return Buffer.from(svg);
@@ -191,8 +187,8 @@ async function generateStripImage(stampsEarned, resolution = '2x', customerInfo 
   const sc   = is2x ? 1 : 0.5;
 
   const pineW  = Math.round(PINE_W * sc);
-  // Con texto en la sección crema, los stamps bajan a Y≈490 @2x (visibles en iPhone)
-  const stampY = Math.round((customerInfo ? 490 : SLOT_Y) * sc);
+  // Stamps siempre en SLOT_Y=555 (debajo de los textos del cliente)
+  const stampY = Math.round(SLOT_Y * sc);
   const slotXs = SLOT_X.map(x => Math.round(x * sc));
 
   const baseBuf    = await buildBaseStrip(w, h);
