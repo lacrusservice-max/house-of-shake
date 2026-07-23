@@ -220,7 +220,7 @@ export default function Landing() {
                 {p.img ? (
                   <img src={p.img} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover', position:'absolute', inset:0 }} onError={e => { e.target.style.display='none'; }} />
                 ) : null}
-                <div className="hs-cimg-ph" style={{ position:'absolute', bottom:12, left:12, zIndex:3, background:'rgba(7,30,61,0.55)', backdropFilter:'blur(6px)', borderRadius:'50%', padding:8, display:'flex', alignItems:'center', justifyContent:'center' }}><CoffeeIcon size={28} color="#F5C842" animated /></div>
+                <div style={{ position:'absolute', bottom:12, right:12, zIndex:3, display:'flex', filter:'drop-shadow(0 2px 4px rgba(0,0,0,.6))' }}><CoffeeIcon size={28} color="#F5C842" animated /></div>
                 <span className="hs-cbadge" style={{ zIndex:2 }}>{p.tag}</span>
               </div>
               <div className="hs-cbody">
