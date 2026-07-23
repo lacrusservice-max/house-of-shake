@@ -54,6 +54,7 @@ const SCHEDULE = [
 
 export default function Landing() {
   const [navScrolled, setNavScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeAcc, setActiveAcc] = useState(0);
   const [products, setProducts] = useState([]);
   const [activeTab, setActiveTab] = useState('all');
@@ -137,6 +138,7 @@ export default function Landing() {
   const filteredProducts = activeTab === 'all' ? products : (grouped[activeTab] || []);
 
   const scrollTo = (id) => {
+    setMobileMenuOpen(false);
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
   };
 
@@ -174,7 +176,42 @@ export default function Landing() {
             </>
           )}
         </div>
+        <button
+          className={`hs-burger${mobileMenuOpen ? ' open' : ''}`}
+          onClick={() => setMobileMenuOpen(v => !v)}
+          aria-label={mobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
+          aria-expanded={mobileMenuOpen}
+        >
+          <span /><span /><span />
+        </button>
       </nav>
+
+      {/* ── MOBILE MENU ── */}
+      <div className={`hs-mnav${mobileMenuOpen ? ' open' : ''}`}>
+        <ul className="hs-mnav-links">
+          <li><a onClick={() => scrollTo('hs-menu')}>Menú</a></li>
+          <li><a onClick={() => scrollTo('hs-rewards')}>Rewards</a></li>
+          <li><a onClick={() => scrollTo('hs-about')}>Nosotros</a></li>
+          <li><a onClick={() => scrollTo('hs-reviews')}>Reseñas</a></li>
+          <li><a onClick={() => scrollTo('hs-location')}>Encuéntranos</a></li>
+        </ul>
+        <div className="hs-mnav-ctas">
+          {isLoggedIn ? (
+            <Link to="/mi-cuenta" className="hs-btn hs-btn-gold" onClick={() => setMobileMenuOpen(false)}>
+              MI CUENTA
+            </Link>
+          ) : (
+            <>
+              <Link to="/login" className="hs-btn hs-btn-ghost" onClick={() => setMobileMenuOpen(false)}>
+                INICIAR SESIÓN
+              </Link>
+              <Link to="/registro" className="hs-btn hs-btn-gold" onClick={() => setMobileMenuOpen(false)}>
+                ÚNETE
+              </Link>
+            </>
+          )}
+        </div>
+      </div>
 
       {/* ── HERO ── */}
       <section id="hs-hero">

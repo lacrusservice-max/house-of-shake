@@ -89,6 +89,17 @@
 .hs-nav-links a:hover::after { left:0;right:0 }
 .hs-nav-ctas { display:flex;align-items:center;gap:10px }
 
+/* ── mobile hamburger + dropdown menu (hidden on desktop) ── */
+.hs-burger { display:none;flex-direction:column;justify-content:center;align-items:center;
+  gap:5px;width:34px;height:34px;background:none;border:none;cursor:pointer;padding:0;
+  position:relative;z-index:1001 }
+.hs-burger span { display:block;width:22px;height:2px;background:var(--cream);border-radius:2px;
+  transition:transform .3s var(--tr),opacity .2s var(--tr) }
+.hs-burger.open span:nth-child(1) { transform:translateY(7px) rotate(45deg) }
+.hs-burger.open span:nth-child(2) { opacity:0 }
+.hs-burger.open span:nth-child(3) { transform:translateY(-7px) rotate(-45deg) }
+.hs-mnav { display:none }
+
 /* ── HERO — flex column so nothing ever overlaps ── */
 #hs-hero { position:relative;height:100vh;min-height:600px;overflow:hidden;
   display:flex;flex-direction:column;font-family:'Montserrat',sans-serif }
@@ -383,29 +394,8 @@
   text-align:center;max-width:110px;line-height:1.4 }
 .hs-node.final .hs-node-lbl { color:var(--gold);font-weight:700 }
 
-/* ── tiers / niveles ── */
+/* ── section titles (shared, e.g. Beneficios) ── */
 .hs-tiers-title { text-align:center;margin-bottom:36px }
-.hs-tiers { display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:78px }
-.hs-tier { position:relative;overflow:hidden;border-radius:18px;padding:34px 28px;
-  background:rgba(251,247,240,.035);border:1px solid rgba(251,247,240,.1);
-  transition:all .4s var(--tr) }
-.hs-tier:hover { transform:translateY(-6px);box-shadow:0 22px 50px rgba(0,0,0,.4) }
-.hs-tier-top { position:absolute;top:0;left:0;right:0;height:4px }
-.hs-tier.bronze .hs-tier-top { background:linear-gradient(90deg,#c47f43,#e8a866) }
-.hs-tier.silver .hs-tier-top { background:linear-gradient(90deg,#9fb0c4,#e3edf7) }
-.hs-tier.gold   .hs-tier-top { background:linear-gradient(90deg,#c99a1f,var(--gold),#ffe08a) }
-.hs-tier.gold { border-color:rgba(245,200,66,.35);background:rgba(245,200,66,.06) }
-.hs-tier-badge { display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:30px;
-  font-size:9px;font-weight:800;letter-spacing:2px;text-transform:uppercase;margin-bottom:16px }
-.hs-tier.bronze .hs-tier-badge { background:rgba(196,127,67,.16);color:#e8a866 }
-.hs-tier.silver .hs-tier-badge { background:rgba(200,214,230,.14);color:#dbe6f2 }
-.hs-tier.gold   .hs-tier-badge { background:rgba(245,200,66,.16);color:var(--gold) }
-.hs-tier h4 { font-family:'Bebas Neue',sans-serif;font-size:1.9rem;letter-spacing:2px;color:var(--cream);margin-bottom:4px }
-.hs-tier .hs-tier-req { font-size:11px;color:rgba(251,247,240,.45);margin-bottom:18px }
-.hs-tier ul { list-style:none;padding:0;margin:0 }
-.hs-tier li { display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:rgba(251,247,240,.72);
-  line-height:1.5;margin-bottom:11px }
-.hs-tier li svg { flex-shrink:0;margin-top:1px }
 
 /* ── beneficios ── */
 .hs-benefits { display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:74px }
@@ -437,6 +427,20 @@
   #hs-nav.sc { padding:12px 20px }
   .hs-nav-links, .hs-nav-ctas .hs-btn-ghost { display:none }
   .hs-nav-ctas .hs-btn-gold { padding:9px 16px;font-size:10px }
+  .hs-burger { display:flex }
+  .hs-mnav { display:block;position:fixed;top:0;left:0;right:0;z-index:999;
+    background:rgba(7,30,61,.97);backdrop-filter:blur(20px);
+    max-height:0;overflow:hidden;opacity:0;
+    transition:max-height .4s var(--tr),opacity .25s var(--tr);
+    padding:0 24px;box-shadow:0 12px 40px rgba(0,0,0,.5) }
+  .hs-mnav.open { max-height:80vh;overflow-y:auto;opacity:1;padding:82px 24px 28px }
+  .hs-mnav-links { list-style:none;margin:0 0 22px;padding:0;display:flex;flex-direction:column }
+  .hs-mnav-links a { display:block;padding:15px 2px;font-family:'Montserrat',sans-serif;font-weight:700;
+    font-size:13px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(251,247,240,.85);
+    text-decoration:none;cursor:pointer;border-bottom:1px solid rgba(251,247,240,.08) }
+  .hs-mnav-links a:active { color:var(--gold) }
+  .hs-mnav-ctas { display:flex;flex-direction:column;gap:10px }
+  .hs-mnav-ctas .hs-btn { justify-content:center;width:100%;box-sizing:border-box }
   .hs-about-grid { grid-template-columns:1fr }
   #hs-gallery { grid-template-columns:1fr 1fr;grid-template-rows:200px 200px 200px }
   .hs-gcell.span2 { grid-row:span 1 }
@@ -457,7 +461,6 @@
   #hs-rewards { padding:70px 22px }
   .hs-rw-steps { grid-template-columns:1fr;gap:16px }
   .hs-ladder-box { padding:36px 22px }
-  .hs-tiers { grid-template-columns:1fr }
   .hs-benefits { grid-template-columns:1fr 1fr }
   .hs-rw-wallet { grid-template-columns:1fr;gap:32px;padding:34px }
   .hs-rw-wallet-img { transform:rotate(0) }

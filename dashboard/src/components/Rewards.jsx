@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import {
   RegisterIcon, CoffeeIcon, GiftIcon, CardIcon, CakeIcon,
-  LightningIcon, TrophyIcon, CheckIcon, SparkleIcon,
+  LightningIcon, ChartIcon, SparkleIcon,
 } from './Icons';
 
 // ── Sistema de Pinos: 1 Pino = $10 MXN · 120 Pinos = bebida gratis ──
@@ -29,27 +29,12 @@ const LADDER = [
   { pinos: null,  label: '¡Bebida gratis!', final: true },
 ];
 
-const TIERS = [
-  {
-    cls: 'bronze', badge: 'Nivel 1', name: 'BRONZE', req: 'Al registrarte',
-    perks: ['1 Pino por cada $10 MXN', '+10 Pinos de bienvenida', 'Tarjeta digital en Wallet'],
-  },
-  {
-    cls: 'silver', badge: 'Nivel 2', name: 'SILVER', req: 'Al acumular constancia',
-    perks: ['Todo lo de Bronze', '+10% Pinos extra en cada compra', 'Sorpresas de temporada'],
-  },
-  {
-    cls: 'gold', badge: 'Nivel 3', name: 'GOLD', req: 'Nuestros clientes más fieles',
-    perks: ['Todo lo de Silver', '+20% Pinos extra en cada compra', 'Acceso anticipado a nuevas bebidas'],
-  },
-];
-
 const BENEFITS = [
   { Icon: GiftIcon,      title: '+10 Pinos de bienvenida', body: 'Solo por crear tu cuenta. Empiezas con ventaja desde el primer día.' },
   { Icon: CakeIcon,      title: '+20 Pinos en tu cumpleaños', body: 'Te celebramos con Pinos extra para que canjees tu bebida favorita.' },
   { Icon: LightningIcon, title: 'Pinos dobles', body: 'En temporadas y campañas especiales, cada Pino cuenta el doble.' },
   { Icon: CoffeeIcon,    title: 'Bebida gratis cada 120 Pinos', body: 'Hasta $90 MXN. Si tu bebida cuesta más, solo pagas la diferencia.' },
-  { Icon: TrophyIcon,    title: 'Niveles Silver y Gold', body: 'Mientras más nos visitas, más Pinos extra ganas en cada compra.' },
+  { Icon: ChartIcon,     title: 'Consulta tus Pinos cuando quieras', body: 'Entra a tu cuenta online y revisa tu progreso hacia la próxima bebida gratis.' },
   { Icon: CardIcon,      title: 'Tarjeta en Apple Wallet', body: 'Tus Pinos siempre contigo. Sin apps, sin plásticos, sin complicaciones.' },
 ];
 
@@ -99,27 +84,6 @@ export default function Rewards({ isLoggedIn = false }) {
               </div>
             ))}
           </div>
-        </div>
-
-        {/* ── Niveles / Tiers ── */}
-        <div className="hs-tiers-title hs-rev">
-          <p className="hs-eyebrow" style={{ justifyContent: 'center' }}>Sube de nivel</p>
-          <h2 className="hs-h-dark" style={{ fontSize: 'clamp(2rem,4vw,3.2rem)' }}>MIENTRAS MÁS VUELVES, MÁS GANAS</h2>
-        </div>
-        <div className="hs-tiers">
-          {TIERS.map((t, i) => (
-            <div key={i} className={`hs-tier ${t.cls} hs-rev`}>
-              <div className="hs-tier-top" />
-              <span className="hs-tier-badge">{t.badge}</span>
-              <h4>{t.name}</h4>
-              <p className="hs-tier-req">{t.req}</p>
-              <ul>
-                {t.perks.map((p, j) => (
-                  <li key={j}><CheckIcon size={16} color="#F5C842" />{p}</li>
-                ))}
-              </ul>
-            </div>
-          ))}
         </div>
 
         {/* ── Beneficios ── */}
