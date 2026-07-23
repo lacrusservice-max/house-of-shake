@@ -2,13 +2,15 @@
 builder = "dockerfile"
 
 [deploy]
-# Este startCommand SOBRESCRIBE el CMD del Dockerfile. Antes era solo
-# "node src/index.js", por lo que las migraciones y el seed nunca corrían en
-# producción (el CMD del Dockerfile que sí los incluye quedaba ignorado).
+# OJO: este startCommand SOBRESCRIBE el CMD del Dockerfile, por lo que
+# `prisma migrate deploy` y `prisma/seed.js` NO se ejecutan en cada deploy.
+# Se intentó encadenarlos aquí y el deploy falló el healthcheck, así que se
+# mantiene el arranque simple y estable.
 #
-# `|| true` en migrate/seed: la API debe arrancar siempre. Un fallo de seed o
-# de migración se registra en logs pero nunca deja el servicio caído.
-startCommand = "npx prisma migrate deploy || true; node prisma/seed.js || true; node src/index.js"
+# ⇒ Migraciones y seed deben correrse a mano cuando haga falta:
+#      railway run npx prisma migrate deploy
+#      railway run node prisma/seed.js
+startCommand = "node src/index.js"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 120
 restartPolicyType = "on_failure"

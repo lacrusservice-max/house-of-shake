@@ -4,23 +4,29 @@ const bcrypt = require('bcrypt');
 const prisma = new PrismaClient();
 
 async function main() {
-  // Config por defecto
-  await prisma.config.upsert({
-    where: { id: 'default' },
-    update: {},
-    create: {
-      id: 'default',
-      pointsPerDollar: parseFloat(process.env.POINTS_PER_DOLLAR || '1'),
-      pointsToRedeem: parseInt(process.env.POINTS_TO_REDEEM || '100'),
-      redeemValueUsd: parseFloat(process.env.REDEEM_VALUE_USD || '5'),
-      welcomeBonus: parseInt(process.env.POINTS_WELCOME_BONUS || '50'),
-      expiryMonths: parseInt(process.env.POINTS_EXPIRY_MONTHS || '12'),
-      silverThreshold: parseInt(process.env.SILVER_THRESHOLD || '101'),
-      goldThreshold: parseInt(process.env.GOLD_THRESHOLD || '301'),
-      silverBonusPercent: parseFloat(process.env.SILVER_BONUS_PERCENT || '10'),
-      goldBonusPercent: parseFloat(process.env.GOLD_BONUS_PERCENT || '20'),
-    },
-  });
+  // Config por defecto — SOLO si no existe ninguna.
+  // Ojo: la app lee la config con findFirst(), así que debe haber exactamente
+  // una fila. Un upsert por id:'default' crearía una SEGUNDA fila cuando la
+  // existente tiene otro id (uuid), y findFirst() podría devolver la
+  // equivocada, pisando la configuración real del negocio.
+  const existingConfig = await prisma.config.findFirst();
+  if (!existingConfig) {
+    await prisma.config.create({
+      data: {
+        id: 'default',
+        pointsPerDollar: parseFloat(process.env.POINTS_PER_DOLLAR || '1'),
+        pointsToRedeem: parseInt(process.env.POINTS_TO_REDEEM || '100'),
+        redeemValueUsd: parseFloat(process.env.REDEEM_VALUE_USD || '5'),
+        welcomeBonus: parseInt(process.env.POINTS_WELCOME_BONUS || '50'),
+        expiryMonths: parseInt(process.env.POINTS_EXPIRY_MONTHS || '12'),
+        silverThreshold: parseInt(process.env.SILVER_THRESHOLD || '101'),
+        goldThreshold: parseInt(process.env.GOLD_THRESHOLD || '301'),
+        silverBonusPercent: parseFloat(process.env.SILVER_BONUS_PERCENT || '10'),
+        goldBonusPercent: parseFloat(process.env.GOLD_BONUS_PERCENT || '20'),
+      },
+    });
+    console.log('✅ Config inicial creada');
+  }
 
   // Admin por defecto
   const hashedPassword = await bcrypt.hash(

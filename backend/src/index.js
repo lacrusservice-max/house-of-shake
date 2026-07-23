@@ -205,7 +205,11 @@ async function setupDatabase() {
   try {
     const productCount = await prisma.product.count();
     if (productCount === 0) {
-      const pines = (price) => Math.ceil(price / 10) * 10; // points = pines*10
+      // Costo de CANJE: 1 Pino = $1 MXN, y 1 Pino = 10 puntos internos
+      // ⇒ puntos = precio × 10 (ej: $95 → 950 pts = 95 Pinos).
+      // (Antes: Math.ceil(price/10)*10, que daba 95 pts = 9 Pinos — mezclaba la
+      //  tasa de ganancia "1 Pino por $10" con la de canje.)
+      const pines = (price) => Math.round(price) * 10;
       const products = [
         // ── Cold Coffees (frío) ──────────────────────────────────
         { name: 'Iced Coffee',                              description: 'Café frío con hielo.',                                                                         price: 65,  pointsValue: pines(65),  category: 'frío',       sortOrder: 1  },
@@ -258,6 +262,31 @@ async function setupDatabase() {
     }
   } catch (e) {
     logger.warn('Products seed:', e.message);
+  }
+
+  // 6. Recalibrar el costo de canje de productos ya sembrados con la fórmula
+  //    vieja (pointsValue ≈ precio ⇒ una bebida de $95 costaba 9 Pinos en vez
+  //    de 95). Regla correcta: 1 Pino = $1 ⇒ puntos = precio × 10.
+  //
+  //    Guarda: solo toca filas claramente mal calibradas (pointsValue < precio
+  //    × 1.5). Un valor correcto (precio × 10) jamás cumple esa condición, así
+  //    que esto es idempotente y NUNCA pisa un costo que el admin haya
+  //    ajustado a mano desde el panel (p. ej. una promo).
+  try {
+    const mispriced = await prisma.product.findMany();
+    let fixed = 0;
+    for (const p of mispriced) {
+      if (p.pointsValue < p.price * 1.5) {
+        await prisma.product.update({
+          where: { id: p.id },
+          data: { pointsValue: Math.round(p.price) * 10 },
+        });
+        fixed++;
+      }
+    }
+    if (fixed > 0) logger.info(`🌲 Costo de canje recalibrado en ${fixed} productos (1 Pino = $1)`);
+  } catch (e) {
+    logger.warn('Recalibración de Pinos:', e.message);
   }
 
   logger.info('🎉 Base de datos lista');
