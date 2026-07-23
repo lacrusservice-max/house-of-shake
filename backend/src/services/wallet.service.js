@@ -141,11 +141,10 @@ async function generatePassBuffer(customerData) {
   const serial    = customerData.walletPassSerial || uuidv4();
   const passToken = customerData.walletPassToken  || uuidv4().replace(/-/g, '');
 
-  const { pinesInCycle, slotsEarned, pinesLeft, totalPines } = getPineProgress(
+  const { pinesInCycle, pinesLeft } = getPineProgress(
     customerData.availablePoints,
     customerData.lifetimePoints
   );
-  const stampsEarned = slotsEarned;
 
   const pass = await PKPass.from(
     {
@@ -164,21 +163,17 @@ async function generatePassBuffer(customerData) {
     }
   );
 
-  // Inyectar strip image dinámica con los pinos del cliente
-  const customerInfo = {
-    name:         `${customerData.firstName} ${customerData.lastName}`,
-    pinesInCycle,
-    pinesLeft,
-  };
+  // Strip de marca: navy + logo + borde. El texto del cliente NO va aquí
+  // (Wallet recorta el strip); va en los campos nativos de abajo.
   try {
     const [strip2x, strip1x] = await Promise.all([
-      generateStripImage(stampsEarned, '2x', customerInfo),
-      generateStripImage(stampsEarned, '1x', customerInfo),
+      generateStripImage('2x'),
+      generateStripImage('1x'),
     ]);
     pass.addBuffer('strip.png',    strip1x);
     pass.addBuffer('strip@2x.png', strip2x);
     pass.addBuffer('strip@3x.png', strip2x);
-    logger.info(`Wallet strip generado: ${stampsEarned}/10 slots (${pinesInCycle}/120 Pinos) — cliente ${customerData.id.substring(0, 8)}`);
+    logger.info(`Wallet strip generado (${pinesInCycle}/120 Pinos) — cliente ${customerData.id.substring(0, 8)}`);
   } catch (err) {
     logger.error(`Stamp composer falló: ${err.message}`);
   }
@@ -190,11 +185,37 @@ async function generatePassBuffer(customerData) {
     altText:         `ID: ${customerData.id.substring(0, 8).toUpperCase()}`,
   });
 
+  // Header (arriba, junto al logo): contador de Pinos del ciclo
   pass.headerFields.push({
     key:           'pines',
     label:         'PINOS',
     value:         `${pinesInCycle}/120`,
     textAlignment: 'PKTextAlignmentRight',
+  });
+
+  // Campos nativos en la zona crema (SIEMPRE visibles, nunca se recortan):
+  // fila 1 → nombre del cliente + Pinos restantes
+  const rewardMsg = pinesLeft === 0
+    ? '¡Bebida gratis lista! Muéstrame al staff para canjear.'
+    : `Te faltan ${pinesLeft} Pinos para tu bebida gratis.`;
+
+  pass.secondaryFields.push(
+    {
+      key:   'cliente',
+      label: 'CLIENTE',
+      value: `${customerData.firstName} ${customerData.lastName}`.trim().toUpperCase(),
+    },
+    {
+      key:           'restantes',
+      label:         'TE FALTAN',
+      value:         pinesLeft === 0 ? '¡0!' : `${pinesLeft}`,
+      textAlignment: 'PKTextAlignmentRight',
+    }
+  );
+  pass.auxiliaryFields.push({
+    key:   'recompensa',
+    label: 'RECOMPENSA',
+    value: rewardMsg,
   });
   pass.backFields.push(
     { key: 'how',      label: '¿Cómo funciona?',    value: '1 Pino por cada $10 MXN gastados. Muestra tu tarjeta al staff antes de pagar.' },

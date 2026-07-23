@@ -1,13 +1,15 @@
 'use strict';
 /**
  * stamp.composer.js
- * Genera strip.png para Apple Wallet (storeCard).
+ * Genera el strip.png de MARCA para Apple Wallet (storeCard).
  *
- * Strip @2x: 750×600 px
- * Layout:
- *   Y 0-270  → Azul marino sólido (#1B2F56) + logo HOUSE OF SHAKE centrado
- *   Y 270-320 → BORDE (barra café + pino central)
- *   Y 320-600 → Crema sólido (#E7DEC7) + acumulador-pino stamps
+ * Strip @2x: 750×600 px — solo branding (sin texto, se compone con PNG):
+ *   Navy sólido (#1B2F56) + logo HOUSE OF SHAKE + borde de madera con pino.
+ *
+ * El texto del cliente (nombre, pinos, recompensa) NO va en el strip porque
+ * Wallet lo recorta poco después del borde. Ese texto vive en los campos
+ * nativos del pase (secondaryFields/auxiliaryFields en wallet.service.js),
+ * que se renderizan en la zona crema y nunca se recortan.
  */
 const sharp = require('sharp');
 const path  = require('path');
@@ -16,7 +18,6 @@ const ASSETS = path.resolve(__dirname, '../../assets');
 
 const BORDE_PATH = path.join(ASSETS, 'borde.png');
 const TEXTO_PATH = path.join(ASSETS, 'texto-blanco.png');
-const PINO_PATH  = path.join(ASSETS, 'acumulador-pino.png');
 
 // Colores sólidos — sin texturas
 const NAVY  = { r: 27,  g: 47,  b: 86  };
@@ -39,13 +40,6 @@ const BORDE_SCALE   = STRIP_W / 2400;              // 0.3125
 const BORDE_H_SCL   = Math.round(341 * BORDE_SCALE); // 107 — borde COMPLETO
 const BORDE_BAR_SCL = Math.round(157 * BORDE_SCALE); // 49  — centro de la barra
 const BORDE_TOP     = TOP_H - BORDE_BAR_SCL;       // 348
-
-const CREAM_START = BORDE_TOP + BORDE_H_SCL;       // 455 — fin del borde de madera
-
-// Stamps en sección crema, debajo de los textos del cliente
-const SLOT_X = [100, 165, 222, 277, 335, 392, 450, 510, 567, 622];
-const SLOT_Y = CREAM_START + 100; // 555
-const PINE_W = 54;
 
 // ─── Build base strip ────────────────────────────────────────────────────────
 
@@ -102,124 +96,29 @@ async function buildBaseStrip(w, h) {
     .toBuffer();
 }
 
-// ─── Pino stamp helper ───────────────────────────────────────────────────────
-
-async function preparePino(targetWidth) {
-  const resized = await sharp(PINO_PATH)
-    .resize(targetWidth)
-    .removeAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-
-  const { data, info } = resized;
-  const rgba = Buffer.alloc(info.width * info.height * 4);
-  for (let i = 0; i < info.width * info.height; i++) {
-    const r = data[i * 3], g = data[i * 3 + 1], b = data[i * 3 + 2];
-    rgba[i * 4]     = r;
-    rgba[i * 4 + 1] = g;
-    rgba[i * 4 + 2] = b;
-    rgba[i * 4 + 3] = (r < 8 && g < 8 && b < 8) ? 0 : 255;
-  }
-  return sharp(rgba, { raw: { width: info.width, height: info.height, channels: 4 } })
-    .png().toBuffer();
-}
-
-// ─── XML escape helper ────────────────────────────────────────────────────────
-
-function escXml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
-
-// ─── SVG bold text overlay (en sección CREMA, debajo del borde) ─────────────
-// Textos del cliente en la crema, debajo del borde de madera completo.
-// nameY=490 nombre + pinos | rewardY=515 recompensa. Colores oscuros sobre crema.
-
-async function buildTextOverlay(w, h, customerInfo) {
-  const { name, pinesInCycle, pinesLeft } = customerInfo;
-  const sc = w / STRIP_W;
-
-  const nameStr = String(name).toUpperCase();
-
-  const nameFontSz   = Math.round((nameStr.length > 22 ? 20 : 25) * sc);
-  const pinesFontSz  = Math.round(22 * sc);
-  const rewardFontSz = Math.round(16 * sc);
-
-  // Debajo del borde (fin en Y=455): nombre a Y=490, recompensa a Y=515
-  const nameY   = Math.round(490 * sc);
-  const rewardY = Math.round(515 * sc);
-
-  const padX   = Math.round(40 * sc);
-  const rightX = Math.round(710 * sc);
-
-  const pinesStr  = pinesLeft === 0 ? 'BEBIDA LISTA!' : `${pinesInCycle}/120 PINOS`;
-  const rewardStr = pinesLeft === 0
-    ? 'Muestrame al staff para canjear'
-    : `${pinesLeft} Pinos mas para tu bebida gratis`;
-
-  // Texto navy + café sobre crema — legible y con identidad de marca
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
-  <text x="${padX}" y="${nameY}" font-family="DejaVu Sans, sans-serif" font-weight="900" font-size="${nameFontSz}" fill="#1B2F56">${escXml(nameStr)}</text>
-  <text x="${rightX}" y="${nameY}" font-family="DejaVu Sans, sans-serif" font-weight="900" font-size="${pinesFontSz}" fill="#1B2F56" text-anchor="end">${escXml(pinesStr)}</text>
-  <text x="${padX}" y="${rewardY}" font-family="DejaVu Sans, sans-serif" font-weight="700" font-size="${rewardFontSz}" fill="#8C5F0F">${escXml(rewardStr)}</text>
-</svg>`;
-
-  return Buffer.from(svg);
-}
-
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 /**
- * Genera strip.png con N pino stamps y texto en negrita del cliente.
- * @param {number} stampsEarned 0–10
+ * Genera strip.png de marca: fondo navy + logo HOUSE OF SHAKE + borde de madera.
+ *
+ * IMPORTANTE: Apple Wallet recorta el strip del storeCard poco después del borde.
+ * Por eso el texto del cliente (nombre, pinos, recompensa) NO va en el strip —
+ * va en los campos nativos del pase (secondaryFields/auxiliaryFields), que se
+ * renderizan en la zona crema debajo del strip y NUNCA se recortan.
+ *
+ * Los pino stamps también caían en la zona recortada; el progreso ahora se
+ * comunica por los campos nativos y el headerField "PINOS X/120".
+ *
  * @param {'2x'|'1x'} resolution
- * @param {{ name: string, pinesInCycle: number, pinesLeft: number }|null} customerInfo
  * @returns {Promise<Buffer>} PNG buffer
  */
-async function generateStripImage(stampsEarned, resolution = '2x', customerInfo = null) {
+async function generateStripImage(resolution = '2x') {
   const is2x = resolution === '2x';
   const w    = is2x ? STRIP_W : Math.round(STRIP_W / 2);
   const h    = is2x ? STRIP_H : Math.round(STRIP_H / 2);
-  const sc   = is2x ? 1 : 0.5;
 
-  const pineW  = Math.round(PINE_W * sc);
-  // Stamps siempre en SLOT_Y=555 (debajo de los textos del cliente)
-  const stampY = Math.round(SLOT_Y * sc);
-  const slotXs = SLOT_X.map(x => Math.round(x * sc));
-
-  const baseBuf    = await buildBaseStrip(w, h);
-  const composites = [];
-
-  if (stampsEarned > 0) {
-    const pinoBuf  = await preparePino(pineW);
-    const pinoMeta = await sharp(pinoBuf).metadata();
-    const pineH    = pinoMeta.height;
-    for (let i = 0; i < Math.min(stampsEarned, 10); i++) {
-      composites.push({
-        input: pinoBuf,
-        left:  Math.round(slotXs[i] - pineW / 2),
-        top:   Math.round(stampY - pineH / 2),
-      });
-    }
-  }
-
-  if (customerInfo) {
-    const textBuf = await buildTextOverlay(w, h, customerInfo);
-    composites.push({ input: textBuf, left: 0, top: 0 });
-  }
-
-  if (!composites.length) {
-    return sharp(baseBuf).png({ compressionLevel: 6 }).toBuffer();
-  }
-
-  return sharp(baseBuf)
-    .composite(composites)
-    .png({ compressionLevel: 6 })
-    .toBuffer();
+  const baseBuf = await buildBaseStrip(w, h);
+  return sharp(baseBuf).png({ compressionLevel: 6 }).toBuffer();
 }
 
 module.exports = { generateStripImage };

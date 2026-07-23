@@ -2,10 +2,8 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Instalar dependencias del sistema + fuentes para librsvg (SVG text rendering)
-RUN apk add --no-cache python3 make g++ openssl \
-    ttf-dejavu fontconfig \
-    && fc-cache -f
+# Dependencias del sistema (el strip se compone con PNG, sin SVG/fuentes)
+RUN apk add --no-cache python3 make g++ openssl
 
 COPY package*.json ./
 RUN npm ci --omit=dev
