@@ -19,22 +19,18 @@ const ASSETS = path.resolve(__dirname, '../../assets');
 const BORDE_PATH = path.join(ASSETS, 'borde.png');
 const TEXTO_PATH = path.join(ASSETS, 'texto-blanco.png');
 
-// Colores sólidos — sin texturas
-const NAVY  = { r: 27,  g: 47,  b: 86  };
-const CREAM = { r: 231, g: 222, b: 199 };
+// Fondo completo #0F448B — toda la tarjeta un solo color azul
+const BLUE  = { r: 15,  g: 68,  b: 139 };
+const NAVY  = BLUE;
+const CREAM = BLUE;
 
 // ─── Strip dimensions @2x ────────────────────────────────────────────────────
 const STRIP_W = 750;
 const STRIP_H = 600;
 
 // ─── Section layout @2x ──────────────────────────────────────────────────────
-// Logo grande en navy · BORDE COMPLETO (107px, sin recorte) · textos en la crema.
-//
-// TEXTO_TOP_2X=245: logo bien debajo del header overlay real.
-// maxTH=85 → logo bottom ≈ 330. BORDE_TOP=348 (gap 18px). Borde Y=348-455.
-// Textos del cliente en la crema, debajo del borde completo.
 const TOP_H = 397;
-const TEXTO_TOP_2X = 245;
+const TEXTO_TOP_2X = 180;  // subido — logo más arriba y más grande
 
 const BORDE_SCALE   = STRIP_W / 2400;              // 0.3125
 const BORDE_H_SCL   = Math.round(341 * BORDE_SCALE); // 107 — borde COMPLETO
@@ -71,9 +67,9 @@ async function buildBaseStrip(w, h) {
   const textoMeta    = await sharp(textoTrimBuf).metadata();
   const ar = textoMeta.width / textoMeta.height;
 
-  // Caja 680×85 @2x — logo grande y prominente
-  const maxTW = Math.round(680 * scale);
-  const maxTH = Math.round(85 * (h / STRIP_H));
+  // Caja 720×160 @2x — logo lo más grande posible sin recortarse
+  const maxTW = Math.round(720 * scale);
+  const maxTH = Math.round(160 * (h / STRIP_H));
   let tw, th;
   if (ar >= maxTW / maxTH) {
     tw = maxTW; th = Math.round(maxTW / ar);
