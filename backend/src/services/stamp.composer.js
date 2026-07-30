@@ -3,13 +3,9 @@
  * stamp.composer.js
  * Genera el strip.png de MARCA para Apple Wallet (storeCard).
  *
- * Strip @2x: 750×600 px — solo branding (sin texto, se compone con PNG):
- *   Navy sólido (#1B2F56) + logo HOUSE OF SHAKE + borde de madera con pino.
- *
- * El texto del cliente (nombre, pinos, recompensa) NO va en el strip porque
- * Wallet lo recorta poco después del borde. Ese texto vive en los campos
- * nativos del pase (secondaryFields/auxiliaryFields en wallet.service.js),
- * que se renderizan en la zona crema y nunca se recortan.
+ * Strip @2x: 750×600 px — fondo TRANSPARENTE.
+ * El backgroundColor del pass (#0F448B) cubre toda la tarjeta de forma uniforme.
+ * El strip solo aporta: logo HOUSE OF SHAKE (blanco) + borde de madera.
  */
 const sharp = require('sharp');
 const path  = require('path');
@@ -19,55 +15,45 @@ const ASSETS = path.resolve(__dirname, '../../assets');
 const BORDE_PATH = path.join(ASSETS, 'borde.png');
 const TEXTO_PATH = path.join(ASSETS, 'texto-blanco.png');
 
-// Fondo completo #0F448B — toda la tarjeta un solo color azul
-const BLUE  = { r: 15,  g: 68,  b: 139 };
-const NAVY  = BLUE;
-const CREAM = BLUE;
-
 // ─── Strip dimensions @2x ────────────────────────────────────────────────────
 const STRIP_W = 750;
 const STRIP_H = 600;
 
-// ─── Section layout @2x ──────────────────────────────────────────────────────
+// ─── Layout @2x ──────────────────────────────────────────────────────────────
+// El header de Apple (logo icon + headerFields) cubre ~130px desde arriba.
+// Logo safe zone: y=145 .. BORDE_TOP.
+// BORDE_TOP calculado para que el separador quede centrado verticalmente en el strip.
 const TOP_H = 397;
-const TEXTO_TOP_2X = 180;  // subido — logo más arriba y más grande
+const TEXTO_TOP_2X = 175;  // arriba del separador, debajo del header overlay
 
-const BORDE_SCALE   = STRIP_W / 2400;              // 0.3125
-const BORDE_H_SCL   = Math.round(341 * BORDE_SCALE); // 107 — borde COMPLETO
-const BORDE_BAR_SCL = Math.round(157 * BORDE_SCALE); // 49  — centro de la barra
-const BORDE_TOP     = TOP_H - BORDE_BAR_SCL;       // 348
+const BORDE_SCALE   = STRIP_W / 2400;
+const BORDE_H_SCL   = Math.round(341 * BORDE_SCALE); // 107px — borde completo
+const BORDE_BAR_SCL = Math.round(157 * BORDE_SCALE); // 49px  — centro de la barra
+const BORDE_TOP     = TOP_H - BORDE_BAR_SCL;          // 348px
 
-// ─── Build base strip ────────────────────────────────────────────────────────
+// ─── Build strip (fondo transparente) ────────────────────────────────────────
 
 async function buildBaseStrip(w, h) {
-  const topH      = Math.round(TOP_H * (h / STRIP_H));
-  const bordeH    = Math.round(BORDE_H_SCL * (h / STRIP_H));
-  const bordeTop  = Math.round(BORDE_TOP * (h / STRIP_H));
-  const scale     = w / STRIP_W;
+  const bordeH   = Math.round(BORDE_H_SCL * (h / STRIP_H));
+  const bordeTop = Math.round(BORDE_TOP   * (h / STRIP_H));
+  const scale    = w / STRIP_W;
 
-  // 1. Full cream background (sólido)
-  const creamBuf = await sharp({
-    create: { width: w, height: h, channels: 3, background: CREAM },
+  // 1. Base totalmente transparente (RGBA)
+  const baseBuf = await sharp({
+    create: { width: w, height: h, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
   }).png().toBuffer();
 
-  // 2. Navy top section (sólido)
-  const blueBuf = await sharp({
-    create: { width: w, height: topH, channels: 3, background: NAVY },
-  }).png().toBuffer();
-
-  // 3. Borde divider — crop centrado para preservar el pino sin distorsionar
+  // 2. Borde de madera — mantiene sus propios píxeles (no se hace transparente)
   const bordeBuf = await sharp(BORDE_PATH)
     .resize(w, bordeH, { fit: 'cover', position: 'centre' })
     .toBuffer();
 
-  // 4. Logo — trim transparent, posicionar al 52% del topH
-  // Header overlay de Apple cubre ~130px @2x; al 52% de topH=300 → Y=156 (margen ✓)
-  // Logo cabe holgado antes del borde en Y=251.
+  // 3. Logo HOUSE OF SHAKE — texto blanco sobre transparente
   const textoTrimBuf = await sharp(TEXTO_PATH).trim().toBuffer();
   const textoMeta    = await sharp(textoTrimBuf).metadata();
   const ar = textoMeta.width / textoMeta.height;
 
-  // Caja 720×160 @2x — logo lo más grande posible sin recortarse
+  // Caja 720×160 @2x — lo más grande posible
   const maxTW = Math.round(720 * scale);
   const maxTH = Math.round(160 * (h / STRIP_H));
   let tw, th;
@@ -79,13 +65,11 @@ async function buildBaseStrip(w, h) {
 
   const textoBuf  = await sharp(textoTrimBuf).resize(tw, th).toBuffer();
   const textoLeft = Math.round((w - tw) / 2);
-  // Posición fija escalada desde TEXTO_TOP_2X=245: garantiza clearance del header
   const textoTop  = Math.round(TEXTO_TOP_2X * (h / STRIP_H));
 
-  // 5. Composite
-  return sharp(creamBuf)
+  // 4. Composite sobre fondo transparente
+  return sharp(baseBuf)
     .composite([
-      { input: blueBuf,  left: 0,        top: 0 },
       { input: textoBuf, left: textoLeft, top: textoTop },
       { input: bordeBuf, left: 0,         top: bordeTop },
     ])
