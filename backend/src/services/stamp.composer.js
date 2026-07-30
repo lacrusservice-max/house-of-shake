@@ -114,7 +114,12 @@ async function generateStripImage(resolution = '2x') {
   const h    = is2x ? STRIP_H : Math.round(STRIP_H / 2);
 
   const baseBuf = await buildBaseStrip(w, h);
-  return sharp(baseBuf).png({ compressionLevel: 6 }).toBuffer();
+  // Embeber perfil sRGB para que iOS renderice el strip en el mismo espacio de color
+  // que el backgroundColor del pass (evita diferencia visual en Display P3)
+  return sharp(baseBuf)
+    .withMetadata({ icc: 'srgb' })
+    .png({ compressionLevel: 6 })
+    .toBuffer();
 }
 
 module.exports = { generateStripImage };
