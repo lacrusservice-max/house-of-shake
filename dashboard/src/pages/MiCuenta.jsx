@@ -340,17 +340,17 @@ export default function MiCuenta() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => { setActiveTab('premios'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+            <Link
+              to="/mis-premios"
               style={{
-                width: '100%', padding: '12px', borderRadius: 11, border: 'none',
-                background: BLUE, color: WHITE, cursor: 'pointer',
+                display: 'block', width: '100%', padding: '12px', borderRadius: 11,
+                background: BLUE, color: WHITE, textDecoration: 'none', boxSizing: 'border-box',
                 fontFamily: "'Montserrat', sans-serif", fontWeight: 800, fontSize: 12.5,
-                letterSpacing: 1, textTransform: 'uppercase',
+                letterSpacing: 1, textTransform: 'uppercase', textAlign: 'center',
               }}
             >
               Ver para qué me alcanza →
-            </button>
+            </Link>
             <p style={{ fontSize: 11, color: MUTED, margin: '9px 0 0', textAlign: 'center', lineHeight: 1.45 }}>
               Muestra tu QR al staff para canjearlo. Tus Pinos se descuentan solo al canjear.
             </p>

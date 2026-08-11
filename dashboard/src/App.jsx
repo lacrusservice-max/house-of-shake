@@ -7,6 +7,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Register from './pages/Register';
 import MiCuenta from './pages/MiCuenta';
+import MisPremios from './pages/MisPremios';
 import Staff from './pages/Staff';
 
 import AdminLogin from './pages/AdminLogin';
@@ -44,6 +45,7 @@ export default function App() {
 
         {/* Customer protected */}
         <Route path="/mi-cuenta" element={<CustomerRoute><MiCuenta /></CustomerRoute>} />
+        <Route path="/mis-premios" element={<CustomerRoute><MisPremios /></CustomerRoute>} />
 
         {/* Staff POS */}
         <Route path="/staff" element={<Staff />} />
