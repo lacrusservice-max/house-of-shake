@@ -164,7 +164,10 @@ async function downloadWalletPass(req, res, next) {
       });
     }
 
-    const passBuffer = await walletService.generatePass(customer);
+    // El número de socio va bajo el QR del pass: si la cámara no lo lee, el
+    // staff puede teclearlo.
+    const memberNumber = await getMemberNumber(customer.id);
+    const passBuffer = await walletService.generatePass({ ...customer, memberNumber });
     res.set({
       'Content-Type': 'application/vnd.apple.pkpass',
       'Content-Disposition': `attachment; filename="houseofshake.pkpass"`,

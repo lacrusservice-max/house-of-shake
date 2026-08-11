@@ -102,16 +102,27 @@ function areCertsAvailable() {
 
 // ─── Pass helpers ─────────────────────────────────────────────────────────────
 
-// Sistema de Pinos: 1 Pino = 10 pts = $10 MXN | 120 Pinos = bebida hasta $90
-// Ciclo basado en availablePoints para que el canje de bebida reinicie el ciclo.
-// lifetimePoints/10 = Pinos totales históricos (solo para display).
-function getPineProgress(availablePoints, lifetimePoints) {
+// Premio más barato del menú (repostería). Es la meta a partir de la cual el
+// cliente ya puede canjear algo.
+const CHEAPEST_REWARD = 100;
+
+// Sistema de Pinos: 1 Pino = 10 pts. Canje por categoría: 100 / 110 / 120.
+//
+// El saldo ES el progreso. Antes se usaba `availPines % 120`, así que la
+// tarjeta de alguien con 243 Pinos mostraba "3/120" — igual que la web, ocultaba
+// que ya tenía premio. Ahora el pass refleja el mismo estado que la cuenta.
+function getPineProgress(availablePoints, lifetimePoints, meta = CHEAPEST_REWARD) {
   const availPines   = Math.floor((availablePoints || 0) / 10);
-  const pinesInCycle = availPines % 120;
-  const slotsEarned  = (pinesInCycle === 0 && availPines > 0) ? 10 : Math.floor(pinesInCycle / 12);
-  const pinesLeft    = slotsEarned === 10 ? 0 : 120 - pinesInCycle;
+  const hasReward    = availPines >= meta;
+  const sobrante     = availPines % meta;
+  const pinesLeft    = hasReward
+    ? (sobrante === 0 ? meta : meta - sobrante)
+    : Math.max(0, meta - availPines);
+  const pinesInCycle = hasReward ? meta - pinesLeft : availPines;
+  const slotsEarned  = Math.min(10, Math.floor((pinesInCycle / meta) * 10));
   const totalPines   = Math.floor((lifetimePoints || 0) / 10);
-  return { availPines, pinesInCycle, slotsEarned, pinesLeft, totalPines };
+  const rewardsReady = Math.floor(availPines / meta);
+  return { availPines, pinesInCycle, slotsEarned, pinesLeft, totalPines, hasReward, rewardsReady, meta };
 }
 
 function buildWebServiceURL() {
@@ -141,7 +152,7 @@ async function generatePassBuffer(customerData) {
   const serial    = customerData.walletPassSerial || uuidv4();
   const passToken = customerData.walletPassToken  || uuidv4().replace(/-/g, '');
 
-  const { pinesInCycle, pinesLeft } = getPineProgress(
+  const { pinesInCycle, pinesLeft, hasReward, rewardsReady, availPines, meta } = getPineProgress(
     customerData.availablePoints,
     customerData.lifetimePoints
   );
@@ -173,7 +184,7 @@ async function generatePassBuffer(customerData) {
     pass.addBuffer('strip.png',    strip1x);
     pass.addBuffer('strip@2x.png', strip2x);
     pass.addBuffer('strip@3x.png', strip2x);
-    logger.info(`Wallet strip generado (${pinesInCycle}/120 Pinos) — cliente ${customerData.id.substring(0, 8)}`);
+    logger.info(`Wallet strip generado (${pinesInCycle}/${meta} Pinos) — cliente ${customerData.id.substring(0, 8)}`);
   } catch (err) {
     logger.error(`Stamp composer falló: ${err.message}`);
   }
@@ -182,22 +193,24 @@ async function generatePassBuffer(customerData) {
     format:          'PKBarcodeFormatQR',
     message:         customerData.id,
     messageEncoding: 'utf-8',
-    altText:         `ID: ${customerData.id.substring(0, 8).toUpperCase()}`,
+    altText:         customerData.memberNumber
+      ? `SOCIO #${customerData.memberNumber}`
+      : `ID: ${customerData.id.substring(0, 8).toUpperCase()}`,
   });
 
   // Header (arriba, junto al logo): contador de Pinos del ciclo
   pass.headerFields.push({
     key:           'pines',
     label:         'PINOS',
-    value:         `${pinesInCycle}/120`,
+    value:         `${availPines}`,
     textAlignment: 'PKTextAlignmentRight',
   });
 
   // Campos nativos en la zona crema (SIEMPRE visibles, nunca se recortan):
   // fila 1 → nombre del cliente + Pinos restantes
-  const rewardMsg = pinesLeft === 0
-    ? '¡Bebida gratis lista! Muéstrame al staff para canjear.'
-    : `Te faltan ${pinesLeft} Pinos para tu bebida gratis.`;
+  const rewardMsg = hasReward
+    ? `🎉 ¡Llegaste a la meta! Te alcanza para ${rewardsReady} producto${rewardsReady === 1 ? '' : 's'} gratis. Muestra este QR al staff.`
+    : `Te faltan ${pinesLeft} Pinos para tu primer producto gratis.`;
 
   pass.secondaryFields.push(
     {
@@ -208,7 +221,7 @@ async function generatePassBuffer(customerData) {
     {
       key:           'restantes',
       label:         'TE FALTAN',
-      value:         pinesLeft === 0 ? '¡0!' : `${pinesLeft}`,
+      value:         hasReward ? '¡YA!' : `${pinesLeft}`,
       textAlignment: 'PKTextAlignmentRight',
     }
   );

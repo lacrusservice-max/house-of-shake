@@ -4,6 +4,7 @@ const prisma = require('../config/prisma');
 const pointsService = require('../services/points.service');
 const emailService = require('../services/email.service');
 const { normalizeEmail, assignMemberNumber, getMemberNumber } = require('../services/member');
+const { rewardStatus } = require('../services/pinos');
 const logger = require('../config/logger');
 
 const SALT_ROUNDS = 10;
@@ -240,9 +241,16 @@ async function getMe(req, res) {
     let memberNumber = await getMemberNumber(customer.id);
     if (!memberNumber) memberNumber = await assignMemberNumber(customer.id);
 
+    // Estado de premios calculado en el servidor: qué puede llevarse ya y
+    // cuánto le falta. Antes el frontend lo derivaba con `saldo % 120`.
+    const activeProducts = await prisma.product.findMany({ where: { active: true } })
+      .catch(() => []);
+    const reward = rewardStatus(customer.availablePoints, activeProducts);
+
     res.json({ customer: {
       ...safeCustomer(customer),
       memberNumber,
+      reward,
       birthday: ext.birthday || null,
       visitCount: Number(ext.visit_count) || 0,
       lastVisitAt: ext.last_visit_at || null,

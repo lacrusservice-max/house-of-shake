@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import '../styles/mi-cuenta.css';
 import { CoffeeIcon, GiftIcon, ShakeIcon, StarIcon, LightningIcon, TrophyIcon, CardIcon, CheckIcon, CakeIcon } from '../components/Icons';
-import { fmtPinos, pinosEnteros, pinosDeProducto } from '../lib/pinos';
+import { fmtPinos, pinosEnteros, pinosDeProducto, rewardStatus } from '../lib/pinos';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -182,17 +182,26 @@ export default function MiCuenta() {
 
   if (!customer) return null;
 
-  const PINES_PER_CYCLE = 120;
-  const PINES_PER_SLOT  = 12;
   const availPines      = pinosEnteros(customer.availablePoints);
   const availPinesLabel = fmtPinos(customer.availablePoints);
-  const pinesInCycle    = availPines % PINES_PER_CYCLE;
-  const slotsEarned     = (pinesInCycle === 0 && availPines > 0) ? 10 : Math.floor(pinesInCycle / PINES_PER_SLOT);
-  const cardComplete    = slotsEarned === 10;
-  const pinesLeft       = cardComplete ? 0 : PINES_PER_CYCLE - pinesInCycle;
-  const progressPct     = Math.round((pinesInCycle / PINES_PER_CYCLE) * 100);
   const totalPines      = pinosEnteros(customer.lifetimePoints);
   const totalPinesLabel = fmtPinos(customer.lifetimePoints);
+
+  // El saldo ES el progreso. Antes se calculaba `saldo % 120`, así que alguien
+  // con 243 Pinos veía "3 / 120" — como si empezara de cero — y al cruzar la
+  // meta el contador se reiniciaba solo, sin avisarle que ya tenía premio.
+  const reward = customer.reward || rewardStatus(customer.availablePoints, products);
+  const cardComplete = reward.hasReward;
+  const pinesLeft    = reward.pinosToNextGoal;
+  const progressPct  = reward.progressPct;
+  const goalCost     = reward.nextGoalCost;
+  // Progreso hacia la meta: si ya tiene premio, lo que lleva del siguiente.
+  const pinesInCycle = cardComplete
+    ? Math.max(0, Math.round((goalCost - pinesLeft) * 10) / 10)
+    : availPines;
+  const PINES_PER_CYCLE = goalCost;
+  const PINES_PER_SLOT  = Math.max(1, Math.round(goalCost / 10));
+  const slotsEarned     = Math.min(10, Math.floor(pinesInCycle / PINES_PER_SLOT));
 
   return (
     <div className="mc-root">
@@ -302,7 +311,7 @@ export default function MiCuenta() {
               <CoffeeIcon size={20} color={BLUE} animated />
               <div>
                 <p style={{ fontSize: 10, color: MUTED, margin: 0, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 700 }}>Próxima recompensa</p>
-                <p style={{ fontSize: 13, fontWeight: 800, color: BLUE, margin: 0 }}>Bebida gratis hasta $90</p>
+                <p style={{ fontSize: 13, fontWeight: 800, color: BLUE, margin: 0 }}>Producto gratis desde {reward.cheapestCost} Pinos</p>
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
@@ -313,25 +322,51 @@ export default function MiCuenta() {
         )}
         {cardComplete && (
           <div style={{
-            background: BG_SOFT, border: `1px solid ${BORDER}`,
-            borderRadius: 12, padding: '10px 16px', marginBottom: 14,
-            display: 'flex', alignItems: 'center', gap: 12,
+            background: 'linear-gradient(135deg, rgba(15,68,139,.08), rgba(26,91,181,.05))',
+            border: `1.5px solid ${BLUE}`,
+            borderRadius: 14, padding: '16px 18px', marginBottom: 14,
           }}>
-            <CoffeeIcon size={22} color={BLUE} animated />
-            <p style={{ fontWeight: 800, fontSize: 13, color: BLUE, margin: 0 }}>¡120 Pinos completados! Muestra tu QR al staff para canjear tu bebida gratis.</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+              <GiftIcon size={26} color={BLUE} />
+              <div style={{ flex: 1 }}>
+                <p style={{ fontWeight: 900, fontSize: 15, color: BLUE, margin: 0, lineHeight: 1.25 }}>
+                  🎉 ¡Llegaste a la meta!
+                </p>
+                <p style={{ fontSize: 12.5, color: MUTED, margin: '3px 0 0', lineHeight: 1.45 }}>
+                  Tienes <strong style={{ color: BLUE }}>{availPinesLabel} Pinos</strong> — te alcanza para{' '}
+                  <strong style={{ color: BLUE }}>
+                    {reward.redeemableCount} producto{reward.redeemableCount === 1 ? '' : 's'} gratis
+                  </strong>.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => { setActiveTab('premios'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              style={{
+                width: '100%', padding: '12px', borderRadius: 11, border: 'none',
+                background: BLUE, color: WHITE, cursor: 'pointer',
+                fontFamily: "'Montserrat', sans-serif", fontWeight: 800, fontSize: 12.5,
+                letterSpacing: 1, textTransform: 'uppercase',
+              }}
+            >
+              Ver para qué me alcanza →
+            </button>
+            <p style={{ fontSize: 11, color: MUTED, margin: '9px 0 0', textAlign: 'center', lineHeight: 1.45 }}>
+              Muestra tu QR al staff para canjearlo. Tus Pinos se descuentan solo al canjear.
+            </p>
           </div>
         )}
 
         {/* PINE PROGRESS */}
         <div className="mc-level">
           <div className="mc-level-top">
-            <span className="mc-level-name">Pinos en ciclo actual</span>
-            <span className="mc-level-next">{cardComplete ? '¡Bebida lista para canjear!' : `${pinesLeft} para tu bebida →`}</span>
+            <span className="mc-level-name">{cardComplete ? 'Progreso al siguiente premio' : 'Progreso a tu primer premio'}</span>
+            <span className="mc-level-next">{cardComplete ? `${pinesLeft} para el siguiente →` : `${pinesLeft} Pinos más →`}</span>
           </div>
           <div className="mc-bar-bg">
             <div className="mc-bar-fill" style={{ width: `${progressPct}%`, background: BLUE }} />
           </div>
-          <p className="mc-bar-pts">{pinesInCycle} / {PINES_PER_CYCLE} Pinos</p>
+          <p className="mc-bar-pts">{fmtPinos(pinesInCycle * 10)} / {PINES_PER_CYCLE} Pinos · saldo total {availPinesLabel}</p>
         </div>
 
         <hr className="mc-divider" />
@@ -486,6 +521,10 @@ export default function MiCuenta() {
           const nextUp = products
             .filter(p => pinosDe(p.pointsValue) > availPines)
             .sort((a, b) => a.pointsValue - b.pointsValue)[0];
+          // Cuántos premios puede LLEVARSE. `canGet.length` es cuántos
+          // productos distintos puede elegir: con 243 Pinos podía elegir entre
+          // 40, pero llevarse solo 2 — y la tarjeta decía "40 productos gratis".
+          const puedeLlevar = reward.redeemableCount;
 
           return (
             <div>
@@ -504,12 +543,17 @@ export default function MiCuenta() {
                   Repostería 100 · Bebidas 110 · Milkshakes 120 Pinos
                 </p>
                 <p style={{ fontSize: 13, fontWeight: 800, margin: '14px 0 0', color: BLUE }}>
-                  {canGet.length > 0
-                    ? `Puedes canjear ${canGet.length} producto${canGet.length === 1 ? '' : 's'} gratis`
+                  {puedeLlevar > 0
+                    ? `🎉 Te alcanza para ${puedeLlevar} producto${puedeLlevar === 1 ? '' : 's'} gratis`
                     : nextUp
-                      ? `Te faltan ${pinosDe(nextUp.pointsValue) - availPines} Pinos para tu primer premio`
+                      ? `Te faltan ${fmtPinos((pinosDe(nextUp.pointsValue) - availPines) * 10)} Pinos para tu primer premio`
                       : 'Sigue acumulando Pinos'}
                 </p>
+                {puedeLlevar > 0 && (
+                  <p style={{ fontSize: 11.5, color: MUTED, margin: '4px 0 0' }}>
+                    Puedes elegir entre {canGet.length} producto{canGet.length === 1 ? '' : 's'} del menú
+                  </p>
+                )}
               </div>
 
               {canGet.length > 0 && (

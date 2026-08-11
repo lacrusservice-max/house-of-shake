@@ -2,10 +2,11 @@ const prisma = require('../config/prisma');
 const pointsService = require('../services/points.service');
 const walletService = require('../services/wallet.service');
 const { normalizeEmail, getMemberNumber } = require('../services/member');
-const { puntosToPinos, formatPinos } = require('../services/pinos');
+const { puntosToPinos, formatPinos, rewardStatus } = require('../services/pinos');
 const logger = require('../config/logger');
 
-// Returns products the customer can afford + products almost in reach
+// Productos que el cliente puede canjear + los que tiene casi al alcance,
+// junto con el estado de premios (cuántos puede llevarse, cuánto le falta).
 async function getAffordableProducts(availablePoints) {
   const products = await prisma.product.findMany({
     where: { active: true },
@@ -17,7 +18,7 @@ async function getAffordableProducts(availablePoints) {
     p => p.pointsValue > availablePoints && p.pointsValue <= availablePoints * 1.3 + 50
   ).slice(0, 3);
 
-  return { affordable, almostAffordable };
+  return { affordable, almostAffordable, reward: rewardStatus(availablePoints, products) };
 }
 
 // Staff scans QR → look up customer; staff sees limited data, admin sees full data
@@ -76,7 +77,7 @@ async function lookupCustomer(req, res) {
     const dp = dpRows[0] || {};
     const doublePointsActive = dp.double_points_enabled && (!dp.double_points_expiry || new Date(dp.double_points_expiry) > new Date());
 
-    const { affordable, almostAffordable } = await getAffordableProducts(customer.availablePoints);
+    const { affordable, almostAffordable, reward } = await getAffordableProducts(customer.availablePoints);
 
     const config = await prisma.config.findFirst();
     const pointsToMxn = config ? (config.redeemValueUsd / config.pointsToRedeem) * 20 : 0.1;
@@ -101,6 +102,9 @@ async function lookupCustomer(req, res) {
       doublePointsActive: !!doublePointsActive,
       affordableProducts: affordable,
       almostAffordableProducts: almostAffordable,
+      // Cuántos premios puede LLEVARSE (no cuántos productos distintos puede
+      // elegir), cuánto le falta y si ya llegó a la meta.
+      reward,
       pointsValueMxn: parseFloat(pointsToMxn.toFixed(4)),
     };
 
@@ -142,8 +146,14 @@ async function addPointsForPurchase(req, res) {
     const updated = await prisma.customer.findUnique({ where: { id: customerId } });
     await walletService.sendPushUpdate(updated).catch(() => {});
 
+    const beforeReward = await getAffordableProducts(customer.availablePoints);
+    const afterReward  = await getAffordableProducts(updated.availablePoints);
+
     res.json({
       success: true,
+      reward: afterReward.reward,
+      // Avisa en caja cuando esta compra fue la que le desbloqueó un premio
+      justUnlocked: !beforeReward.reward.hasReward && afterReward.reward.hasReward,
       pointsAdded: result.pointsAdded,
       pinosAdded: puntosToPinos(result.pointsAdded),
       pinosAddedLabel: formatPinos(result.pointsAdded),
@@ -179,10 +189,11 @@ async function redeemPoints(req, res) {
     const updated = await prisma.customer.findUnique({ where: { id: customerId } });
     await walletService.sendPushUpdate(updated).catch(() => {});
 
-    const { affordable, almostAffordable } = await getAffordableProducts(result.newBalance);
+    const { affordable, almostAffordable, reward } = await getAffordableProducts(result.newBalance);
 
     res.json({
       success: true,
+      reward,
       pointsRedeemed: parseInt(points),
       discountUsd: result.discountUsd,
       discountMxn: parseFloat((result.discountUsd * 20).toFixed(2)),
@@ -297,7 +308,7 @@ async function redeemProduct(req, res) {
     await pointsService.invalidateCache(customerId).catch(() => {});
 
     const newAvailablePoints = updatedCustomer.availablePoints;
-    const { affordable, almostAffordable } = await getAffordableProducts(newAvailablePoints);
+    const { affordable, almostAffordable, reward } = await getAffordableProducts(newAvailablePoints);
 
     logger.info(`🎁 Canje producto "${product.name}" (${pinosCost} Pinos) — cliente ${customerId}`);
     res.json({
@@ -306,9 +317,11 @@ async function redeemProduct(req, res) {
       pinosCost,
       newAvailablePoints,
       newAvailPinos: Math.floor(newAvailablePoints / 10),
+      newAvailPinosLabel: formatPinos(newAvailablePoints),
       customerName: customer.firstName,
       affordableProducts: affordable,
       almostAffordableProducts: almostAffordable,
+      reward,
     });
   } catch (err) {
     logger.error('POS redeemProduct error:', err.message);

@@ -2,7 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import '../styles/mi-cuenta.css';
 import { CoffeeIcon, GiftIcon, StarIcon, CakeIcon, LightningIcon, SearchIcon, WarningIcon, CheckIcon } from '../components/Icons';
-import { fmtPinos, pinosEnteros } from '../lib/pinos';
+import { fmtPinos, pinosEnteros, rewardStatus } from '../lib/pinos';
 
 const QRScanner = lazy(() => import('../components/QRScanner'));
 
@@ -20,17 +20,22 @@ const CAT_LABEL = {
 const catLabel = (c) => CAT_LABEL[c] || (c ? c[0].toUpperCase() + c.slice(1) : 'Otros');
 
 // Pino calc: ciclo basado en availablePoints para que el canje reinicie el ciclo
-function calcPines(availablePoints = 0, lifetimePoints = 0) {
+function calcPines(availablePoints = 0, lifetimePoints = 0, reward = null) {
   const availPines   = pinosEnteros(availablePoints);
-  const pinesInCycle = availPines % 120;
-  const slotsEarned  = (pinesInCycle === 0 && availPines > 0) ? 10 : Math.floor(pinesInCycle / 12);
-  const cardComplete = slotsEarned === 10;
-  const pinesLeft    = cardComplete ? 0 : 120 - pinesInCycle;
+  // El saldo ES el progreso: con `availPines % 120`, un cliente con 243 Pinos
+  // aparecía como "3 / 120" y el staff no veía que ya tenía premio.
+  const meta         = reward?.cheapestCost || 100;
+  const cardComplete = reward ? reward.hasReward : availPines >= meta;
+  const pinesLeft    = reward ? reward.pinosToNextGoal : Math.max(0, meta - availPines);
+  const pinesInCycle = cardComplete
+    ? Math.max(0, Math.round((meta - pinesLeft) * 10) / 10)
+    : availPines;
+  const slotsEarned  = Math.min(10, Math.floor((pinesInCycle / meta) * 10));
   const totalPines   = pinosEnteros(lifetimePoints);
   // Etiquetas con decimales: una compra de $65 da 6.5 Pinos, no 6.
   const availLabel   = fmtPinos(availablePoints);
   const totalLabel   = fmtPinos(lifetimePoints);
-  return { availPines, pinesInCycle, slotsEarned, cardComplete, pinesLeft, totalPines, availLabel, totalLabel };
+  return { availPines, pinesInCycle, slotsEarned, cardComplete, pinesLeft, totalPines, availLabel, totalLabel, meta };
 }
 
 export default function Staff() {
@@ -224,7 +229,7 @@ function POSView({ token, onLogout }) {
     setQuickReg({ show: false, firstName: '', lastName: '', email: '', loading: false, error: '' });
   }
 
-  const pines = customer ? calcPines(customer.availablePoints, customer.lifetimePoints) : null;
+  const pines = customer ? calcPines(customer.availablePoints, customer.lifetimePoints, customer.reward) : null;
   const pinesPreview = amount && parseFloat(amount) > 0
     ? Math.round((parseFloat(amount) / 10) * 10) / 10
     : 0;
@@ -236,7 +241,12 @@ function POSView({ token, onLogout }) {
   const shownProducts = (catFilter === 'all' ? products : products.filter(p => p.category === catFilter))
     .slice()
     .sort((a, b) => a.pointsValue - b.pointsValue);
+  // Cuántos productos DISTINTOS puede elegir del menú.
   const affordableCount = products.filter(p => pinosDe(p.pointsValue) <= availPinos).length;
+  // Cuántos premios puede LLEVARSE realmente. Con 243 Pinos podía elegir entre
+  // 40 productos pero llevarse solo 2 — la caja decía "le alcanza para 40".
+  const reward = customer?.reward || rewardStatus(customer?.availablePoints || 0, products);
+  const puedeLlevar = reward.redeemableCount;
 
   return (
     <div className="mc-root" style={{ minHeight: '100vh' }}>
@@ -610,8 +620,8 @@ function POSView({ token, onLogout }) {
                 <span style={{ fontSize: 28 }}>✚</span>
                 <span style={{ fontWeight: 800, fontSize: 13 }}>Acumular Pinos</span>
                 <span style={{ fontSize: 10, opacity: .8, textAlign: 'center' }}>
-                  {affordableCount > 0
-                    ? `Ya le alcanza para ${affordableCount} — puede seguir sumando`
+                  {puedeLlevar > 0
+                    ? `Ya le alcanza para ${puedeLlevar} — puede seguir sumando`
                     : `Va por ${availPinosLabel} Pinos`}
                 </span>
               </button>
@@ -630,7 +640,7 @@ function POSView({ token, onLogout }) {
                 <GiftIcon size={28} color={affordableCount > 0 ? '#0F448B' : 'rgba(15,68,139,.45)'} animated={affordableCount > 0} />
                 <span style={{ fontWeight: 800, fontSize: 13 }}>Canjear premio</span>
                 <span style={{ fontSize: 10, opacity: .8, textAlign: 'center' }}>
-                  {affordableCount > 0 ? `Le alcanza para ${affordableCount} productos` : 'Aún no le alcanza — sigue sumando'}
+                  {puedeLlevar > 0 ? `Le alcanza para ${puedeLlevar} producto${puedeLlevar === 1 ? '' : 's'}` : 'Aún no le alcanza — sigue sumando'}
                 </span>
               </button>
             </div>
@@ -654,7 +664,7 @@ function POSView({ token, onLogout }) {
                   <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: pines.cardComplete ? '#5EC97A' : '#0F448B', lineHeight: 1 }}>
                     {pines.pinesInCycle}
                   </div>
-                  <div style={{ fontSize: 9, color: 'rgba(15,68,139,.3)', marginTop: 2 }}>/ 120 Pinos</div>
+                  <div style={{ fontSize: 9, color: 'rgba(15,68,139,.3)', marginTop: 2 }}>/ {pines.meta} Pinos</div>
                 </div>
                 <div style={{ background: 'rgba(15,68,139,.05)', borderRadius: 12, padding: '12px', textAlign: 'center' }}>
                   <div style={{ fontSize: 9, letterSpacing: 1.5, color: 'rgba(15,68,139,.45)', textTransform: 'uppercase', marginBottom: 4 }}>Totales</div>
@@ -685,7 +695,7 @@ function POSView({ token, onLogout }) {
                 <div style={{ background: 'rgba(255,255,255,.1)', borderRadius: 99, height: 8, overflow: 'hidden' }}>
                   <div style={{
                     height: '100%', borderRadius: 99,
-                    width: `${Math.round((pines.pinesInCycle / 120) * 100)}%`,
+                    width: `${Math.min(100, Math.round((pines.pinesInCycle / pines.meta) * 100))}%`,
                     background: pines.cardComplete ? '#5EC97A' : '#0F448B',
                     transition: 'width .4s ease',
                     minWidth: pines.pinesInCycle > 0 ? 8 : 0,
@@ -761,8 +771,8 @@ function POSView({ token, onLogout }) {
               borderRadius: 12, padding: '12px 16px', marginBottom: 20,
             }}>
               <p style={{ fontSize: 12, color: affordableCount > 0 ? '#5EC97A' : 'rgba(15,68,139,.65)', margin: 0, fontWeight: 700 }}>
-                {affordableCount > 0
-                  ? `🎁 Ya le alcanza para ${affordableCount} productos (${availPinosLabel} Pinos)`
+                {puedeLlevar > 0
+                  ? `🎁 Le alcanza para ${puedeLlevar} producto${puedeLlevar === 1 ? '' : 's'} (${availPinosLabel} Pinos · elige entre ${affordableCount})`
                   : `Tiene ${availPinosLabel} Pinos — aún no le alcanza para nada`}
               </p>
               {affordableCount > 0 && (
@@ -836,12 +846,12 @@ function POSView({ token, onLogout }) {
             <div style={{ background: 'rgba(15,68,139,.04)', border: '1px solid rgba(15,68,139,.06)', borderRadius: 14, padding: '14px 18px', marginBottom: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
                 <span style={{ color: 'rgba(15,68,139,.65)' }}>Pinos en ciclo actual</span>
-                <span style={{ fontWeight: 800, color: '#5EC97A' }}>{pines.pinesInCycle} / 120 🌲</span>
+                <span style={{ fontWeight: 800, color: '#5EC97A' }}>{pines.pinesInCycle} / {pines.meta} 🌲</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                 <span style={{ color: 'rgba(15,68,139,.65)' }}>Después del canje</span>
                 <span style={{ fontWeight: 800, color: 'rgba(15,68,139,.75)' }}>
-                  {Math.floor(((customer.availablePoints || 0) - 1200) / 10) % 120} / 120 Pinos
+                  {pines.pinesInCycle} / {pines.meta} Pinos
                 </span>
               </div>
             </div>
@@ -881,8 +891,8 @@ function POSView({ token, onLogout }) {
                   Le alcanza para
                 </p>
                 <p style={{ fontSize: 15, fontWeight: 800, color: '#0F448B', margin: '4px 0 0' }}>
-                  {affordableCount > 0
-                    ? `${affordableCount} producto${affordableCount === 1 ? '' : 's'} gratis`
+                  {puedeLlevar > 0
+                    ? `${puedeLlevar} producto${puedeLlevar === 1 ? '' : 's'} gratis`
                     : 'Aún nada — sigue acumulando'}
                 </p>
               </div>
@@ -1036,7 +1046,7 @@ function POSView({ token, onLogout }) {
 
 /* ─── Success Screen ─── */
 function SuccessScreen({ result, customer, onViewProfile, onReset }) {
-  const newPines = calcPines(result.newBalance || result.newAvailablePoints || 0);
+  const newPines = calcPines(result.newBalance || result.newAvailablePoints || 0, 0, result.reward);
   const isProduct = result.type === 'redeemProduct';
 
   return (
@@ -1095,22 +1105,31 @@ function SuccessScreen({ result, customer, onViewProfile, onReset }) {
               {result.newAvailPinos ?? newPines.availPines}
             </div>
             <div style={{ fontSize: 11, color: 'rgba(15,68,139,.4)', marginTop: 6 }}>
-              Equivalen a ${result.newAvailPinos ?? newPines.availPines} MXN de menú
+              {(result.reward?.redeemableCount ?? 0) > 0
+                ? `Aún le alcanza para ${result.reward.redeemableCount} producto${result.reward.redeemableCount === 1 ? '' : 's'} más`
+                : `Le faltan ${result.reward?.pinosToNextGoal ?? 0} Pinos para el siguiente premio`}
             </div>
           </>
         ) : (
           <>
-            <div style={{ fontSize: 9, letterSpacing: 3, color: 'rgba(15,68,139,.4)', textTransform: 'uppercase', marginBottom: 6 }}>Pinos en ciclo actual</div>
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: newPines.cardComplete ? '#5EC97A' : '#0F448B', lineHeight: 1 }}>
-              {result.newPinesInCycle ?? newPines.pinesInCycle} / 120
+            <div style={{ fontSize: 9, letterSpacing: 3, color: 'rgba(15,68,139,.4)', textTransform: 'uppercase', marginBottom: 6 }}>Saldo del cliente</div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: result.reward?.hasReward ? '#5EC97A' : '#0F448B', lineHeight: 1 }}>
+              {result.newAvailablePinosLabel ?? newPines.availLabel} <span style={{ fontSize: 20 }}>Pinos</span>
             </div>
-            {newPines.cardComplete ? (
+            {result.justUnlocked ? (
+              <div style={{ fontSize: 13.5, color: '#5EC97A', fontWeight: 900, marginTop: 8, lineHeight: 1.4 }}>
+                🎉 ¡Con esta compra llegó a la meta!<br />
+                <span style={{ fontWeight: 700 }}>
+                  Avísale que ya puede canjear {result.reward.redeemableCount} producto{result.reward.redeemableCount === 1 ? '' : 's'} gratis
+                </span>
+              </div>
+            ) : result.reward?.hasReward ? (
               <div style={{ fontSize: 13, color: '#5EC97A', fontWeight: 800, marginTop: 8 }}>
-                🌲 ¡Tarjeta completa! El cliente puede canjear otra bebida
+                🎁 Le alcanza para {result.reward.redeemableCount} producto{result.reward.redeemableCount === 1 ? '' : 's'} gratis
               </div>
             ) : (
               <div style={{ fontSize: 11, color: 'rgba(15,68,139,.4)', marginTop: 6 }}>
-                {newPines.pinesLeft} Pinos más para bebida gratis
+                Le faltan {result.reward?.pinosToNextGoal ?? newPines.pinesLeft} Pinos para su primer premio
               </div>
             )}
           </>
