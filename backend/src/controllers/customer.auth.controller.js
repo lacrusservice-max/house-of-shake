@@ -159,6 +159,17 @@ async function forgotPassword(req, res) {
   if (!email) return res.status(400).json({ error: 'Email requerido' });
 
   try {
+    // Sin proveedor de correo no sale nada, y decir "revisa tu correo" deja al
+    // cliente esperando para siempre. Mejor mandarlo con el staff, que sí puede
+    // restablecerle la contraseña desde el panel.
+    if (!emailService.isConfigured()) {
+      logger.error('forgotPassword: RESEND_API_KEY no configurada — no se puede enviar el enlace');
+      return res.status(503).json({
+        error: 'El envío de correos no está activo todavía. Pídele al staff de House of Shake que te restablezca la contraseña.',
+        emailNotConfigured: true,
+      });
+    }
+
     const customer = await prisma.customer.findFirst({
       where: { email: { equals: normalizeEmail(email), mode: 'insensitive' } },
     });
@@ -172,11 +183,21 @@ async function forgotPassword(req, res) {
         { expiresIn: '30m' }
       );
       const resetLink = `https://house-of-shake.vercel.app/reset-password?token=${resetToken}`;
-      setImmediate(() => {
-        emailService.sendPasswordReset({ to: customer.email, firstName: customer.firstName, resetLink })
-          .catch(e => logger.warn('Email password-reset error:', e.message));
-      });
-      logger.info(`🔑 Reset de contraseña solicitado: ${customer.email}`);
+
+      // Se espera el envío en vez de lanzarlo y olvidarlo: si el proveedor
+      // rechaza el correo, el cliente merece saberlo en vez de quedarse
+      // mirando "revisa tu correo" para siempre.
+      const result = await emailService
+        .sendPasswordReset({ to: customer.email, firstName: customer.firstName, resetLink })
+        .catch(e => ({ sent: false, reason: e.message }));
+
+      if (result && result.sent === false) {
+        logger.error(`🔑 Falló el envío del reset a ${customer.email}: ${result.reason}`);
+        return res.status(502).json({
+          error: 'No pudimos enviarte el correo en este momento. Intenta de nuevo en unos minutos o pídeselo al staff.',
+        });
+      }
+      logger.info(`🔑 Enlace de reset enviado a ${customer.email}`);
     }
 
     res.json({ success: true, message: genericMsg });

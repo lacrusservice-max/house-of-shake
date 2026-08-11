@@ -12,16 +12,37 @@ function getResend() {
 
 const FROM = process.env.EMAIL_FROM || 'House of Shake <noreply@houseofshake.com>';
 
+/** ¿Hay proveedor de correo configurado? Sin esto no sale ni un solo email. */
+function isConfigured() {
+  return !!process.env.RESEND_API_KEY;
+}
+
+let avisoFaltaKey = false;
+
 async function send(to, subject, html) {
   const client = getResend();
   if (!client) {
-    logger.debug(`[email skip — no RESEND_API_KEY] To: ${to} | Subject: ${subject}`);
-    return;
+    // Antes esto era logger.debug: el envío se saltaba en silencio y nadie se
+    // enteraba de que NINGÚN correo salía (bienvenida, Pinos, reset de
+    // contraseña). Ahora avisa fuerte una vez y deja rastro en cada intento.
+    if (!avisoFaltaKey) {
+      logger.error(
+        '⚠️  RESEND_API_KEY no está configurada — NO se está enviando ningún correo ' +
+        '(bienvenida, puntos, recuperación de contraseña). Configúrala en las ' +
+        'variables de entorno para activarlos.'
+      );
+      avisoFaltaKey = true;
+    }
+    logger.warn(`[correo NO enviado — falta RESEND_API_KEY] Para: ${to} | Asunto: ${subject}`);
+    return { sent: false, reason: 'not_configured' };
   }
   try {
     await client.emails.send({ from: FROM, to, subject, html });
+    logger.info(`📧 Correo enviado a ${to} — ${subject}`);
+    return { sent: true };
   } catch (err) {
-    logger.warn(`[email error] ${err.message}`);
+    logger.error(`[error de correo] ${to} — ${err.message}`);
+    return { sent: false, reason: err.message };
   }
 }
 
@@ -151,7 +172,7 @@ async function sendPasswordReset({ to, firstName, resetLink }) {
       Este enlace expira en 30 minutos. Si tú no solicitaste esto, puedes ignorar este correo — tu contraseña actual sigue funcionando normalmente.
     </p>
   `;
-  await send(to, 'Restablece tu contraseña — House of Shake', baseLayout(body));
+  return send(to, 'Restablece tu contraseña — House of Shake', baseLayout(body));
 }
 
 async function sendInactiveReminder({ to, firstName, availablePoints, daysSinceVisit }) {
@@ -175,4 +196,6 @@ async function sendInactiveReminder({ to, firstName, availablePoints, daysSinceV
   await send(to, `Te extrañamos en House of Shake ☕ — tienes ${Math.floor(availablePoints / 10)} Pinos`, baseLayout(body));
 }
 
-module.exports = { sendPointsEarned, sendLevelUp, sendPointsRedeemed, sendWelcome, sendPasswordReset, sendInactiveReminder };
+module.exports = { sendPointsEarned, sendLevelUp, sendPointsRedeemed, sendWelcome, sendPasswordReset, sendInactiveReminder,
+  isConfigured,
+};
