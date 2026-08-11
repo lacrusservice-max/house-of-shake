@@ -17,7 +17,6 @@ import Transactions from './pages/Transactions';
 import Config from './pages/Config';
 import Products from './pages/Products';
 import WalletSetup from './pages/WalletSetup';
-import Finanzas from './pages/Finanzas';
 import Personal from './pages/Personal';
 import Menu from './pages/Menu';
 
@@ -60,7 +59,6 @@ export default function App() {
                 <Route path="/customers" element={<Customers />} />
                 <Route path="/transactions" element={<Transactions />} />
                 <Route path="/products" element={<Products />} />
-                <Route path="/finanzas" element={<Finanzas />} />
                 <Route path="/personal" element={<Personal />} />
                 <Route path="/wallet" element={<WalletSetup />} />
                 <Route path="/config" element={<Config />} />

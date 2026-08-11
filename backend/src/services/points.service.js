@@ -2,6 +2,7 @@ const prisma = require('../config/prisma');
 const { getRedis } = require('../config/redis');
 const logger = require('../config/logger');
 const emailService = require('./email.service');
+const { puntosFromAmount, formatPinos } = require('./pinos');
 
 const CACHE_PREFIX = 'customer:points:';
 const CACHE_TTL = 300; // 5 minutos
@@ -67,7 +68,8 @@ async function addPoints(customerId, orderAmount, shopifyOrderId, shopifyOrderNu
   if (!customer) throw new Error(`Cliente no encontrado: ${customerId}`);
 
   const doublePoints = await isDoublePointsActive();
-  const basePoints = Math.floor(orderAmount * config.pointsPerDollar) * (doublePoints ? 2 : 1);
+  // 1 Pino por cada $10 MXN, con decimales: $65 → 65 puntos internos = 6.5 Pinos.
+  const basePoints = puntosFromAmount(orderAmount) * (doublePoints ? 2 : 1);
   const pointsWithBonus = applyLevelBonus(basePoints, customer.level, config);
 
   const expiresAt = new Date();
@@ -175,7 +177,9 @@ async function addBirthdayBonus(customerId, bonusPoints = 200) {
 
   await invalidateCache(customerId);
   logger.info(`🎂 Bono de cumpleaños (${bonusPoints} puntos) para cliente ${customerId}`);
-  return { pointsAdded: bonusPoints, newBalance: updatedCustomer.availablePoints + bonusPoints };
+  // updatedCustomer ya viene con el incremento aplicado por Prisma; volver a
+  // sumar bonusPoints le mostraba al cliente el doble de saldo del que tenía.
+  return { pointsAdded: bonusPoints, newBalance: updatedCustomer.availablePoints };
 }
 
 async function redeemPoints(customerId, pointsToRedeem, staffId, staffEmail, description = 'Canje de puntos') {

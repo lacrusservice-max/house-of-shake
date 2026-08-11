@@ -46,7 +46,7 @@ export default function Rewards({ isLoggedIn = false }) {
 
         {/* ── Header ── */}
         <div className="hs-rw-hdr hs-rev">
-          <div className="hs-rw-coin"><SparkleIcon size={34} color="#1B2F56" animated /></div>
+          <div className="hs-rw-coin"><SparkleIcon size={34} color="#FFFFFF" animated /></div>
           <p className="hs-eyebrow" style={{ justifyContent: 'center' }}>House of Shake Rewards</p>
           <h2 className="hs-h-dark">GANA PINOS.<br />CANJEA BEBIDAS.</h2>
           <p className="hs-sub-dark" style={{ maxWidth: 560, margin: '10px auto 0' }}>
@@ -59,7 +59,7 @@ export default function Rewards({ isLoggedIn = false }) {
           {STEPS.map((s, i) => (
             <div key={i} className="hs-rw-step hs-rev">
               <span className="hs-rw-step-n">{s.n}</span>
-              <div className="hs-rw-ic"><s.Icon size={36} color="#F5C842" animated /></div>
+              <div className="hs-rw-ic"><s.Icon size={36} color="#0F448B" animated /></div>
               <h3>{s.title}</h3>
               <p>{s.body}</p>
             </div>
@@ -75,7 +75,7 @@ export default function Rewards({ isLoggedIn = false }) {
             {LADDER.map((n, i) => (
               <div key={i} className={`hs-node${n.final ? ' final' : ''}`}>
                 <div className="hs-node-dot">
-                  {n.final ? <GiftIcon size={30} color="#1B2F56" animated /> : n.pinos}
+                  {n.final ? <GiftIcon size={30} color="#FFFFFF" animated /> : n.pinos}
                 </div>
                 <div className="hs-node-text">
                   <span className="hs-node-pinos">{n.final ? '120 Pinos' : `${n.pinos} Pinos`}</span>
@@ -94,7 +94,7 @@ export default function Rewards({ isLoggedIn = false }) {
         <div className="hs-benefits">
           {BENEFITS.map((b, i) => (
             <div key={i} className="hs-benefit hs-rev">
-              <div className="hs-benefit-ic"><b.Icon size={26} color="#F5C842" animated /></div>
+              <div className="hs-benefit-ic"><b.Icon size={26} color="#0F448B" animated /></div>
               <div>
                 <h5>{b.title}</h5>
                 <p>{b.body}</p>

@@ -1,6 +1,8 @@
 const prisma = require('../config/prisma');
 const pointsService = require('../services/points.service');
 const walletService = require('../services/wallet.service');
+const { normalizeEmail, getMemberNumber } = require('../services/member');
+const { puntosToPinos, formatPinos } = require('../services/pinos');
 const logger = require('../config/logger');
 
 // Returns products the customer can afford + products almost in reach
@@ -24,10 +26,24 @@ async function lookupCustomer(req, res) {
   const isAdmin = req.admin?.role === 'admin';
 
   try {
+    // El staff puede llegar por QR (id / serial del pass), por número de socio
+    // (el cliente lo dicta) o por email — los tres resuelven al mismo cliente.
+    const term = String(code || '').trim();
+    const asMemberNumber = /^\d+$/.test(term) ? parseInt(term, 10) : null;
+
+    const orConditions = [{ id: term }, { walletPassSerial: term }];
+    if (term.includes('@')) {
+      orConditions.push({ email: { equals: normalizeEmail(term), mode: 'insensitive' } });
+    }
+    if (asMemberNumber !== null) {
+      const rows = await prisma.$queryRawUnsafe(
+        `SELECT id FROM customers WHERE member_number = $1 LIMIT 1`, asMemberNumber
+      ).catch(() => []);
+      if (rows?.[0]?.id) orConditions.push({ id: rows[0].id });
+    }
+
     const customer = await prisma.customer.findFirst({
-      where: {
-        OR: [{ id: code }, { walletPassSerial: code }],
-      },
+      where: { OR: orConditions },
       include: {
         transactions: {
           orderBy: { createdAt: 'desc' },
@@ -65,11 +81,16 @@ async function lookupCustomer(req, res) {
     const config = await prisma.config.findFirst();
     const pointsToMxn = config ? (config.redeemValueUsd / config.pointsToRedeem) * 20 : 0.1;
 
+    const memberNumber = await getMemberNumber(customer.id);
+
     const data = {
       id: customer.id,
+      memberNumber,
       firstName: customer.firstName,
-      lastName: isAdmin ? customer.lastName : customer.lastName[0] + '.',
+      lastName: isAdmin ? customer.lastName : (customer.lastName ? customer.lastName[0] + '.' : ''),
       availablePoints: customer.availablePoints,
+      availablePinos: puntosToPinos(customer.availablePoints),
+      availablePinosLabel: formatPinos(customer.availablePoints),
       totalPoints: customer.totalPoints,
       lifetimePoints: customer.lifetimePoints,
       level: customer.level,
@@ -124,8 +145,12 @@ async function addPointsForPurchase(req, res) {
     res.json({
       success: true,
       pointsAdded: result.pointsAdded,
+      pinosAdded: puntosToPinos(result.pointsAdded),
+      pinosAddedLabel: formatPinos(result.pointsAdded),
       newBalance: result.newBalance,
       newAvailablePoints: updated.availablePoints,
+      newAvailablePinos: puntosToPinos(updated.availablePoints),
+      newAvailablePinosLabel: formatPinos(updated.availablePoints),
       customerName: customer.firstName,
       doublePoints: result.doublePoints,
     });
@@ -297,26 +322,54 @@ async function searchCustomers(req, res) {
   if (term.length < 2) return res.json({ customers: [] });
 
   try {
+    // La pantalla de caja ofrece "Buscar por email" y "Buscar por nombre", pero
+    // esto solo miraba nombre y apellido: buscar un correo nunca daba resultados.
+    const where = { OR: [
+      { firstName: { contains: term, mode: 'insensitive' } },
+      { lastName:  { contains: term, mode: 'insensitive' } },
+      { email:     { contains: term, mode: 'insensitive' } },
+      { phone:     { contains: term } },
+    ]};
+
+    if (/^\d+$/.test(term)) {
+      const rows = await prisma.$queryRawUnsafe(
+        `SELECT id FROM customers WHERE CAST(member_number AS TEXT) LIKE $1 LIMIT 8`,
+        `${term}%`
+      ).catch(() => []);
+      for (const r of rows) where.OR.push({ id: r.id });
+    }
+
     const customers = await prisma.customer.findMany({
-      where: {
-        OR: [
-          { firstName: { contains: term, mode: 'insensitive' } },
-          { lastName: { contains: term, mode: 'insensitive' } },
-        ],
-      },
-      take: 6,
+      where,
+      take: 8,
       select: {
-        id: true, firstName: true, lastName: true,
+        id: true, firstName: true, lastName: true, email: true,
         availablePoints: true, level: true, phone: true,
       },
       orderBy: { firstName: 'asc' },
     });
 
-    // Mask phone — show last 4 digits only for privacy
+    const ids = customers.map(c => c.id);
+    const numbers = ids.length
+      ? await prisma.$queryRawUnsafe(
+          `SELECT id, member_number FROM customers WHERE id IN (${ids.map((_, i) => `$${i + 1}`).join(',')})`,
+          ...ids
+        ).catch(() => [])
+      : [];
+    const numberById = new Map(numbers.map(r => [r.id, r.member_number ? Number(r.member_number) : null]));
+
+    // Datos parcialmente ocultos: el staff necesita reconocer al cliente,
+    // no leer su teléfono ni su correo completos.
     const masked = customers.map(c => ({
-      ...c,
+      id: c.id,
+      memberNumber: numberById.get(c.id) ?? null,
+      firstName: c.firstName,
+      lastName: c.lastName ? c.lastName[0] + '.' : '',
+      email: c.email ? c.email.replace(/^(.{2}).*(@.*)$/, '$1···$2') : null,
       phone: c.phone ? '···' + c.phone.slice(-4) : null,
-      lastName: c.lastName[0] + '.',
+      availablePoints: c.availablePoints,
+      availablePinosLabel: formatPinos(c.availablePoints),
+      level: c.level,
     }));
 
     res.json({ customers: masked });

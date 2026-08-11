@@ -8,7 +8,8 @@ html, body {
 }
 
 body {
-  @apply bg-gray-50 text-gray-900;
+  background: #FFFFFF;
+  color: #0F448B;
 }
 
 /* ── Icon animation keyframes (global) ── */
