@@ -40,11 +40,24 @@ const posLimiter = rateLimit({
 
 router.use(limiter);
 
-// Health check
+// Health check.
+//
+// Incluye `features` a propósito: al guardar variables de entorno, Railway
+// redespliega una imagen ANTERIOR, y eso ya revivió dos veces código viejo
+// (el número de socio desapareció, y "Pídelo gratis" respondía 404). Sin un
+// marcador no había forma de notarlo salvo probando función por función.
 router.get('/health', (req, res) => res.json({
   status: 'ok',
   timestamp: new Date().toISOString(),
   version: process.env.npm_package_version || '1.0.0',
+  emailReady: require('../services/email.service').isConfigured(),
+  features: [
+    'member-numbers',    // número de socio visible
+    'reward-status',     // cuántos premios puede llevarse
+    'redeem-intent',     // "Pídelo gratis" desde la cuenta
+    'category-tiers',    // canje 100/110/120 por categoría
+    'decimal-pinos',     // $65 = 6.5 Pinos
+  ],
 }));
 
 // === SHOPIFY WEBHOOKS ===
