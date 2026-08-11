@@ -5,6 +5,7 @@ const pointsService = require('../services/points.service');
 const emailService = require('../services/email.service');
 const { normalizeEmail, assignMemberNumber, getMemberNumber } = require('../services/member');
 const { rewardStatus } = require('../services/pinos');
+const intentService = require('../services/intent');
 const logger = require('../config/logger');
 
 const SALT_ROUNDS = 10;
@@ -246,11 +247,13 @@ async function getMe(req, res) {
     const activeProducts = await prisma.product.findMany({ where: { active: true } })
       .catch(() => []);
     const reward = rewardStatus(customer.availablePoints, activeProducts);
+    const pendingIntent = await intentService.getIntent(customer.id, customer.availablePoints);
 
     res.json({ customer: {
       ...safeCustomer(customer),
       memberNumber,
       reward,
+      pendingIntent,
       birthday: ext.birthday || null,
       visitCount: Number(ext.visit_count) || 0,
       lastVisitAt: ext.last_visit_at || null,
@@ -373,4 +376,33 @@ async function getMyTransactions(req, res) {
   }
 }
 
-module.exports = { register, login, forgotPassword, resetPassword, getMe, getMyTransactions, updateProfile, claimBirthdayReward };
+/**
+ * El cliente toca "Pídelo gratis": queda anotado qué quiere canjear para que
+ * el staff lo vea al identificarlo. No descuenta Pinos — eso pasa solo cuando
+ * el staff confirma el canje en caja.
+ */
+async function createRedeemIntent(req, res) {
+  const { productId } = req.body;
+  if (!productId) return res.status(400).json({ error: 'productId requerido' });
+
+  try {
+    const intent = await intentService.setIntent(req.customer.id, productId);
+    res.status(201).json({ success: true, intent });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+}
+
+async function cancelRedeemIntent(req, res) {
+  try {
+    await intentService.clearIntent(req.customer.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+module.exports = {
+  register, login, forgotPassword, resetPassword, getMe, getMyTransactions,
+  updateProfile, claimBirthdayReward, createRedeemIntent, cancelRedeemIntent,
+};

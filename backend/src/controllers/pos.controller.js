@@ -3,6 +3,7 @@ const pointsService = require('../services/points.service');
 const walletService = require('../services/wallet.service');
 const { normalizeEmail, getMemberNumber } = require('../services/member');
 const { puntosToPinos, formatPinos, rewardStatus } = require('../services/pinos');
+const intentService = require('../services/intent');
 const logger = require('../config/logger');
 
 // Productos que el cliente puede canjear + los que tiene casi al alcance,
@@ -83,6 +84,9 @@ async function lookupCustomer(req, res) {
     const pointsToMxn = config ? (config.redeemValueUsd / config.pointsToRedeem) * 20 : 0.1;
 
     const memberNumber = await getMemberNumber(customer.id);
+    // Lo que el cliente marcó desde su cuenta: el staff lo ve sin preguntar,
+    // llegue por QR de la web, por el pass de Wallet o buscándolo por nombre.
+    const pendingIntent = await intentService.getIntent(customer.id, customer.availablePoints);
 
     const data = {
       id: customer.id,
@@ -105,6 +109,7 @@ async function lookupCustomer(req, res) {
       // Cuántos premios puede LLEVARSE (no cuántos productos distintos puede
       // elegir), cuánto le falta y si ya llegó a la meta.
       reward,
+      pendingIntent,
       pointsValueMxn: parseFloat(pointsToMxn.toFixed(4)),
     };
 
@@ -306,6 +311,8 @@ async function redeemProduct(req, res) {
 
     await walletService.sendPushUpdate(updatedCustomer).catch(() => {});
     await pointsService.invalidateCache(customerId).catch(() => {});
+    // Solicitud cumplida: se limpia para que no reaparezca en la próxima visita
+    await intentService.clearIntent(customerId).catch(() => {});
 
     const newAvailablePoints = updatedCustomer.availablePoints;
     const { affordable, almostAffordable, reward } = await getAffordableProducts(newAvailablePoints);

@@ -137,6 +137,11 @@ async function setupDatabase() {
     // Número de socio visible (1001, 1002, …) — el cliente lo dicta en caja y
     // el staff lo busca sin necesidad de QR ni de deletrear un UUID.
     await prisma.$executeRawUnsafe(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS member_number INTEGER;`);
+    // Solicitud de canje: el cliente elige un producto en su cuenta y el staff
+    // lo ve al identificarlo, sin importar si llegó por QR web, por el pass de
+    // Wallet o buscándolo por nombre.
+    await prisma.$executeRawUnsafe(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS pending_product_id TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS pending_since TIMESTAMPTZ;`);
     logger.info('✅ Schema actualizado');
   } catch (e) {
     logger.warn('Schema (puede que ya estén las columnas):', e.message);

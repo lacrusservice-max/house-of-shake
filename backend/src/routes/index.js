@@ -62,6 +62,9 @@ router.get('/me', authenticateCustomer, customerAuthController.getMe);
 router.get('/me/transactions', authenticateCustomer, customerAuthController.getMyTransactions);
 router.put('/me/profile', authenticateCustomer, customerAuthController.updateProfile);
 router.post('/me/birthday-reward', authenticateCustomer, customerAuthController.claimBirthdayReward);
+// Solicitud de canje: el cliente marca qué quiere y el staff lo ve en caja
+router.post('/me/redeem-intent', authenticateCustomer, customerAuthController.createRedeemIntent);
+router.delete('/me/redeem-intent', authenticateCustomer, customerAuthController.cancelRedeemIntent);
 
 // === CUSTOMERS ===
 router.post('/customers', customerController.getOrCreateCustomer);

@@ -78,13 +78,14 @@ function POSView({ token, onLogout }) {
       .catch(() => {});
   }, []);
 
-  async function handleRedeemProduct() {
-    if (!pickedProduct) return;
+  async function handleRedeemProduct(override = null) {
+    const target = override || pickedProduct;
+    if (!target) return;
     setLoading(true); setError('');
     try {
       const res = await fetch(`${API}/pos/customer/${customer.id}/redeem-product`, {
         method: 'POST', headers,
-        body: JSON.stringify({ productId: pickedProduct.id }),
+        body: JSON.stringify({ productId: target.id }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al canjear');
@@ -584,8 +585,12 @@ function POSView({ token, onLogout }) {
               <div style={{ background: 'rgba(94,201,122,.1)', border: '1px solid rgba(94,201,122,.4)', borderRadius: 14, padding: '14px 18px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{ fontSize: 32 }}>🌲</span>
                 <div>
-                  <p style={{ fontWeight: 800, fontSize: 15, color: '#5EC97A', margin: 0 }}>¡120 Pinos completados!</p>
-                  <p style={{ fontSize: 12, color: 'rgba(15,68,139,.75)', margin: '2px 0 0' }}>Este cliente puede canjear su bebida gratis hasta $90</p>
+                  <p style={{ fontWeight: 800, fontSize: 15, color: '#5EC97A', margin: 0 }}>
+                    ¡Llegó a la meta!
+                  </p>
+                  <p style={{ fontSize: 12, color: 'rgba(15,68,139,.75)', margin: '2px 0 0' }}>
+                    Le alcanza para {puedeLlevar} producto{puedeLlevar === 1 ? '' : 's'} gratis · {availPinosLabel} Pinos
+                  </p>
                 </div>
               </div>
             )}
@@ -606,6 +611,60 @@ function POSView({ token, onLogout }) {
               <p style={{ fontSize: 11, letterSpacing: 1.5, fontWeight: 700, color: 'rgba(15,68,139,.45)', marginBottom: 6 }}>
                 SOCIO #{customer.memberNumber}
               </p>
+            )}
+
+            {/* Lo que el cliente ya eligió desde su cuenta: se muestra primero
+                y con foto, para no preguntarle otra vez qué quería. */}
+            {customer.pendingIntent && (
+              <div style={{
+                background: 'rgba(94,201,122,.09)',
+                border: '1.5px solid rgba(94,201,122,.45)',
+                borderRadius: 16, padding: 14, marginBottom: 16,
+              }}>
+                <p style={{
+                  fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', fontWeight: 800,
+                  color: '#3FA65C', margin: '0 0 10px',
+                }}>
+                  🎯 El cliente pidió canjear
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{
+                    width: 64, height: 64, borderRadius: 12, background: '#FFFFFF',
+                    flexShrink: 0, overflow: 'hidden', display: 'grid', placeItems: 'center',
+                    border: '1px solid rgba(15,68,139,.08)',
+                  }}>
+                    {customer.pendingIntent.imageUrl ? (
+                      <img
+                        src={customer.pendingIntent.imageUrl}
+                        alt={customer.pendingIntent.productName}
+                        onError={e => { e.currentTarget.style.display = 'none'; }}
+                        style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 5, boxSizing: 'border-box' }}
+                      />
+                    ) : <GiftIcon size={26} color="#3FA65C" />}
+                  </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <p style={{ fontSize: 15, fontWeight: 900, color: '#0F448B', margin: 0, lineHeight: 1.25 }}>
+                      {customer.pendingIntent.productName}
+                    </p>
+                    <p style={{ fontSize: 12, color: 'rgba(15,68,139,.55)', margin: '3px 0 0' }}>
+                      {customer.pendingIntent.pinosCost} Pinos · ${customer.pendingIntent.price} MXN
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleRedeemProduct({ id: customer.pendingIntent.productId })}
+                  disabled={loading}
+                  style={{
+                    width: '100%', marginTop: 12, padding: '13px', borderRadius: 11,
+                    background: '#3FA65C', border: 'none', color: '#FFFFFF',
+                    cursor: loading ? 'wait' : 'pointer', fontFamily: "'Montserrat', sans-serif",
+                    fontWeight: 900, fontSize: 13, letterSpacing: 1, textTransform: 'uppercase',
+                    opacity: loading ? .6 : 1,
+                  }}
+                >
+                  {loading ? 'Canjeando…' : 'Entregar y canjear →'}
+                </button>
+              </div>
             )}
             <p style={{ fontSize: 11, letterSpacing: 2, textTransform: 'uppercase', fontWeight: 700, color: 'rgba(15,68,139,.55)', marginBottom: 10 }}>
               {customer.firstName} tiene {availPinosLabel} Pinos — ¿qué va a hacer?

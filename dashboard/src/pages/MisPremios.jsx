@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
 import '../styles/mi-cuenta.css';
 import { GiftIcon, CheckIcon, CoffeeIcon } from '../components/Icons';
 import { fmtPinos, rewardStatus, pinosDeProducto } from '../lib/pinos';
@@ -31,6 +32,11 @@ export default function MisPremios() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [filtro, setFiltro]     = useState('all');
+  // Producto que el cliente pidió canjear: se muestra su QR y el staff lo ve
+  // en caja. No descuenta Pinos — eso ocurre cuando el staff lo confirma.
+  const [intent, setIntent]     = useState(null);
+  const [pidiendo, setPidiendo] = useState(null);
+  const [errorPedido, setErrorPedido] = useState('');
   const navigate = useNavigate();
 
   const token = localStorage.getItem('hos_customer_token');
@@ -53,10 +59,40 @@ export default function MisPremios() {
         setCustomer(me.customer);
         localStorage.setItem('hos_customer', JSON.stringify(me.customer));
         setProducts(Array.isArray(prods) ? prods : []);
+        // Si ya había pedido algo y sigue vigente, se reabre su QR
+        if (me.customer.pendingIntent) setIntent(me.customer.pendingIntent);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  async function pedirProducto(item) {
+    if (pidiendo) return;
+    setPidiendo(item.id);
+    setErrorPedido('');
+    try {
+      const res = await fetch(`${API}/me/redeem-intent`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: item.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'No se pudo pedir este producto');
+      setIntent(data.intent);
+    } catch (err) {
+      setErrorPedido(err.message);
+    } finally {
+      setPidiendo(null);
+    }
+  }
+
+  async function cancelarPedido() {
+    setIntent(null);
+    fetch(`${API}/me/redeem-intent`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {});
+  }
 
   const saldoPuntos = customer?.availablePoints || 0;
   const reward = useMemo(
@@ -245,13 +281,33 @@ export default function MisPremios() {
         <div style={{
           display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(152px, 1fr))', gap: 12,
         }}>
-          {mostrados.map(p => <PremioCard key={p.id} item={p} />)}
+          {mostrados.map(p => (
+            <PremioCard
+              key={p.id}
+              item={p}
+              onPedir={pedirProducto}
+              cargando={pidiendo === p.id}
+              pedido={intent?.productId === p.id}
+            />
+          ))}
         </div>
 
         {mostrados.length === 0 && (
           <div style={{ textAlign: 'center', padding: '60px 20px', color: MUTED }}>
             <GiftIcon size={44} color={BLUE} />
             <p style={{ fontSize: 14, fontWeight: 700, marginTop: 12 }}>No hay productos en esta categoría</p>
+          </div>
+        )}
+
+        {errorPedido && (
+          <div style={{
+            position: 'fixed', bottom: 20, left: 20, right: 20, zIndex: 60,
+            maxWidth: 420, margin: '0 auto',
+            background: '#E05C5C', color: WHITE, borderRadius: 12,
+            padding: '12px 16px', fontSize: 13, fontWeight: 700, textAlign: 'center',
+            boxShadow: '0 8px 30px rgba(0,0,0,.25)',
+          }}>
+            {errorPedido}
           </div>
         )}
 
@@ -265,12 +321,119 @@ export default function MisPremios() {
           </Link>
         </div>
       </div>
+
+      {intent && (
+        <PedidoModal
+          intent={intent}
+          customerId={customer.id}
+          onCancel={cancelarPedido}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ─── QR del pedido: lo que el staff escanea para canjear ─── */
+function PedidoModal({ intent, customerId, onCancel }) {
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onCancel(); };
+    document.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [onCancel]);
+
+  return (
+    <div
+      onClick={onCancel}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 100,
+        background: 'rgba(8,18,36,.75)', backdropFilter: 'blur(6px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+        overflowY: 'auto',
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: WHITE, borderRadius: 22, width: '100%', maxWidth: 380,
+          padding: '26px 24px 22px', textAlign: 'center',
+          boxShadow: '0 30px 80px rgba(0,0,0,.35)', margin: 'auto',
+        }}
+      >
+        <p style={{ fontSize: 10, letterSpacing: 2.5, color: MUTED, textTransform: 'uppercase', fontWeight: 700, margin: 0 }}>
+          Muestra este QR al staff
+        </p>
+
+        {/* Producto pedido, con su foto: el staff confirma que es el correcto */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left',
+          background: 'rgba(28,154,91,.08)', border: '1px solid rgba(28,154,91,.3)',
+          borderRadius: 14, padding: 10, margin: '14px 0 16px',
+        }}>
+          <div style={{
+            width: 58, height: 58, borderRadius: 10, background: WHITE,
+            flexShrink: 0, overflow: 'hidden', display: 'grid', placeItems: 'center',
+          }}>
+            {intent.imageUrl && !imgError ? (
+              <img
+                src={intent.imageUrl}
+                alt={intent.productName}
+                onError={() => setImgError(true)}
+                style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 4, boxSizing: 'border-box' }}
+              />
+            ) : <GiftIcon size={24} color={GREEN} />}
+          </div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <p style={{ fontSize: 14, fontWeight: 900, color: BLUE, margin: 0, lineHeight: 1.25 }}>
+              {intent.productName}
+            </p>
+            <p style={{ fontSize: 11.5, color: GREEN, fontWeight: 800, margin: '3px 0 0' }}>
+              {intent.pinosCost} Pinos · GRATIS
+            </p>
+          </div>
+        </div>
+
+        <div style={{
+          background: WHITE, border: `1px solid ${BORDER}`, borderRadius: 16,
+          padding: 14, display: 'inline-block',
+        }}>
+          <QRCodeSVG value={customerId} size={190} bgColor="#ffffff" fgColor="#071E3D" level="H" />
+        </div>
+
+        <p style={{ fontSize: 12, color: MUTED, margin: '14px 0 0', lineHeight: 1.55 }}>
+          El staff verá <strong style={{ color: BLUE }}>{intent.productName}</strong> en su pantalla
+          al escanearte. Tus Pinos se descuentan solo cuando lo confirme.
+        </p>
+
+        {intent.minutesLeft > 0 && (
+          <p style={{ fontSize: 11, color: MUTED, margin: '6px 0 0' }}>
+            Tu pedido queda apartado {intent.minutesLeft} min
+          </p>
+        )}
+
+        <button
+          onClick={onCancel}
+          style={{
+            marginTop: 16, width: '100%', padding: '12px', borderRadius: 11,
+            background: 'rgba(15,68,139,.05)', border: `1px solid ${BORDER}`,
+            color: MUTED, cursor: 'pointer', fontFamily: "'Montserrat', sans-serif",
+            fontWeight: 800, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase',
+          }}
+        >
+          Cancelar pedido
+        </button>
+      </div>
     </div>
   );
 }
 
 /* ─── Tarjeta de premio ─── */
-function PremioCard({ item }) {
+function PremioCard({ item, onPedir, cargando, pedido }) {
   const [imgError, setImgError] = useState(false);
   const { alcanza, costo, faltan } = item;
 
@@ -344,14 +507,25 @@ function PremioCard({ item }) {
 
         <div style={{ marginTop: 'auto', paddingTop: 10 }}>
           {alcanza ? (
-            <div style={{
-              background: 'rgba(28,154,91,.1)', border: '1px solid rgba(28,154,91,.28)',
-              borderRadius: 9, padding: '7px 10px', textAlign: 'center',
-            }}>
-              <span style={{ fontSize: 11, fontWeight: 900, color: GREEN, letterSpacing: .3, whiteSpace: 'nowrap' }}>
-                ✓ PÍDELO GRATIS
+            <button
+              onClick={() => onPedir(item)}
+              disabled={cargando}
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                background: pedido ? GREEN : 'rgba(28,154,91,.1)',
+                border: `1px solid ${pedido ? GREEN : 'rgba(28,154,91,.28)'}`,
+                borderRadius: 9, padding: '9px 10px', textAlign: 'center',
+                cursor: cargando ? 'wait' : 'pointer', fontFamily: "'Montserrat', sans-serif",
+                opacity: cargando ? .6 : 1, transition: 'background .15s, border-color .15s',
+              }}
+            >
+              <span style={{
+                fontSize: 11, fontWeight: 900, letterSpacing: .3, whiteSpace: 'nowrap',
+                color: pedido ? WHITE : GREEN,
+              }}>
+                {cargando ? 'PIDIENDO…' : pedido ? '✓ PEDIDO — VER QR' : '✓ PÍDELO GRATIS'}
               </span>
-            </div>
+            </button>
           ) : (
             <div style={{
               background: BG_SOFT, border: `1px solid ${BORDER}`,
