@@ -4,6 +4,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import '../styles/mi-cuenta.css';
 import { GiftIcon, CheckIcon, CoffeeIcon } from '../components/Icons';
 import { fmtPinos, rewardStatus, pinosDeProducto } from '../lib/pinos';
+import { useLiveCustomer } from '../lib/useLiveCustomer';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -28,9 +29,8 @@ const DRINK_CATS = new Set(['cold-coffees', 'cold-brew', 'matcha', 'fitfresh', '
 const esBebida = (p) => DRINK_CATS.has(String(p.category || '').toLowerCase());
 
 export default function MisPremios() {
-  const [customer, setCustomer] = useState(() => JSON.parse(localStorage.getItem('hos_customer') || 'null'));
   const [products, setProducts] = useState([]);
-  const [loading, setLoading]   = useState(true);
+  const [loadingProds, setLoadingProds] = useState(true);
   const [filtro, setFiltro]     = useState('all');
   // Producto que el cliente pidió canjear: se muestra su QR y el staff lo ve
   // en caja. No descuenta Pinos — eso ocurre cuando el staff lo confirma.
@@ -41,30 +41,31 @@ export default function MisPremios() {
 
   const token = localStorage.getItem('hos_customer_token');
 
+  // El saldo se mantiene al día solo (al volver a la app, al enfocar y cada 20s),
+  // así el catálogo de premios refleja lo que el cliente realmente puede pedir.
+  const { customer, loading: loadingCliente } = useLiveCustomer({
+    onUnauthorized: () => {
+      localStorage.removeItem('hos_customer_token');
+      navigate('/login');
+    },
+  });
+
   useEffect(() => {
     if (!token) { navigate('/login'); return; }
     window.scrollTo(0, 0);
-
-    Promise.all([
-      fetch(`${API}/me`, { headers: { Authorization: `Bearer ${token}` } })
-        .then(r => (r.status === 401 ? null : r.json())),
-      fetch(`${API}/products`).then(r => r.json()),
-    ])
-      .then(([me, prods]) => {
-        if (!me) {
-          localStorage.removeItem('hos_customer_token');
-          navigate('/login');
-          return;
-        }
-        setCustomer(me.customer);
-        localStorage.setItem('hos_customer', JSON.stringify(me.customer));
-        setProducts(Array.isArray(prods) ? prods : []);
-        // Si ya había pedido algo y sigue vigente, se reabre su QR
-        if (me.customer.pendingIntent) setIntent(me.customer.pendingIntent);
-      })
+    fetch(`${API}/products`)
+      .then(r => r.json())
+      .then(prods => setProducts(Array.isArray(prods) ? prods : []))
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => setLoadingProds(false));
   }, []);
+
+  // Si tenía un pedido vigente, se reabre su QR al volver.
+  useEffect(() => {
+    if (customer?.pendingIntent) setIntent(customer.pendingIntent);
+  }, [customer?.pendingIntent?.productId]);
+
+  const loading = loadingProds || loadingCliente;
 
   async function pedirProducto(item) {
     if (pidiendo) return;

@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import '../styles/mi-cuenta.css';
 import { CoffeeIcon, GiftIcon, ShakeIcon, StarIcon, LightningIcon, TrophyIcon, CardIcon, CheckIcon, CakeIcon } from '../components/Icons';
 import { fmtPinos, pinosEnteros, pinosDeProducto, rewardStatus } from '../lib/pinos';
+import { useLiveCustomer, haceCuanto } from '../lib/useLiveCustomer';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -35,7 +36,6 @@ const TX_TYPE = {
 };
 
 export default function MiCuenta() {
-  const [customer, setCustomer] = useState(() => JSON.parse(localStorage.getItem('hos_customer') || 'null'));
   const [transactions, setTransactions] = useState([]);
   const [txLoading, setTxLoading] = useState(true);
   const [txPage, setTxPage] = useState(1);
@@ -62,37 +62,56 @@ export default function MiCuenta() {
   const token = localStorage.getItem('hos_customer_token');
   const headers = { Authorization: `Bearer ${token}` };
 
-  useEffect(() => {
-    fetch(`${API}/me`, { headers })
-      .then(r => { if (r.status === 401) { handleLogout(); return null; } return r.json(); })
-      .then(data => {
-        if (!data) return;
-        setCustomer(data.customer);
-        localStorage.setItem('hos_customer', JSON.stringify(data.customer));
-        setProfile({
-          firstName: data.customer.firstName || '',
-          lastName: data.customer.lastName || '',
-          phone: data.customer.phone || '',
-          birthday: data.customer.birthday ? data.customer.birthday.split('T')[0] : '',
-        });
-      })
-      .catch(() => {});
+  // Saldo siempre al día: se recarga al volver a la app, al enfocar y cada 20s.
+  const { customer, setCustomer, loading, refreshing, updatedAt, offline, refresh } =
+    useLiveCustomer({ onUnauthorized: () => handleLogout() });
 
-    fetch(`${API}/me/transactions?limit=${TX_PAGE_SIZE}&offset=0`, { headers })
+  // Los movimientos se recargan junto con el saldo: si al cliente le acaban de
+  // sumar Pinos, el historial debe mostrarlo en la misma pasada.
+  const cargarMovimientos = useCallback(() => {
+    fetch(`${API}/me/transactions?limit=${TX_PAGE_SIZE}&offset=0`, { headers, cache: 'no-store' })
       .then(r => r.json())
       .then(data => {
         const txs = data.transactions || [];
         setTransactions(txs);
         setTxHasMore(txs.length === TX_PAGE_SIZE);
+        setTxPage(1);
       })
       .catch(() => {})
       .finally(() => setTxLoading(false));
+  }, [token]);
 
+  // Rellena el formulario de perfil la primera vez que llegan los datos.
+  const perfilCargado = useRef(false);
+  useEffect(() => {
+    if (!customer || perfilCargado.current) return;
+    perfilCargado.current = true;
+    setProfile({
+      firstName: customer.firstName || '',
+      lastName: customer.lastName || '',
+      phone: customer.phone || '',
+      birthday: customer.birthday ? customer.birthday.split('T')[0] : '',
+    });
+  }, [customer]);
+
+  useEffect(() => {
+    cargarMovimientos();
     fetch(`${API}/products`)
       .then(r => r.json())
       .then(d => setProducts(Array.isArray(d) ? d : []))
       .catch(() => {});
-  }, []);
+  }, [cargarMovimientos]);
+
+  // Cada vez que el saldo cambia (por el refresco automático), el historial
+  // se pone al corriente también.
+  const saldoPrevio = useRef(null);
+  useEffect(() => {
+    if (customer == null) return;
+    if (saldoPrevio.current !== null && saldoPrevio.current !== customer.availablePoints) {
+      cargarMovimientos();
+    }
+    saldoPrevio.current = customer.availablePoints;
+  }, [customer?.availablePoints, cargarMovimientos]);
 
   async function loadMoreTransactions() {
     if (txLoadingMore) return;
@@ -180,7 +199,15 @@ export default function MiCuenta() {
     navigate('/login');
   }
 
-  if (!customer) return null;
+  if (!customer) {
+    return (
+      <div className="mc-root" style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
+        <p style={{ color: MUTED, fontSize: 14 }}>
+          {loading ? 'Cargando tu cuenta…' : 'No pudimos cargar tu cuenta. Revisa tu conexión.'}
+        </p>
+      </div>
+    );
+  }
 
   const availPines      = pinosEnteros(customer.availablePoints);
   const availPinesLabel = fmtPinos(customer.availablePoints);
@@ -280,6 +307,34 @@ export default function MiCuenta() {
             </span>
           </div>
         )}
+
+        {/* Prueba visible de que el saldo está al día, y salida manual por si
+            el cliente quiere forzarlo. Antes no había forma de saber si lo que
+            veía era de hace un segundo o de hace tres días. */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          gap: 10, flexWrap: 'wrap', margin: '14px 0 2px',
+        }}>
+          <span style={{ fontSize: 11.5, color: offline ? '#E05C5C' : MUTED }}>
+            {offline
+              ? 'Sin conexión — mostrando tu último saldo'
+              : refreshing
+                ? 'Actualizando…'
+                : `Saldo actualizado ${haceCuanto(updatedAt)}`}
+          </span>
+          <button
+            onClick={() => refresh({ silent: false })}
+            disabled={refreshing}
+            style={{
+              background: 'none', border: `1px solid ${BORDER}`, borderRadius: 100,
+              padding: '5px 13px', cursor: refreshing ? 'wait' : 'pointer',
+              color: BLUE, fontWeight: 800, fontSize: 11, fontFamily: 'inherit',
+              letterSpacing: .5,
+            }}
+          >
+            ↻ Actualizar
+          </button>
+        </div>
 
         {/* STATS */}
         <div className="mc-stats">
