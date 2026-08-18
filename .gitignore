@@ -43,3 +43,7 @@ PRODUCTOS/
 PRODUCTOS-CAMBIO/
 CAPTURAS STAFF/
 DISEÑO APPLE Wallet/
+
+# Copia original del logo en la raíz. La versión que sirve la web vive en
+# dashboard/public/logo-encabezado.png y es byte a byte idéntica.
+LOGO ENCABEZADO.png
