@@ -190,8 +190,31 @@ async function forceUpdateWalletPass(req, res, next) {
     const customer = await prisma.customer.findUnique({ where: { id: customerId } });
     if (!customer) return res.status(404).json({ error: 'Cliente no encontrado' });
 
-    await walletService.sendPushUpdate(customer);
-    res.json({ success: true, message: `Push enviado a ${customer.email}` });
+    // Devuelve el resultado REAL de Apple. Antes respondía "Push enviado"
+    // siempre, incluso si APNs rechazaba los tokens o faltaba la credencial:
+    // no había forma de saber si la tarjeta se actualizó de verdad.
+    const r = await walletService.sendPushUpdate(customer);
+
+    if (!r) {
+      return res.status(503).json({
+        success: false,
+        error: 'APNs no está configurado — la tarjeta no puede avisarse al instante.',
+      });
+    }
+    if (r.sinDispositivos) {
+      return res.json({
+        success: true, enviados: 0, fallidos: 0, sinDispositivos: true,
+        message: `${customer.firstName} no tiene la tarjeta agregada en ningún iPhone.`,
+      });
+    }
+    res.json({
+      success: r.fallidos === 0,
+      enviados: r.enviados,
+      fallidos: r.fallidos,
+      message: r.fallidos === 0
+        ? `Apple aceptó el push en ${r.enviados} dispositivo(s) de ${customer.email}`
+        : `${r.enviados} aceptados, ${r.fallidos} rechazados`,
+    });
   } catch (err) {
     next(err);
   }

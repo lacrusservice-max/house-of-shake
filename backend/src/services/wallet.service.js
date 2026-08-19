@@ -161,7 +161,7 @@ async function generatePassBuffer(customerData) {
   const serial    = customerData.walletPassSerial || uuidv4();
   const passToken = customerData.walletPassToken  || uuidv4().replace(/-/g, '');
 
-  const { pinesInCycle, pinesLeft, hasReward, rewardsReady, availPines, meta } = getPineProgress(
+  const { pinesInCycle, pinesLeft, hasReward, rewardsReady, availPines, availLabel, totalLabel, meta } = getPineProgress(
     customerData.availablePoints,
     customerData.lifetimePoints
   );
@@ -311,7 +311,7 @@ async function sendPushUpdate(customer) {
   const registrations = await prisma.walletRegistration.findMany({
     where: { customerId: customer.id },
   });
-  if (!registrations.length) return;
+  if (!registrations.length) return { enviados: 0, fallidos: 0, sinDispositivos: true };
 
   const apnProvider = new apn.Provider({
     token: {
