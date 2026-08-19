@@ -171,6 +171,78 @@ async function addPointsForPurchase(req, res) {
   }
 }
 
+
+// Cobro POR PRODUCTO — el staff elige del catálogo y NUNCA teclea dinero.
+//
+// El precio sale de la base, no del cliente HTTP: aunque alguien manipule la
+// petición, no puede inventar montos. Es la diferencia con add-points, donde un
+// barista podía escribir $2000 y regalarse 200 Pinos.
+async function addPointsForProducts(req, res) {
+  const { customerId } = req.params;
+  const { items } = req.body;
+
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'Selecciona al menos un producto' });
+  }
+  if (items.length > 30) {
+    return res.status(400).json({ error: 'Demasiados productos en una sola venta' });
+  }
+
+  try {
+    const customer = await prisma.customer.findUnique({ where: { id: customerId } });
+    if (!customer) return res.status(404).json({ error: 'Cliente no encontrado' });
+
+    const ids = [...new Set(items.map(i => i.productId).filter(Boolean))];
+    if (!ids.length) return res.status(400).json({ error: 'Productos inválidos' });
+
+    const productos = await prisma.product.findMany({ where: { id: { in: ids }, active: true } });
+    const porId = new Map(productos.map(p => [p.id, p]));
+
+    let total = 0;
+    const detalle = [];
+    for (const it of items) {
+      const prod = porId.get(it.productId);
+      if (!prod) return res.status(400).json({ error: 'Un producto ya no está disponible. Vuelve a intentarlo.' });
+      const cant = Math.min(20, Math.max(1, parseInt(it.qty, 10) || 1));
+      total += prod.price * cant;                // ← precio de la BD
+      detalle.push({ nombre: prod.name, cant, precio: prod.price });
+    }
+
+    const resumen = detalle.map(d => (d.cant > 1 ? `${d.cant}× ${d.nombre}` : d.nombre)).join(', ');
+    const descripcion = `${resumen} — $${total.toFixed(2)} MXN · ${req.admin?.email || 'POS'}`;
+
+    const result = await pointsService.addPoints(
+      customerId, total, null, null, descripcion, req.admin?.id, req.admin?.email,
+    );
+
+    const updated = await prisma.customer.findUnique({ where: { id: customerId } });
+    await walletService.sendPushUpdate(updated).catch(() => {});
+
+    const antes   = await getAffordableProducts(customer.availablePoints);
+    const despues = await getAffordableProducts(updated.availablePoints);
+
+    logger.info(`🧾 Venta por producto: ${resumen} ($${total}) — cliente ${customerId} por ${req.admin?.email}`);
+
+    res.json({
+      success: true,
+      total,
+      items: detalle,
+      reward: despues.reward,
+      justUnlocked: !antes.reward.hasReward && despues.reward.hasReward,
+      pointsAdded: result.pointsAdded,
+      pinosAdded: puntosToPinos(result.pointsAdded),
+      pinosAddedLabel: formatPinos(result.pointsAdded),
+      newAvailablePoints: updated.availablePoints,
+      newAvailablePinosLabel: formatPinos(updated.availablePoints),
+      customerName: customer.firstName,
+      doublePoints: result.doublePoints,
+    });
+  } catch (err) {
+    logger.error('POS addPointsForProducts error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+}
+
 // Staff redeems points for a customer
 async function redeemPoints(req, res) {
   const { customerId } = req.params;
@@ -409,4 +481,4 @@ async function searchCustomers(req, res) {
   }
 }
 
-module.exports = { lookupCustomer, addPointsForPurchase, redeemPoints, redeemFreeDrink, redeemProduct, searchCustomers };
+module.exports = { lookupCustomer, addPointsForPurchase, addPointsForProducts, redeemPoints, redeemFreeDrink, redeemProduct, searchCustomers };

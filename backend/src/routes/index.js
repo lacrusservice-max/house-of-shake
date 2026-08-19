@@ -125,7 +125,12 @@ router.get('/wallet/demo-pass', async (req, res) => {
 // === POS (staff Y admin pueden usar el POS) ===
 router.get('/pos/search', authenticateStaff, posController.searchCustomers);
 router.get('/pos/customer/:code', authenticateStaff, posController.lookupCustomer);
-router.post('/pos/customer/:customerId/add-points', authenticateStaff, posLimiter, posController.addPointsForPurchase);
+// Cobro por PRODUCTO: el barista elige del catálogo y el precio sale de la BD.
+router.post('/pos/customer/:customerId/add-products', authenticateStaff, posLimiter, posController.addPointsForProducts);
+// Cobro por MONTO LIBRE: solo admin. Un campo de dinero sin tope en manos del
+// barista permitía teclear $2000 y regalarse 200 Pinos. Se deja para ajustes
+// del dueño (ventas fuera de catálogo, correcciones), no para el turno diario.
+router.post('/pos/customer/:customerId/add-points', authenticateAdmin, posLimiter, posController.addPointsForPurchase);
 router.post('/pos/customer/:customerId/redeem', authenticateStaff, posLimiter, posController.redeemPoints);
 router.post('/pos/customer/:customerId/redeem-drink', authenticateStaff, posLimiter, posController.redeemFreeDrink);
 router.post('/pos/customer/:customerId/redeem-product', authenticateStaff, posLimiter, posController.redeemProduct);

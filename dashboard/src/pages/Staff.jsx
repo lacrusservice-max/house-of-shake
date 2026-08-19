@@ -66,6 +66,10 @@ function POSView({ token, onLogout }) {
   const [error, setError]           = useState('');
   const [notice, setNotice]         = useState('');
   const [amount, setAmount]         = useState('');
+  // Carrito del cobro por producto: el barista arma la venta desde el catálogo
+  // y el backend recalcula el precio desde la base.
+  const [carrito, setCarrito]       = useState([]);
+  const [ventaBusca, setVentaBusca] = useState('');
   const [result, setResult]         = useState(null);
   const [quickReg, setQuickReg]     = useState({ show: false, firstName: '', lastName: '', email: '', loading: false, error: '' });
   const [products, setProducts]     = useState([]);
@@ -161,6 +165,42 @@ function POSView({ token, onLogout }) {
     } catch { setNameResults([]); }
   }
 
+  function agregarAlCarrito(prod) {
+    setError('');
+    setCarrito(c => {
+      const yaEsta = c.find(i => i.id === prod.id);
+      if (yaEsta) return c.map(i => i.id === prod.id ? { ...i, qty: Math.min(20, i.qty + 1) } : i);
+      return [...c, { id: prod.id, name: prod.name, price: prod.price, qty: 1 }];
+    });
+  }
+
+  function cambiarCantidad(id, delta) {
+    setCarrito(c => c
+      .map(i => i.id === id ? { ...i, qty: Math.max(0, Math.min(20, i.qty + delta)) } : i)
+      .filter(i => i.qty > 0));
+  }
+
+  async function handleAddProducts() {
+    if (!carrito.length) return;
+    setLoading(true); setError('');
+    try {
+      const res = await fetch(`${API}/pos/customer/${customer.id}/add-products`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ items: carrito.map(i => ({ productId: i.id, qty: i.qty })) }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'No se pudo registrar la venta');
+      setResult({ type: 'earn', customerName: customer.firstName, ...data });
+      setCustomer(c => ({ ...c, availablePoints: data.newAvailablePoints, reward: data.reward }));
+      setCarrito([]); setVentaBusca('');
+      setScreen('success');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleAddPoints(e) {
     e.preventDefault();
     setLoading(true); setError('');
@@ -228,6 +268,7 @@ function POSView({ token, onLogout }) {
 
   function reset() {
     setScreen('home'); setCustomer(null); setError(''); setResult(null); setNotice('');
+    setCarrito([]); setVentaBusca('');
     setCodeInput(''); setEmailInput(''); setAmount('');
     setNameInput(''); setNameResults([]);
     setPickedProduct(null); setCatFilter('all');
@@ -242,6 +283,9 @@ function POSView({ token, onLogout }) {
   // Pinos canjeables del cliente
   const availPinos = customer ? pinosEnteros(customer.availablePoints) : 0;
   const availPinosLabel = customer ? fmtPinos(customer.availablePoints) : '0';
+  const totalVenta = carrito.reduce((t, i) => t + i.price * i.qty, 0);
+  // Vista previa: misma regla que el backend (1 Pino por cada $10, con decimal)
+  const pinosVenta = Math.round((totalVenta / 10) * (customer?.doublePointsActive ? 2 : 1) * 10) / 10;
   const categories = [...new Set(products.map(p => p.category).filter(Boolean))];
   const shownProducts = (catFilter === 'all' ? products : products.filter(p => p.category === catFilter))
     .slice()
@@ -723,7 +767,7 @@ function POSView({ token, onLogout }) {
               {/* Pine stats grid */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 14 }}>
                 <div style={{ background: 'rgba(15,68,139,.05)', borderRadius: 12, padding: '12px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 9, letterSpacing: 1.5, color: 'rgba(15,68,139,.45)', textTransform: 'uppercase', marginBottom: 4 }}>Ciclo</div>
+                  <div style={{ fontSize: 9, letterSpacing: 1.5, color: 'rgba(15,68,139,.45)', textTransform: 'uppercase', marginBottom: 4 }}>Hacia su premio</div>
                   <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: pines.cardComplete ? '#5EC97A' : '#0F448B', lineHeight: 1 }}>
                     {pines.pinesInCycle}
                   </div>
@@ -848,40 +892,82 @@ function POSView({ token, onLogout }) {
               )}
             </div>
 
-            <form onSubmit={handleAddPoints}>
-              <label style={S.lbl}>Monto de la compra (MXN)</label>
-              <div style={{ position: 'relative' }}>
-                <span style={{ position: 'absolute', left: 18, top: '50%', transform: 'translateY(-50%)', color: 'rgba(15,68,139,.55)', fontSize: 24, pointerEvents: 'none' }}>$</span>
-                <input
-                  type="number" required min="1" step="0.01" autoFocus
-                  value={amount} onChange={e => setAmount(e.target.value)}
-                  placeholder="0.00"
-                  style={{ ...S.inp, paddingLeft: 46, fontSize: 36, fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 2, height: 72 }}
-                  onFocus={e => e.target.style.borderColor = '#0F448B'}
-                  onBlur={e => e.target.style.borderColor = 'rgba(15,68,139,.15)'}
-                />
-              </div>
-              {pinesPreview > 0 && (
-                <div style={{ background: 'rgba(94,201,122,.08)', border: '1px solid rgba(94,201,122,.2)', borderRadius: 12, padding: '14px 18px', textAlign: 'center', marginTop: 12 }}>
-                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: '#5EC97A', lineHeight: 1 }}>
-                    +{customer.doublePointsActive ? pinesPreview * 2 : pinesPreview} 🌲
-                  </div>
-                  <div style={{ fontSize: 12, color: 'rgba(94,201,122,.7)', fontWeight: 700 }}>
-                    {customer.doublePointsActive ? 'Pinos dobles' : 'Pinos'} para {customer.firstName}
-                  </div>
-                  {pines && (
-                    <div style={{ fontSize: 11, color: 'rgba(15,68,139,.45)', marginTop: 6 }}>
-                      Saldo: {pines.availLabel} → {fmtPinos((pines.availPines + (customer.doublePointsActive ? pinesPreview * 2 : pinesPreview)) * 10)} Pinos
-                    </div>
-                  )}
-                </div>
+            {/* Cobro POR PRODUCTO. El barista NO teclea dinero: elige del
+                catálogo y el precio sale de la base, así no puede inventar
+                montos ni regalarse Pinos. */}
+            <label style={S.lbl}>¿Qué llevó el cliente?</label>
+            <input
+              type="text" autoFocus value={ventaBusca}
+              onChange={e => setVentaBusca(e.target.value)}
+              placeholder="Busca un producto…"
+              style={{ ...S.inp, marginBottom: 10 }}
+              onFocus={e => e.target.style.borderColor = '#0F448B'}
+              onBlur={e => e.target.style.borderColor = 'rgba(15,68,139,.15)'}
+            />
+
+            <div style={{ maxHeight: 240, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+              {products
+                .filter(p => !ventaBusca.trim() || p.name.toLowerCase().includes(ventaBusca.trim().toLowerCase()))
+                .slice(0, 40)
+                .map(p => (
+                  <button key={p.id} type="button" onClick={() => agregarAlCarrito(p)} style={{
+                    display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left',
+                    background: '#FFFFFF', border: '1px solid rgba(15,68,139,.12)',
+                    borderRadius: 10, padding: '9px 12px', cursor: 'pointer', fontFamily: 'inherit',
+                  }}>
+                    {p.imageUrl && (
+                      <img src={p.imageUrl} alt="" style={{ width: 34, height: 34, objectFit: 'contain', flexShrink: 0 }} />
+                    )}
+                    <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 700, color: '#0F448B' }}>{p.name}</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: 'rgba(15,68,139,.6)' }}>${p.price}</span>
+                  </button>
+                ))}
+              {products.length === 0 && (
+                <p style={{ fontSize: 12, color: 'rgba(15,68,139,.45)', textAlign: 'center', padding: 12 }}>Cargando menú…</p>
               )}
-              {error && <div style={S.err}>{error}</div>}
-              <button type="submit" disabled={loading || !amount || parseFloat(amount) <= 0}
-                style={{ ...S.goldBtn, marginTop: 20, fontSize: 15, height: 56, opacity: (loading || !amount) ? .6 : 1 }}>
-                {loading ? 'Procesando…' : 'Confirmar compra'}
-              </button>
-            </form>
+            </div>
+
+            {carrito.length > 0 && (
+              <div style={{ background: 'rgba(15,68,139,.04)', border: '1px solid rgba(15,68,139,.12)', borderRadius: 14, padding: 14, marginBottom: 14 }}>
+                {carrito.map(it => (
+                  <div key={it.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: '#0F448B', fontWeight: 700 }}>{it.name}</span>
+                    <button type="button" onClick={() => cambiarCantidad(it.id, -1)} style={S.qtyBtn}>−</button>
+                    <span style={{ minWidth: 22, textAlign: 'center', fontWeight: 800, color: '#0F448B' }}>{it.qty}</span>
+                    <button type="button" onClick={() => cambiarCantidad(it.id, +1)} style={S.qtyBtn}>+</button>
+                    <span style={{ minWidth: 56, textAlign: 'right', fontSize: 13, fontWeight: 800, color: 'rgba(15,68,139,.7)' }}>
+                      ${it.price * it.qty}
+                    </span>
+                  </div>
+                ))}
+                <div style={{ borderTop: '1px solid rgba(15,68,139,.12)', marginTop: 6, paddingTop: 10, display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: '#0F448B' }}>Total</span>
+                  <span style={{ fontSize: 15, fontWeight: 900, color: '#0F448B' }}>${totalVenta} MXN</span>
+                </div>
+              </div>
+            )}
+
+            {totalVenta > 0 && (
+              <div style={{ background: 'rgba(94,201,122,.08)', border: '1px solid rgba(94,201,122,.2)', borderRadius: 12, padding: '14px 18px', textAlign: 'center', marginBottom: 8 }}>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: '#5EC97A', lineHeight: 1 }}>
+                  +{fmtPinos(pinosVenta * 10)} 🌲
+                </div>
+                <div style={{ fontSize: 12, color: 'rgba(94,201,122,.7)', fontWeight: 700 }}>
+                  {customer.doublePointsActive ? 'Pinos dobles' : 'Pinos'} para {customer.firstName}
+                </div>
+                {pines && (
+                  <div style={{ fontSize: 11, color: 'rgba(15,68,139,.45)', marginTop: 6 }}>
+                    Saldo: {pines.availLabel} → {fmtPinos((customer.availablePoints || 0) + pinosVenta * 10)} Pinos
+                  </div>
+                )}
+              </div>
+            )}
+
+            {error && <div style={S.err}>{error}</div>}
+            <button type="button" onClick={handleAddProducts} disabled={loading || carrito.length === 0}
+              style={{ ...S.goldBtn, marginTop: 12, fontSize: 15, height: 56, opacity: (loading || !carrito.length) ? .6 : 1 }}>
+              {loading ? 'Procesando…' : `Confirmar venta${totalVenta > 0 ? ` — $${totalVenta}` : ''}`}
+            </button>
           </div>
         )}
 
@@ -1214,6 +1300,12 @@ function SuccessScreen({ result, customer, onViewProfile, onReset }) {
 
 /* ─── Shared styles ─── */
 const S = {
+  qtyBtn: {
+    width: 26, height: 26, borderRadius: 8, flexShrink: 0,
+    border: '1px solid rgba(15,68,139,.2)', background: '#FFFFFF',
+    color: '#0F448B', fontWeight: 900, fontSize: 15, cursor: 'pointer',
+    fontFamily: 'inherit', lineHeight: 1,
+  },
   lbl: {
     display: 'block', fontSize: 10, fontWeight: 700, letterSpacing: 2,
     textTransform: 'uppercase', color: 'rgba(15,68,139,.55)', marginBottom: 8,

@@ -327,15 +327,39 @@ async function sendPushUpdate(customer) {
   notification.pushType = 'background';
   notification.expiry   = Math.floor(Date.now() / 1000) + 3600;
 
-  for (const reg of registrations) {
-    try {
-      await apnProvider.send(notification, reg.pushToken);
-      logger.info(`APNs push enviado a dispositivo ${reg.deviceId}`);
-    } catch (err) {
-      logger.warn(`APNs push falló para ${reg.deviceId}: ${err.message}`);
+  let enviados = 0, fallidos = 0;
+  try {
+    for (const reg of registrations) {
+      try {
+        // apnProvider.send() NO lanza excepción cuando APNs rechaza: resuelve
+        // con { sent, failed }. Antes se daba por enviado todo lo que no
+        // explotara, así que un token inválido o una credencial mala se
+        // registraban como éxito.
+        const res = await apnProvider.send(notification, reg.pushToken);
+        if (res?.failed?.length) {
+          fallidos++;
+          const r = res.failed[0];
+          logger.warn(`APNs rechazó a ${reg.deviceId}: ${r.response?.reason || r.error?.message || r.status}`);
+          // 410 = el dispositivo desinstaló el pass: su registro ya no sirve.
+          if (r.status === '410' || r.response?.reason === 'Unregistered') {
+            await prisma.walletRegistration.delete({ where: { id: reg.id } }).catch(() => {});
+            logger.info(`Registro de Wallet retirado (dispositivo dio de baja el pass): ${reg.deviceId}`);
+          }
+        } else {
+          enviados++;
+        }
+      } catch (err) {
+        fallidos++;
+        logger.warn(`APNs push falló para ${reg.deviceId}: ${err.message}`);
+      }
     }
+  } finally {
+    // En finally: antes, un throw dejaba el Provider abierto y filtraba
+    // conexiones con cada cobro.
+    apnProvider.shutdown();
   }
-  apnProvider.shutdown();
+  logger.info(`🍎 Wallet push — enviados: ${enviados}, fallidos: ${fallidos} (cliente ${customer.id.substring(0,8)})`);
+  return { enviados, fallidos };
 }
 
 // ─── Config status (for admin UI) ────────────────────────────────────────────
