@@ -129,7 +129,9 @@ async function redeemPoints(req, res, next) {
     const result = await pointsService.redeemPoints(id, points);
 
     // Crear código de descuento en Shopify
-    const discount = await shopifyService.createDiscountCode(id, result.discountUsd);
+    // El valor en dinero salía de la economía vieja (1 Pino = $1). Con canje por
+    // categoría ya no hay una equivalencia fija, así que se usa el saldo en Pinos.
+    const discount = await shopifyService.createDiscountCode(id, result.pinosRedeemed);
 
     const customer = await prisma.customer.findUnique({ where: { id } });
     await walletService.sendPushUpdate(customer);

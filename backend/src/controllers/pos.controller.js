@@ -80,9 +80,6 @@ async function lookupCustomer(req, res) {
 
     const { affordable, almostAffordable, reward } = await getAffordableProducts(customer.availablePoints);
 
-    const config = await prisma.config.findFirst();
-    const pointsToMxn = config ? (config.redeemValueUsd / config.pointsToRedeem) * 20 : 0.1;
-
     const memberNumber = await getMemberNumber(customer.id);
     // Lo que el cliente marcó desde su cuenta: el staff lo ve sin preguntar,
     // llegue por QR de la web, por el pass de Wallet o buscándolo por nombre.
@@ -110,7 +107,6 @@ async function lookupCustomer(req, res) {
       // elegir), cuánto le falta y si ya llegó a la meta.
       reward,
       pendingIntent,
-      pointsValueMxn: parseFloat(pointsToMxn.toFixed(4)),
     };
 
     if (isAdmin) {
@@ -200,8 +196,7 @@ async function redeemPoints(req, res) {
       success: true,
       reward,
       pointsRedeemed: parseInt(points),
-      discountUsd: result.discountUsd,
-      discountMxn: parseFloat((result.discountUsd * 20).toFixed(2)),
+      pinosRedeemed: result.pinosRedeemed,
       newBalance: result.newBalance,
       affordableProducts: affordable,
       almostAffordableProducts: almostAffordable,
@@ -215,31 +210,42 @@ async function redeemPoints(req, res) {
 // Staff canjea bebida gratis — 120 Pinos = 1200 pts deducidos de availablePoints
 async function redeemFreeDrink(req, res) {
   const { customerId } = req.params;
-  const PINES_REQUERIDOS = 120;
-  const PUNTOS_REQUERIDOS = PINES_REQUERIDOS * 10; // 1200
 
   try {
     const customer = await prisma.customer.findUnique({ where: { id: customerId } });
     if (!customer) return res.status(404).json({ error: 'Cliente no encontrado' });
 
-    const availPines = Math.floor(customer.availablePoints / 10);
-    if (availPines < PINES_REQUERIDOS) {
+    // El costo sale del catálogo real (el premio más barato activo), no de un
+    // 120 escrito a mano: con el canje por categoría, el mínimo es 100.
+    const products = await prisma.product.findMany({ where: { active: true } });
+    const estado = rewardStatus(customer.availablePoints, products);
+
+    if (!estado.hasReward) {
       return res.status(400).json({
-        error: `El cliente tiene ${availPines} Pinos. Necesita ${PINES_REQUERIDOS} para canjear la bebida gratis.`,
+        error: `${customer.firstName} tiene ${formatPinos(customer.availablePoints)} Pinos. `
+             + `Necesita ${estado.cheapestCost} para canjear.`,
       });
     }
+
+    const pinosCosto  = estado.cheapestCost;
+    const puntosCosto = pinosCosto * 10;
 
     const [updatedCustomer] = await prisma.$transaction([
       prisma.customer.update({
         where: { id: customerId },
-        data: { availablePoints: { decrement: PUNTOS_REQUERIDOS } },
+        data: {
+          availablePoints: { decrement: puntosCosto },
+          // Antes solo se descontaba availablePoints: totalPoints quedaba
+          // inflado y el libro mayor se descuadraba con cada canje.
+          totalPoints: { decrement: puntosCosto },
+        },
       }),
       prisma.transaction.create({
         data: {
           customerId,
           type: 'REDEEM',
-          points: -PUNTOS_REQUERIDOS,
-          description: `🌲 Bebida gratis canjeada — 120 Pinos completados`,
+          points: -puntosCosto,
+          description: `🌲 Canje en caja — ${pinosCosto} Pinos`,
           staffId: req.admin?.id || null,
           staffEmail: req.admin?.email || null,
         },
@@ -247,18 +253,22 @@ async function redeemFreeDrink(req, res) {
     ]);
 
     const newAvailablePoints = updatedCustomer.availablePoints;
-    const newAvailPines      = Math.floor(newAvailablePoints / 10);
-    const newPinesInCycle    = newAvailPines % PINES_REQUERIDOS;
+    await walletService.sendPushUpdate(updatedCustomer).catch(() => {});
+    await pointsService.invalidateCache(customerId).catch(() => {});
+    await intentService.clearIntent(customerId).catch(() => {});
 
-    await walletService.sendPushUpdate({ ...customer, availablePoints: newAvailablePoints }).catch(() => {});
+    const { affordable, almostAffordable, reward } = await getAffordableProducts(newAvailablePoints);
 
-    logger.info(`🌲 Bebida gratis canjeada: ${PINES_REQUERIDOS} Pinos — cliente ${customerId}`);
+    logger.info(`🌲 Canje en caja: ${pinosCosto} Pinos — cliente ${customerId}`);
     res.json({
       success: true,
-      pinesRedeemed: PINES_REQUERIDOS,
+      pinesRedeemed: pinosCosto,
       newAvailablePoints,
-      newPinesInCycle,
+      newAvailablePinosLabel: formatPinos(newAvailablePoints),
       customerName: customer.firstName,
+      reward,
+      affordableProducts: affordable,
+      almostAffordableProducts: almostAffordable,
     });
   } catch (err) {
     logger.error('POS redeemFreeDrink error:', err.message);

@@ -220,8 +220,8 @@ export default function Landing() {
           ))}
         </div>
         <div style={{ textAlign:'center', marginTop:48, display:'flex', gap:16, justifyContent:'center', flexWrap:'wrap' }}>
-          <Link to="/menu" className="hs-btn hs-btn-gold">VER MENÚ COMPLETO — 39 PRODUCTOS</Link>
-          <Link to="/registro" className="hs-btn hs-btn-blue">ÚNETE Y GANA PUNTOS</Link>
+          <Link to="/menu" className="hs-btn hs-btn-gold">VER MENÚ COMPLETO{products.length ? ` — ${products.length} PRODUCTOS` : ''}</Link>
+          <Link to="/registro" className="hs-btn hs-btn-blue">ÚNETE Y GANA PINOS</Link>
         </div>
       </section>
 

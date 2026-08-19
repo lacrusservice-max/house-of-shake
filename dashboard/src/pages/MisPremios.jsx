@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import '../styles/mi-cuenta.css';
 import { GiftIcon, CheckIcon, CoffeeIcon } from '../components/Icons';
-import { fmtPinos, rewardStatus, pinosDeProducto } from '../lib/pinos';
+import { fmtPinos, rewardStatus, pinosDeProducto, TIER_REPOSTERIA, TIER_BEBIDAS, TIER_ESPECIALES } from '../lib/pinos';
 import { useLiveCustomer } from '../lib/useLiveCustomer';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -186,12 +186,12 @@ export default function MisPremios() {
               }}>
                 {bebidasDisponibles.length > 0 && (
                   <span style={pill(GREEN)}>
-                    ☕ {bebidasDisponibles.length} bebida{bebidasDisponibles.length === 1 ? '' : 's'} a tu alcance
+                    ☕ {bebidasDisponibles.length} bebida{bebidasDisponibles.length === 1 ? '' : 's'} para elegir
                   </span>
                 )}
                 {comidaDisponible.length > 0 && (
                   <span style={pill(BLUE)}>
-                    🥐 {comidaDisponible.length} alimento{comidaDisponible.length === 1 ? '' : 's'} a tu alcance
+                    🥐 {comidaDisponible.length} alimento{comidaDisponible.length === 1 ? '' : 's'} para elegir
                   </span>
                 )}
               </div>
@@ -225,9 +225,9 @@ export default function MisPremios() {
           gap: 10, marginBottom: 22,
         }}>
           {[
-            { label: 'Repostería', cost: 100 },
-            { label: 'Cafés y bebidas', cost: 110 },
-            { label: 'Milkshakes y alimentos', cost: 120 },
+            { label: 'Repostería', cost: TIER_REPOSTERIA },
+            { label: 'Cafés y bebidas', cost: TIER_BEBIDAS },
+            { label: 'Milkshakes y alimentos', cost: TIER_ESPECIALES },
           ].map(t => {
             const listo = reward.balance >= t.cost;
             return (

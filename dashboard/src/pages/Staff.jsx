@@ -19,23 +19,27 @@ const CAT_LABEL = {
 };
 const catLabel = (c) => CAT_LABEL[c] || (c ? c[0].toUpperCase() + c.slice(1) : 'Otros');
 
-// Pino calc: ciclo basado en availablePoints para que el canje reinicie el ciclo
+// Progreso del cliente. El saldo ES el progreso: no hay ciclos ni módulos.
+//
+// Se apoya en el rewardStatus que calcula el backend. Cuando no viene (p. ej.
+// en los resultados de búsqueda, que traen solo el saldo), se recalcula con la
+// misma fórmula en vez de improvisar otra: antes, sin `reward`, cualquiera con
+// premio disponible colapsaba a "100" y con saldo múltiplo exacto de la meta el
+// progreso aparecía en 0.
 function calcPines(availablePoints = 0, lifetimePoints = 0, reward = null) {
+  const r = reward || rewardStatus(availablePoints, []);
   const availPines   = pinosEnteros(availablePoints);
-  // El saldo ES el progreso: con `availPines % 120`, un cliente con 243 Pinos
-  // aparecía como "3 / 120" y el staff no veía que ya tenía premio.
-  const meta         = reward?.cheapestCost || 100;
-  const cardComplete = reward ? reward.hasReward : availPines >= meta;
-  const pinesLeft    = reward ? reward.pinosToNextGoal : Math.max(0, meta - availPines);
-  const pinesInCycle = cardComplete
-    ? Math.max(0, Math.round((meta - pinesLeft) * 10) / 10)
-    : availPines;
-  const slotsEarned  = Math.min(10, Math.floor((pinesInCycle / meta) * 10));
+  const meta         = r.cheapestCost || 100;
+  const cardComplete = r.hasReward;
+  const pinesLeft    = r.pinosToNextGoal;
+  // Lo que lleva avanzado del SIGUIENTE premio, con su decimal intacto.
+  const pinesInCycle = Math.max(0, Math.round((meta - pinesLeft) * 10) / 10);
   const totalPines   = pinosEnteros(lifetimePoints);
   // Etiquetas con decimales: una compra de $65 da 6.5 Pinos, no 6.
   const availLabel   = fmtPinos(availablePoints);
   const totalLabel   = fmtPinos(lifetimePoints);
-  return { availPines, pinesInCycle, slotsEarned, cardComplete, pinesLeft, totalPines, availLabel, totalLabel, meta };
+  return { availPines, pinesInCycle, cardComplete, pinesLeft, totalPines, availLabel, totalLabel, meta,
+           redeemableCount: r.redeemableCount, progressPct: r.progressPct };
 }
 
 export default function Staff() {
@@ -520,7 +524,7 @@ function POSView({ token, onLogout }) {
                       </div>
                       <div style={{ textAlign: 'right', flexShrink: 0 }}>
                         <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: cp.cardComplete ? '#5EC97A' : '#0F448B' }}>
-                          {cp.pinesInCycle}<span style={{ fontSize: 12, opacity: .5 }}>/120</span>
+                          {cp.availLabel}
                         </div>
                         <div style={{ fontSize: 10, color: 'rgba(15,68,139,.4)', marginTop: 1 }}>Pinos 🌲</div>
                       </div>
@@ -738,7 +742,7 @@ function POSView({ token, onLogout }) {
                     {pines.cardComplete ? '🎉' : pines.pinesLeft}
                   </div>
                   <div style={{ fontSize: 9, color: pines.cardComplete ? 'rgba(94,201,122,.6)' : 'rgba(15,68,139,.3)', marginTop: 2 }}>
-                    {pines.cardComplete ? '¡Bebida lista!' : 'para bebida'}
+                    {pines.cardComplete ? '¡Ya puede canjear!' : 'para su premio'}
                   </div>
                 </div>
               </div>
@@ -746,15 +750,17 @@ function POSView({ token, onLogout }) {
               {/* Pine progress bar */}
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span style={{ fontSize: 10, color: 'rgba(15,68,139,.55)', letterSpacing: 1 }}>PROGRESO DEL CICLO</span>
+                  <span style={{ fontSize: 10, color: 'rgba(15,68,139,.55)', letterSpacing: 1 }}>
+                    {pines.cardComplete ? 'PROGRESO AL SIGUIENTE' : 'PROGRESO A SU PREMIO'}
+                  </span>
                   <span style={{ fontSize: 10, color: pines.cardComplete ? '#5EC97A' : 'rgba(15,68,139,.55)' }}>
-                    {pines.slotsEarned}/10 slots
+                    {pines.pinesInCycle} / {pines.meta} Pinos
                   </span>
                 </div>
                 <div style={{ background: 'rgba(255,255,255,.1)', borderRadius: 99, height: 8, overflow: 'hidden' }}>
                   <div style={{
                     height: '100%', borderRadius: 99,
-                    width: `${Math.min(100, Math.round((pines.pinesInCycle / pines.meta) * 100))}%`,
+                    width: `${pines.progressPct}%`,
                     background: pines.cardComplete ? '#5EC97A' : '#0F448B',
                     transition: 'width .4s ease',
                     minWidth: pines.pinesInCycle > 0 ? 8 : 0,
@@ -774,7 +780,7 @@ function POSView({ token, onLogout }) {
                   Saldo para canjear
                 </p>
                 <p style={{ fontSize: 12, color: 'rgba(15,68,139,.7)', margin: '3px 0 0' }}>
-                  Repostería 100 · Bebidas 110 · Milkshakes 120 Pinos
+                  Repostería 100 · Cafés y bebidas 110 · Milkshakes y alimentos 120 Pinos
                 </p>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -819,7 +825,7 @@ function POSView({ token, onLogout }) {
             </p>
 
             <div style={{ background: 'rgba(15,68,139,.06)', border: '1px solid rgba(15,68,139,.15)', borderRadius: 12, padding: '10px 16px', textAlign: 'center', color: '#0F448B', fontSize: 12, fontWeight: 700, letterSpacing: 1, marginBottom: 14 }}>
-              {customer.doublePointsActive ? '🌲🌲 PINOS DOBLES ACTIVOS — gana el doble hoy' : '1 Pino por cada $10 MXN · 120 Pinos = bebida gratis'}
+              {customer.doublePointsActive ? '🌲🌲 PINOS DOBLES ACTIVOS — gana el doble hoy' : '1 Pino por cada $10 MXN · desde 100 Pinos, un producto gratis'}
             </div>
 
             {/* Antes de acumular más: ¿ya le alcanza para algo? Staff decide con el cliente */}
@@ -865,7 +871,7 @@ function POSView({ token, onLogout }) {
                   </div>
                   {pines && (
                     <div style={{ fontSize: 11, color: 'rgba(15,68,139,.45)', marginTop: 6 }}>
-                      Ciclo actual: {pines.pinesInCycle} → {Math.min(120, pines.pinesInCycle + (customer.doublePointsActive ? pinesPreview * 2 : pinesPreview))}/120 Pinos
+                      Saldo: {pines.availLabel} → {fmtPinos((pines.availPines + (customer.doublePointsActive ? pinesPreview * 2 : pinesPreview)) * 10)} Pinos
                     </div>
                   )}
                 </div>
@@ -893,24 +899,27 @@ function POSView({ token, onLogout }) {
             <div style={{ background: 'rgba(94,201,122,.08)', border: '1px solid rgba(94,201,122,.3)', borderRadius: 20, padding: '24px', textAlign: 'center', marginBottom: 20 }}>
               <div style={{ fontSize: 64, marginBottom: 8 }}>🌲</div>
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 42, color: '#5EC97A', letterSpacing: 2, lineHeight: 1, marginBottom: 8 }}>
-                120 PINOS
+                {pines.meta} PINOS
               </div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: '#0F448B', marginBottom: 6 }}>Bebida gratis hasta $90 MXN</div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: '#0F448B', marginBottom: 6 }}>Canje genérico</div>
               <div style={{ fontSize: 12, color: 'rgba(15,68,139,.6)', lineHeight: 1.5 }}>
-                Si la bebida cuesta más de $90, el cliente paga la diferencia.<br/>
-                Se descontarán 120 Pinos de su tarjeta.
+                Descuenta {pines.meta} Pinos sin registrar qué producto se entregó.<br/>
+                <strong>Usa mejor "Canjear premio"</strong>, que cobra el precio correcto
+                por categoría (100 · 110 · 120) y deja constancia del producto.
               </div>
             </div>
 
             <div style={{ background: 'rgba(15,68,139,.04)', border: '1px solid rgba(15,68,139,.06)', borderRadius: 14, padding: '14px 18px', marginBottom: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
-                <span style={{ color: 'rgba(15,68,139,.65)' }}>Pinos en ciclo actual</span>
-                <span style={{ fontWeight: 800, color: '#5EC97A' }}>{pines.pinesInCycle} / {pines.meta} 🌲</span>
+                <span style={{ color: 'rgba(15,68,139,.65)' }}>Saldo actual</span>
+                <span style={{ fontWeight: 800, color: '#5EC97A' }}>{pines.availLabel} Pinos 🌲</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                 <span style={{ color: 'rgba(15,68,139,.65)' }}>Después del canje</span>
+                {/* Antes repetía el mismo número que arriba: el cajero creía
+                    que el canje no descontaba nada. */}
                 <span style={{ fontWeight: 800, color: 'rgba(15,68,139,.75)' }}>
-                  {pines.pinesInCycle} / {pines.meta} Pinos
+                  {fmtPinos((customer.availablePoints || 0) - pines.meta * 10)} Pinos
                 </span>
               </div>
             </div>
@@ -919,7 +928,7 @@ function POSView({ token, onLogout }) {
 
             <button onClick={handleRedeemDrink} disabled={loading}
               style={{ ...S.goldBtn, background: '#5EC97A', marginBottom: 10, fontSize: 15, height: 56, opacity: loading ? .6 : 1 }}>
-              {loading ? 'Procesando…' : '🌲 Confirmar bebida gratis'}
+              {loading ? 'Procesando…' : '🌲 Confirmar canje'}
             </button>
             <button onClick={() => { setScreen('customer'); setError(''); }} style={S.ghostBtn}>
               Cancelar
@@ -1151,7 +1160,7 @@ function SuccessScreen({ result, customer, onViewProfile, onReset }) {
             ¡Bebida gratis!
           </div>
           <p style={{ color: 'rgba(15,68,139,.7)', fontSize: 14, marginBottom: 16 }}>
-            120 Pinos canjeados para <strong style={{ color: '#0F448B' }}>{result.customerName || customer?.firstName}</strong>
+            {result.pinesRedeemed ?? '—'} Pinos canjeados para <strong style={{ color: '#0F448B' }}>{result.customerName || customer?.firstName}</strong>
           </p>
         </>
       )}

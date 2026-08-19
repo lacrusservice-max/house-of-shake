@@ -225,10 +225,10 @@ export default function MiCuenta() {
   // Progreso hacia la meta: si ya tiene premio, lo que lleva del siguiente.
   const pinesInCycle = cardComplete
     ? Math.max(0, Math.round((goalCost - pinesLeft) * 10) / 10)
-    : availPines;
+    // reward.balance conserva el decimal; availPines lo truncaba y la barra
+    // decía "43 / 100" con saldo 43.1
+    : reward.balance;
   const PINES_PER_CYCLE = goalCost;
-  const PINES_PER_SLOT  = Math.max(1, Math.round(goalCost / 10));
-  const slotsEarned     = Math.min(10, Math.floor(pinesInCycle / PINES_PER_SLOT));
 
   return (
     <div className="mc-root">
@@ -339,8 +339,8 @@ export default function MiCuenta() {
         {/* STATS */}
         <div className="mc-stats">
           <div className="mc-stat">
-            <p className="mc-stat-label">Este ciclo</p>
-            <p className="mc-stat-value gold">{pinesInCycle}</p>
+            <p className="mc-stat-label">Disponibles</p>
+            <p className="mc-stat-value gold">{availPinesLabel}</p>
             <p className="mc-stat-unit">pinos</p>
           </div>
           <div className="mc-stat">
@@ -349,9 +349,9 @@ export default function MiCuenta() {
             <p className="mc-stat-unit">acumulados</p>
           </div>
           <div className="mc-stat">
-            <p className="mc-stat-label">Para bebida</p>
+            <p className="mc-stat-label">Para tu premio</p>
             <p className="mc-stat-value green">{cardComplete ? '¡YA!' : pinesLeft}</p>
-            <p className="mc-stat-unit">{cardComplete ? 'canjeable' : 'pinos más'}</p>
+            <p className="mc-stat-unit">{cardComplete ? 'ya puedes canjear' : 'pinos más'}</p>
           </div>
         </div>
 
@@ -457,7 +457,7 @@ export default function MiCuenta() {
                     <p className="mc-qr-hero-name">{customer.firstName} {customer.lastName}</p>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: 1, color: WHITE, lineHeight: 1, margin: 0 }}>{totalPinesLabel}</p>
+                    <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: 1, color: WHITE, lineHeight: 1, margin: 0 }}>{availPinesLabel}</p>
                     <p style={{ fontSize: 9, color: 'rgba(255,255,255,.5)', margin: 0, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 700 }}>Pinos</p>
                   </div>
                 </div>
@@ -469,17 +469,19 @@ export default function MiCuenta() {
                 </div>
                 <div className="mc-qr-hero-footer" style={{ borderTopColor: 'rgba(255,255,255,.15)' }}>
                   <div>
-                    <p className="mc-qr-pts-label">Pinos en ciclo</p>
-                    <p className="mc-qr-pts-value" style={{ color: WHITE }}>{pinesInCycle} / 120</p>
+                    <p className="mc-qr-pts-label">Tus Pinos</p>
+                    <p className="mc-qr-pts-value" style={{ color: WHITE }}>{availPinesLabel}</p>
                   </div>
                   {cardComplete ? (
                     <div style={{ textAlign: 'right' }}>
-                      <p className="mc-qr-pts-label">Estado</p>
-                      <p className="mc-qr-pts-value" style={{ color: WHITE }}>¡Bebida lista!</p>
+                      <p className="mc-qr-pts-label">Te alcanza para</p>
+                      <p className="mc-qr-pts-value" style={{ color: WHITE }}>
+                        {reward.redeemableCount} gratis
+                      </p>
                     </div>
                   ) : (
                     <div style={{ textAlign: 'right' }}>
-                      <p className="mc-qr-pts-label">Para bebida gratis</p>
+                      <p className="mc-qr-pts-label">Para tu premio</p>
                       <p className="mc-qr-pts-value" style={{ color: WHITE }}>{pinesLeft} Pinos más</p>
                     </div>
                   )}
@@ -496,8 +498,8 @@ export default function MiCuenta() {
               </div>
               <div className="mc-info-card">
                 <div className="mc-info-icon"><GiftIcon size={24} color={BLUE} animated /></div>
-                <p className="mc-info-title">120 Pinos = bebida</p>
-                <p className="mc-info-desc">Bebida gratis hasta $90 MXN</p>
+                <p className="mc-info-title">Desde 100 Pinos</p>
+                <p className="mc-info-desc">Repostería 100 · Bebidas 110 · Milkshakes y alimentos 120</p>
               </div>
             </div>
 
@@ -536,7 +538,7 @@ export default function MiCuenta() {
               <QRCodeSVG value={customer.id} size={Math.min(280, window.innerWidth - 100)} bgColor="#ffffff" fgColor="#071E3D" level="H" includeMargin={false} />
             </div>
             <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 36, letterSpacing: 2, color: WHITE }}>
-              {totalPinesLabel} Pinos
+              {availPinesLabel} Pinos
             </p>
             <p style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', letterSpacing: 1, fontWeight: 600, textAlign: 'center' }}>
               {customer.firstName} {customer.lastName}
@@ -601,7 +603,7 @@ export default function MiCuenta() {
                   {puedeLlevar > 0
                     ? `🎉 Te alcanza para ${puedeLlevar} producto${puedeLlevar === 1 ? '' : 's'} gratis`
                     : nextUp
-                      ? `Te faltan ${fmtPinos((pinosDe(nextUp.pointsValue) - availPines) * 10)} Pinos para tu primer premio`
+                      ? `Te faltan ${pinesLeft} Pinos para tu primer premio`
                       : 'Sigue acumulando Pinos'}
                 </p>
                 {puedeLlevar > 0 && (
@@ -653,8 +655,8 @@ export default function MiCuenta() {
                 {shown.map(p => {
                   const cost = pinosDe(p.pointsValue);
                   const unlocked = cost <= availPines;
-                  const faltan = cost - availPines;
-                  const pct = Math.min(100, Math.round((availPines / cost) * 100));
+                  const faltan = Math.round((cost - reward.balance) * 10) / 10;
+                  const pct = Math.min(100, Math.round((reward.balance / cost) * 100));
                   return (
                     <div key={p.id} style={{
                       padding: '14px 16px', borderRadius: 14,
@@ -690,7 +692,7 @@ export default function MiCuenta() {
                             <div className="mc-bar-fill" style={{ width: `${pct}%`, background: BLUE }} />
                           </div>
                           <p style={{ fontSize: 10, color: MUTED, margin: '5px 0 0' }}>
-                            Te faltan <strong style={{ color: BLUE }}>{faltan} Pinos</strong> · gasta ${faltan * 10} MXN más
+                            Te faltan <strong style={{ color: BLUE }}>{faltan} Pino{faltan === 1 ? '' : 's'}</strong> · gasta ${Math.round(faltan * 10)} MXN más
                           </p>
                         </div>
                       )}
@@ -780,24 +782,30 @@ export default function MiCuenta() {
               <CoffeeIcon size={40} color={BLUE} animated style={{ flexShrink: 0 }} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontWeight: 800, fontSize: 16, color: BLUE, margin: 0 }}>
-                  Bebida gratis hasta $90 MXN
+                  Un producto del menú, gratis
                 </p>
                 <p style={{ fontSize: 12, color: MUTED, margin: '6px 0 0', lineHeight: 1.5 }}>
-                  Cualquier bebida de hasta $90. Si cuesta más, solo pagas la diferencia.
+                  Repostería 100 · Cafés y bebidas 110 · Milkshakes y alimentos 120 Pinos.
                 </p>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 30, color: BLUE, margin: 0, lineHeight: 1 }}>120</p>
-                <p style={{ fontSize: 9, color: MUTED, margin: 0, letterSpacing: 1 }}>PINOS</p>
+                <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 30, color: BLUE, margin: 0, lineHeight: 1 }}>
+                  {reward.cheapestCost}
+                </p>
+                <p style={{ fontSize: 9, color: MUTED, margin: 0, letterSpacing: 1 }}>PINOS DESDE</p>
               </div>
             </div>
 
             {/* Progreso */}
             <div style={{ background: BG_SOFT, border: `1px solid ${BORDER}`, borderRadius: 16, padding: '18px', marginBottom: 24 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                <span style={{ fontSize: 14, fontWeight: 800, color: BLUE }}>{pinesInCycle} / 120 Pinos</span>
+                <span style={{ fontSize: 14, fontWeight: 800, color: BLUE }}>
+                  {fmtPinos(pinesInCycle * 10)} / {PINES_PER_CYCLE} Pinos
+                </span>
                 <span style={{ fontSize: 12, color: MUTED, fontWeight: 700 }}>
-                  {cardComplete ? '¡Bebida lista!' : `${pinesLeft} para tu bebida`}
+                  {cardComplete
+                    ? `Te alcanza para ${reward.redeemableCount}`
+                    : `${pinesLeft} para tu premio`}
                 </span>
               </div>
               <div className="mc-bar-bg">
@@ -836,7 +844,7 @@ export default function MiCuenta() {
               {[
                 { Icon: CoffeeIcon,    title: 'Muestra tu QR antes de pagar',  desc: 'Presenta tu tarjeta al staff al llegar al mostrador' },
                 { Icon: LightningIcon, title: '1 Pino por cada $10 MXN',       desc: 'Gana Pinos en cada compra. Pinos dobles en eventos especiales.' },
-                { Icon: ShakeIcon,     title: '120 Pinos = bebida gratis',      desc: 'Bebida de hasta $90 MXN gratis. Si cuesta más, solo pagas la diferencia.' },
+                { Icon: ShakeIcon,     title: 'Desde 100 Pinos, gratis',        desc: 'Repostería 100 · Cafés y bebidas 110 · Milkshakes y alimentos 120 Pinos.' },
                 { Icon: CakeIcon,      title: 'Bonos especiales',               desc: '+20 Pinos en tu cumpleaños. +10 Pinos de bienvenida al registrarte.' },
               ].map(s => (
                 <div key={s.title} className="mc-loyalty-step">
@@ -1003,7 +1011,7 @@ export default function MiCuenta() {
                     {cardComplete ? '¡Listo!' : pinesLeft}
                   </p>
                   <p style={{ fontSize: 10, color: MUTED, margin: '4px 0 0', letterSpacing: 1, textTransform: 'uppercase', fontWeight: 700 }}>
-                    {cardComplete ? '¡Bebida lista!' : 'Para bebida gratis'}
+                    {cardComplete ? '¡Ya puedes canjear!' : 'Para tu premio'}
                   </p>
                 </div>
               </div>

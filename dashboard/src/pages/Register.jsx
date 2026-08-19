@@ -90,7 +90,7 @@ export default function Register() {
               Crear <span>cuenta</span>
             </h1>
             <p className="mc-sub" style={{ marginTop: 8 }}>
-              Empieza a ganar puntos desde hoy
+              Empieza a ganar Pinos desde hoy
             </p>
             <div style={{
               display: 'inline-flex', alignItems: 'center',

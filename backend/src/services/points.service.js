@@ -70,14 +70,18 @@ async function addPoints(customerId, orderAmount, shopifyOrderId, shopifyOrderNu
   const doublePoints = await isDoublePointsActive();
   // 1 Pino por cada $10 MXN, con decimales: $65 → 65 puntos internos = 6.5 Pinos.
   const basePoints = puntosFromAmount(orderAmount) * (doublePoints ? 2 : 1);
-  const pointsWithBonus = applyLevelBonus(basePoints, customer.level, config);
+  // NO se aplica bonus por nivel. El sistema de Pinos no expone niveles en
+  // ninguna pantalla, así que un +10%/+20% invisible hacía que el cliente
+  // recibiera una cantidad distinta de la que la caja y su cuenta le
+  // prometían ("+45" en pantalla, +49 en la base).
+  const pointsWithBonus = basePoints;
 
   const expiresAt = new Date();
   expiresAt.setMonth(expiresAt.getMonth() + config.expiryMonths);
 
   const description = customDescription ||
     (shopifyOrderNum
-      ? `Compra #${shopifyOrderNum} - $${orderAmount.toFixed(2)} USD`
+      ? `Compra #${shopifyOrderNum} - $${orderAmount.toFixed(2)} MXN`
       : `Compra física $${orderAmount.toFixed(2)}`);
 
   const [updatedCustomer] = await prisma.$transaction([
@@ -191,11 +195,10 @@ async function redeemPoints(customerId, pointsToRedeem, staffId, staffEmail, des
     throw new Error(`Puntos insuficientes. Disponible: ${customer.availablePoints}, solicitado: ${pointsToRedeem}`);
   }
 
-  if (pointsToRedeem % config.pointsToRedeem !== 0) {
-    throw new Error(`Los puntos deben ser múltiplo de ${config.pointsToRedeem}`);
-  }
-
-  const discountUsd = (pointsToRedeem / config.pointsToRedeem) * config.redeemValueUsd;
+  // Ya NO se exige que sea múltiplo de config.pointsToRedeem: el canje es por
+  // categoría (100/110/120 Pinos = 1000/1100/1200 puntos) y esa regla heredada
+  // rechazaba canjes perfectamente válidos.
+  const pinosRedimidos = puntosToPinos(pointsToRedeem);
 
   const [updatedCustomer] = await prisma.$transaction([
     prisma.customer.update({
@@ -210,7 +213,7 @@ async function redeemPoints(customerId, pointsToRedeem, staffId, staffEmail, des
         customerId,
         type: 'REDEEM',
         points: -pointsToRedeem,
-        description: `${description} - $${discountUsd.toFixed(2)} MXN de descuento`,
+        description: `${description} — ${pinosRedimidos} Pinos`,
         staffId: staffId || null,
         staffEmail: staffEmail || null,
       },
@@ -221,7 +224,6 @@ async function redeemPoints(customerId, pointsToRedeem, staffId, staffEmail, des
   logger.info(`-${pointsToRedeem} puntos canjeados por cliente ${customerId}`);
 
   const redeemedBalance = updatedCustomer.availablePoints;
-  const discountMxn = parseFloat((discountUsd * 20).toFixed(2));
 
   setImmediate(async () => {
     try {
@@ -231,14 +233,13 @@ async function redeemPoints(customerId, pointsToRedeem, staffId, staffEmail, des
           to: fullCustomer.email,
           firstName: fullCustomer.firstName,
           pointsRedeemed: pointsToRedeem,
-          discountMxn,
           newBalance: redeemedBalance,
         });
       }
     } catch (e) { logger.warn('Email error (redeemPoints):', e.message); }
   });
 
-  return { pointsRedeemed: pointsToRedeem, discountUsd, discountMxn, newBalance: redeemedBalance };
+  return { pointsRedeemed: pointsToRedeem, pinosRedeemed: pinosRedimidos, newBalance: redeemedBalance };
 }
 
 async function reversePoints(shopifyOrderId) {

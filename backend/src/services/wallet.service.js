@@ -16,6 +16,7 @@ const fs         = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const prisma     = require('../config/prisma');
 const logger     = require('../config/logger');
+const { puntosToPinos, formatPinos, TIER_REPOSTERIA, TIER_BEBIDAS, TIER_ESPECIALES } = require('./pinos');
 const { generateStripImage } = require('./stamp.composer');
 
 // ─── Certificate loading & cache ─────────────────────────────────────────────
@@ -100,11 +101,13 @@ function areCertsAvailable() {
   return !!(p12 && wwdr && team && team !== 'PENDIENTE' && process.env.WALLET_PASS_TYPE_ID);
 }
 
+let avisoFaltaAPNs = false;
+
 // ─── Pass helpers ─────────────────────────────────────────────────────────────
 
 // Premio más barato del menú (repostería). Es la meta a partir de la cual el
 // cliente ya puede canjear algo.
-const CHEAPEST_REWARD = 100;
+const CHEAPEST_REWARD = TIER_REPOSTERIA;
 
 // Sistema de Pinos: 1 Pino = 10 pts. Canje por categoría: 100 / 110 / 120.
 //
@@ -112,18 +115,24 @@ const CHEAPEST_REWARD = 100;
 // tarjeta de alguien con 243 Pinos mostraba "3/120" — igual que la web, ocultaba
 // que ya tenía premio. Ahora el pass refleja el mismo estado que la cuenta.
 function getPineProgress(availablePoints, lifetimePoints, meta = CHEAPEST_REWARD) {
-  const availPines   = Math.floor((availablePoints || 0) / 10);
+  // Se usa puntosToPinos/formatPinos del módulo central: con Math.floor, una
+  // compra de $65 (6.5 Pinos) se veía como 6 en la tarjeta y como 6.5 en la
+  // web, y el cliente creía que el Wallet le contaba de menos.
+  const availPines   = puntosToPinos(availablePoints || 0);
+  const availLabel   = formatPinos(availablePoints || 0);
   const hasReward    = availPines >= meta;
   const sobrante     = availPines % meta;
-  const pinesLeft    = hasReward
+  const pinesLeft    = round1(hasReward
     ? (sobrante === 0 ? meta : meta - sobrante)
-    : Math.max(0, meta - availPines);
-  const pinesInCycle = hasReward ? meta - pinesLeft : availPines;
-  const slotsEarned  = Math.min(10, Math.floor((pinesInCycle / meta) * 10));
-  const totalPines   = Math.floor((lifetimePoints || 0) / 10);
+    : Math.max(0, meta - availPines));
+  const pinesInCycle = round1(hasReward ? meta - pinesLeft : availPines);
+  const totalPines   = puntosToPinos(lifetimePoints || 0);
+  const totalLabel   = formatPinos(lifetimePoints || 0);
   const rewardsReady = Math.floor(availPines / meta);
-  return { availPines, pinesInCycle, slotsEarned, pinesLeft, totalPines, hasReward, rewardsReady, meta };
+  return { availPines, availLabel, pinesInCycle, pinesLeft, totalPines, totalLabel, hasReward, rewardsReady, meta };
 }
+
+const round1 = (n) => Math.round(n * 10) / 10;
 
 function buildWebServiceURL() {
   if (process.env.WALLET_WEB_SERVICE_URL) {
@@ -202,7 +211,7 @@ async function generatePassBuffer(customerData) {
   pass.headerFields.push({
     key:           'pines',
     label:         'PINOS',
-    value:         `${availPines}`,
+    value:         availLabel,
     textAlignment: 'PKTextAlignmentRight',
   });
 
@@ -232,9 +241,9 @@ async function generatePassBuffer(customerData) {
   });
   pass.backFields.push(
     { key: 'how',      label: '¿Cómo funciona?',    value: '1 Pino por cada $10 MXN gastados. Muestra tu tarjeta al staff antes de pagar.' },
-    { key: 'reward',   label: 'Recompensa',          value: '120 Pinos = bebida gratis de hasta $90 MXN. Si cuesta más, solo pagas la diferencia.' },
+    { key: 'reward',   label: 'Recompensa',          value: `Desde ${TIER_REPOSTERIA} Pinos canjeas un producto gratis: repostería ${TIER_REPOSTERIA} · cafés y bebidas ${TIER_BEBIDAS} · milkshakes y alimentos ${TIER_ESPECIALES}.` },
     { key: 'bonuses',  label: 'Bonos especiales',    value: '+20 Pinos en tu cumpleaños · +10 Pinos al registrarte · Pinos dobles en temporadas especiales' },
-    { key: 'redeem',   label: 'Canjear',             value: 'Muestra tu QR al staff con 120 Pinos en ciclo completo. Ellos registran el canje.' },
+    { key: 'redeem',   label: 'Canjear',             value: 'Muestra tu QR al staff y pide lo que quieras del catálogo. Tus Pinos se descuentan solo al canjear; el resto se queda contigo.' },
     { key: 'app',      label: 'Ver tus Pinos online', value: 'house-of-shake.vercel.app/mi-cuenta' },
     { key: 'id',       label: 'ID de Cliente',        value: customerData.id.substring(0, 8).toUpperCase() }
   );
@@ -283,7 +292,20 @@ async function sendPushUpdate(customer) {
       : null;
 
   if (!apnKeyBuffer || !process.env.APN_KEY_ID || process.env.APN_KEY_ID === 'PENDIENTE') {
-    return; // APNs not configured — skip silently
+    // Antes se saltaba en silencio y nadie se enteraba de que las tarjetas de
+    // Apple Wallet nunca recibían el aviso de "tus Pinos cambiaron". El pass sí
+    // se regenera con el saldo correcto cuando iOS lo consulta por su cuenta
+    // (getLatestPass), pero eso puede tardar horas: sin push, el cliente ve su
+    // tarjeta congelada justo después de pagar.
+    if (!avisoFaltaAPNs) {
+      logger.error(
+        '⚠️  APNs sin configurar (falta APN_KEY_BASE64/APN_KEY_PATH o APN_KEY_ID) — ' +
+        'las tarjetas de Apple Wallet NO se actualizan al instante. Se refrescarán ' +
+        'solas cuando iOS consulte el pass, pero no justo después de cobrar.'
+      );
+      avisoFaltaAPNs = true;
+    }
+    return;
   }
 
   const registrations = await prisma.walletRegistration.findMany({

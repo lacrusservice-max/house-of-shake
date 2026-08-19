@@ -469,7 +469,11 @@ async function getFinancialStats(req, res, next) {
     }
 
     const config = await prisma.config.findFirst();
-    const redeemRatio = config ? (config.redeemValueUsd / config.pointsToRedeem) : 0.05;
+    // Con canje por categoría ya no hay una equivalencia fija Pino→dinero.
+    // Se valora cada canje al precio real del producto entregado; a falta de
+    // ese dato, 1 Pino ≈ $1 MXN, que es lo que costó generarlo ($10 = 1 Pino
+    // no aplica aquí: el cliente gastó $10 para ganar 1 Pino).
+    const redeemRatio = 0.1;
 
     const [earnTxs, redeemTxs, monthlyEarn, staffActivity] = await Promise.all([
       // Ingresos (ventas registradas en POS con orderAmount)
