@@ -359,7 +359,7 @@ export default function MiCuenta() {
         {!cardComplete && (
           <div style={{
             background: BG_SOFT, border: `1px solid ${BORDER}`,
-            borderRadius: 12, padding: '10px 16px', marginBottom: 14,
+            borderRadius: 12, padding: '12px 16px', margin: '4px 0 18px',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -379,7 +379,7 @@ export default function MiCuenta() {
           <div style={{
             background: 'linear-gradient(135deg, rgba(15,68,139,.08), rgba(26,91,181,.05))',
             border: `1.5px solid ${BLUE}`,
-            borderRadius: 14, padding: '16px 18px', marginBottom: 14,
+            borderRadius: 14, padding: '18px 18px', margin: '4px 0 20px',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
               <GiftIcon size={26} color={BLUE} />

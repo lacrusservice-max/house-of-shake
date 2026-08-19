@@ -195,6 +195,9 @@
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
   margin-top: 32px;
+  /* Sin este margen, el bloque que sigue (el aviso de "llegaste a la meta")
+     quedaba pegado a las tarjetas, como si fueran una sola pieza. */
+  margin-bottom: 18px;
 }
 .mc-stat {
   background: #FFFFFF;
