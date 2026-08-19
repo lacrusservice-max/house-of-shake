@@ -78,8 +78,11 @@ export default function CustomerLogin() {
             <h1 className="mc-heading">
               Bienvenido<br /><span>de regreso</span>
             </h1>
+            {/* Antes decía "Clientes, staff y administradores": anunciaba a
+                cualquier visitante que el acceso del personal está en esta
+                misma pantalla. El formulario ya enruta por rol al entrar. */}
             <p className="mc-sub" style={{ marginTop: 8 }}>
-              Clientes, staff y administradores
+              Entra a tu cuenta de Pinos
             </p>
           </div>
 
