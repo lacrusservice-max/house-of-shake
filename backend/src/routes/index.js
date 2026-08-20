@@ -127,10 +127,11 @@ router.get('/pos/search', authenticateStaff, posController.searchCustomers);
 router.get('/pos/customer/:code', authenticateStaff, posController.lookupCustomer);
 // Cobro por PRODUCTO: el barista elige del catálogo y el precio sale de la BD.
 router.post('/pos/customer/:customerId/add-products', authenticateStaff, posLimiter, posController.addPointsForProducts);
-// Cobro por MONTO LIBRE: solo admin. Un campo de dinero sin tope en manos del
-// barista permitía teclear $2000 y regalarse 200 Pinos. Se deja para ajustes
-// del dueño (ventas fuera de catálogo, correcciones), no para el turno diario.
-router.post('/pos/customer/:customerId/add-points', authenticateAdmin, posLimiter, posController.addPointsForPurchase);
+// Cobro por MONTO MANUAL: disponible para el staff, pero con tope
+// (MAX_MONTO_MANUAL) y marcado en la descripción para poder auditarlo. Sin
+// tope, un barista podía teclear $2000 y regalarse 200 Pinos. El admin no
+// tiene límite.
+router.post('/pos/customer/:customerId/add-points', authenticateStaff, posLimiter, posController.addPointsForPurchase);
 router.post('/pos/customer/:customerId/redeem', authenticateStaff, posLimiter, posController.redeemPoints);
 router.post('/pos/customer/:customerId/redeem-drink', authenticateStaff, posLimiter, posController.redeemFreeDrink);
 router.post('/pos/customer/:customerId/redeem-product', authenticateStaff, posLimiter, posController.redeemProduct);

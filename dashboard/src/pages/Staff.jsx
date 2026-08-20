@@ -70,6 +70,8 @@ function POSView({ token, onLogout }) {
   // y el backend recalcula el precio desde la base.
   const [carrito, setCarrito]       = useState([]);
   const [ventaBusca, setVentaBusca] = useState('');
+  // 'producto' = elige del catálogo · 'monto' = teclea el importe exacto
+  const [modoCobro, setModoCobro]   = useState('producto');
   const [result, setResult]         = useState(null);
   const [quickReg, setQuickReg]     = useState({ show: false, firstName: '', lastName: '', email: '', loading: false, error: '' });
   const [products, setProducts]     = useState([]);
@@ -192,7 +194,7 @@ function POSView({ token, onLogout }) {
       if (!res.ok) throw new Error(data.error || 'No se pudo registrar la venta');
       setResult({ type: 'earn', customerName: customer.firstName, ...data });
       setCustomer(c => ({ ...c, availablePoints: data.newAvailablePoints, reward: data.reward }));
-      setCarrito([]); setVentaBusca('');
+      setCarrito([]); setVentaBusca(''); setModoCobro('producto');
       setScreen('success');
     } catch (err) {
       setError(err.message);
@@ -892,9 +894,67 @@ function POSView({ token, onLogout }) {
               )}
             </div>
 
-            {/* Cobro POR PRODUCTO. El barista NO teclea dinero: elige del
-                catálogo y el precio sale de la base, así no puede inventar
-                montos ni regalarse Pinos. */}
+            {/* Dos formas de cobrar. Por producto es la predeterminada: el
+                precio sale de la base y el barista no puede inventarlo. El
+                monto exacto queda para ventas que no cuadran con el catálogo,
+                con tope y marcado en el historial. */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              {[
+                { id: 'producto', label: '🧾 Por producto' },
+                { id: 'monto',    label: '💵 Monto exacto' },
+              ].map(t => (
+                <button key={t.id} type="button"
+                  onClick={() => { setModoCobro(t.id); setError(''); }}
+                  style={{
+                    flex: 1, padding: '11px 8px', borderRadius: 11, cursor: 'pointer',
+                    fontFamily: "'Montserrat', sans-serif", fontSize: 12.5, fontWeight: 800,
+                    background: modoCobro === t.id ? '#0F448B' : 'rgba(15,68,139,.05)',
+                    color: modoCobro === t.id ? '#FFFFFF' : 'rgba(15,68,139,.55)',
+                    border: `1px solid ${modoCobro === t.id ? '#0F448B' : 'rgba(15,68,139,.15)'}`,
+                    transition: 'background .15s, color .15s',
+                  }}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            {modoCobro === 'monto' ? (
+              <form onSubmit={handleAddPoints}>
+                <label style={S.lbl}>Monto de la compra (MXN)</label>
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: 18, top: '50%', transform: 'translateY(-50%)', color: 'rgba(15,68,139,.55)', fontSize: 24, pointerEvents: 'none' }}>$</span>
+                  <input
+                    type="number" required min="1" step="0.01" autoFocus
+                    value={amount} onChange={e => setAmount(e.target.value)}
+                    placeholder="0.00"
+                    style={{ ...S.inp, paddingLeft: 46, fontSize: 36, fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 2, height: 72 }}
+                    onFocus={e => e.target.style.borderColor = '#0F448B'}
+                    onBlur={e => e.target.style.borderColor = 'rgba(15,68,139,.15)'}
+                  />
+                </div>
+                {pinesPreview > 0 && (
+                  <div style={{ background: 'rgba(94,201,122,.08)', border: '1px solid rgba(94,201,122,.2)', borderRadius: 12, padding: '14px 18px', textAlign: 'center', marginTop: 12 }}>
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: '#5EC97A', lineHeight: 1 }}>
+                      +{fmtPinos(pinesPreview * (customer.doublePointsActive ? 2 : 1) * 10)} 🌲
+                    </div>
+                    <div style={{ fontSize: 12, color: 'rgba(94,201,122,.7)', fontWeight: 700 }}>
+                      {customer.doublePointsActive ? 'Pinos dobles' : 'Pinos'} para {customer.firstName}
+                    </div>
+                    {pines && (
+                      <div style={{ fontSize: 11, color: 'rgba(15,68,139,.45)', marginTop: 6 }}>
+                        Saldo: {pines.availLabel} → {fmtPinos((customer.availablePoints || 0) + pinesPreview * (customer.doublePointsActive ? 2 : 1) * 10)} Pinos
+                      </div>
+                    )}
+                  </div>
+                )}
+                {error && <div style={S.err}>{error}</div>}
+                <button type="submit" disabled={loading || !amount || parseFloat(amount) <= 0}
+                  style={{ ...S.goldBtn, marginTop: 20, fontSize: 15, height: 56, opacity: (loading || !amount) ? .6 : 1 }}>
+                  {loading ? 'Procesando…' : 'Confirmar compra'}
+                </button>
+              </form>
+            ) : (
+            <>
             <label style={S.lbl}>¿Qué llevó el cliente?</label>
             <input
               type="text" autoFocus value={ventaBusca}
@@ -968,6 +1028,8 @@ function POSView({ token, onLogout }) {
               style={{ ...S.goldBtn, marginTop: 12, fontSize: 15, height: 56, opacity: (loading || !carrito.length) ? .6 : 1 }}>
               {loading ? 'Procesando…' : `Confirmar venta${totalVenta > 0 ? ` — $${totalVenta}` : ''}`}
             </button>
+            </>
+            )}
           </div>
         )}
 

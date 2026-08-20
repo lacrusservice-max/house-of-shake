@@ -122,12 +122,27 @@ async function lookupCustomer(req, res) {
 }
 
 // Staff adds points for a physical purchase
+// Tope del cobro manual. El staff necesita cobrar ventas que no cuadran con el
+// catálogo (pedidos especiales, promos), pero un campo sin límite permitía
+// teclear $2000 y regalarse 200 Pinos. Con tope sigue siendo útil y deja de ser
+// una puerta abierta. El admin no tiene tope.
+const MAX_MONTO_MANUAL = 1500;
+
 async function addPointsForPurchase(req, res) {
   const { customerId } = req.params;
   const { amount, description } = req.body;
+  const monto = parseFloat(amount);
 
-  if (!amount || amount <= 0) {
+  if (!monto || monto <= 0 || Number.isNaN(monto)) {
     return res.status(400).json({ error: 'Monto inválido' });
+  }
+
+  const esAdmin = req.admin?.role === 'admin';
+  if (!esAdmin && monto > MAX_MONTO_MANUAL) {
+    return res.status(400).json({
+      error: `El máximo por venta manual es $${MAX_MONTO_MANUAL} MXN. Para un monto mayor, cóbralo por productos o pídeselo a un administrador.`,
+      maxAmount: MAX_MONTO_MANUAL,
+    });
   }
 
   try {
@@ -136,10 +151,12 @@ async function addPointsForPurchase(req, res) {
 
     const result = await pointsService.addPoints(
       customerId,
-      parseFloat(amount),
+      monto,
       null,
       null,
-      description || `Compra física $${parseFloat(amount).toFixed(2)} — ${req.admin?.email || 'POS'}`,
+      // "Monto manual" en la descripción: permite distinguirlas de las ventas
+      // por catálogo al revisar el historial.
+      description || `Monto manual $${monto.toFixed(2)} — ${req.admin?.email || 'POS'}`,
       req.admin?.id,
       req.admin?.email,
     );
