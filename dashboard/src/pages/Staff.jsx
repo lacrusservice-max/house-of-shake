@@ -89,8 +89,16 @@ function POSView({ token, onLogout }) {
   }, []);
 
   async function handleRedeemProduct(override = null) {
-    const target = override || pickedProduct;
-    if (!target) return;
+    // `onClick={handleRedeemProduct}` le pasa el EVENTO del clic como primer
+    // argumento. Sin este filtro, el evento se tomaba por producto, se enviaba
+    // productId: undefined y el backend respondía "productId requerido": el
+    // canje fallaba y al cliente no se le descontaba nada.
+    const esProducto = override && typeof override === 'object' && typeof override.id === 'string';
+    const target = esProducto ? override : pickedProduct;
+    if (!target?.id) {
+      setError('Elige el producto que vas a canjear.');
+      return;
+    }
     setLoading(true); setError('');
     try {
       const res = await fetch(`${API}/pos/customer/${customer.id}/redeem-product`, {
@@ -1239,7 +1247,7 @@ function POSView({ token, onLogout }) {
 
               {error && <div style={{ ...S.err, marginBottom: 14 }}>{error}</div>}
 
-              <button onClick={handleRedeemProduct} disabled={loading}
+              <button onClick={() => handleRedeemProduct(pickedProduct)} disabled={loading}
                 style={{ ...S.goldBtn, background: '#5EC97A', marginBottom: 10, fontSize: 15, height: 56, opacity: loading ? .6 : 1 }}>
                 {loading ? 'Procesando…' : `Entregar ${pickedProduct.name} gratis`}
               </button>
