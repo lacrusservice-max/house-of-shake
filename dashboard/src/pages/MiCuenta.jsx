@@ -597,7 +597,7 @@ export default function MiCuenta() {
                   {availPinesLabel}
                 </p>
                 <p style={{ fontSize: 13, color: MUTED, margin: '6px 0 0' }}>
-                  Repostería 100 · Bebidas 110 · Milkshakes 120 Pinos
+                  Repostería 100 · Bebidas 110 · Milkshakes y alimentos 120 Pinos
                 </p>
                 <p style={{ fontSize: 13, fontWeight: 800, margin: '14px 0 0', color: BLUE }}>
                   {puedeLlevar > 0
