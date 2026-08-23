@@ -35,3 +35,16 @@ backend/certs/*.cer
 
 # Vercel
 .vercel
+
+# Material fuente de diseño: son los originales que YA se procesaron a
+# dashboard/public/ (fotos de producto, capturas de la guía, arte del pass).
+# Suman ~55 MB y ninguno se usa en tiempo de ejecución.
+PRODUCTOS/
+PRODUCTOS-CAMBIO/
+CAPTURAS STAFF/
+DISEÑO APPLE Wallet/
+
+# Copia original del logo en la raíz. La versión que sirve la web vive en
+# dashboard/public/logo-encabezado.png y es byte a byte idéntica.
+LOGO ENCABEZADO.png
+backend/certs/*.p8

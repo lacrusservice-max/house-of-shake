@@ -134,9 +134,105 @@ async function setupDatabase() {
     await prisma.$executeRawUnsafe(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS birthday_reward_year INTEGER;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE config ADD COLUMN IF NOT EXISTS double_points_enabled BOOLEAN NOT NULL DEFAULT false;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE config ADD COLUMN IF NOT EXISTS double_points_expiry TIMESTAMPTZ;`);
+    // Número de socio visible (1001, 1002, …) — el cliente lo dicta en caja y
+    // el staff lo busca sin necesidad de QR ni de deletrear un UUID.
+    await prisma.$executeRawUnsafe(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS member_number INTEGER;`);
+    // Solicitud de canje: el cliente elige un producto en su cuenta y el staff
+    // lo ve al identificarlo, sin importar si llegó por QR web, por el pass de
+    // Wallet o buscándolo por nombre.
+    await prisma.$executeRawUnsafe(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS pending_product_id TEXT;`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS pending_since TIMESTAMPTZ;`);
+    // Licencia de servicio. Arranca en NULL = sin límite, para que desplegar
+    // esto NUNCA apague un sistema que estaba operando.
+    await prisma.$executeRawUnsafe(`ALTER TABLE config ADD COLUMN IF NOT EXISTS license_until TIMESTAMPTZ;`);
     logger.info('✅ Schema actualizado');
   } catch (e) {
     logger.warn('Schema (puede que ya estén las columnas):', e.message);
+  }
+
+  // 1b. FUSIONA cuentas duplicadas por email.
+  //
+  //     Bug de origen: el registro guardaba el email tal cual lo tecleaba el
+  //     cliente, así que "Juan@Gmail.com" y "juan@gmail.com" creaban DOS
+  //     cuentas. El staff sumaba Pinos a una y el cliente entraba a la otra —
+  //     por eso "se acumulaban" pero su cuenta nunca se actualizaba.
+  //
+  //     Se conserva la cuenta más antigua, se le mueven transacciones y saldo
+  //     de las demás, y las duplicadas se borran. Idempotente: si no hay
+  //     duplicados no toca nada.
+  try {
+    const dupes = await prisma.$queryRawUnsafe(`
+      SELECT LOWER(TRIM(email)) AS key, COUNT(*)::int AS n
+      FROM customers GROUP BY LOWER(TRIM(email)) HAVING COUNT(*) > 1
+    `);
+
+    for (const { key } of dupes) {
+      const accounts = await prisma.customer.findMany({
+        where: { email: { equals: key, mode: 'insensitive' } },
+        orderBy: { createdAt: 'asc' },
+      });
+      if (accounts.length < 2) continue;
+
+      const [keep, ...remove] = accounts;
+      for (const dup of remove) {
+        await prisma.transaction.updateMany({
+          where: { customerId: dup.id },
+          data: { customerId: keep.id },
+        });
+        await prisma.walletRegistration.updateMany({
+          where: { customerId: dup.id },
+          data: { customerId: keep.id },
+        }).catch(() => {});
+        await prisma.customer.update({
+          where: { id: keep.id },
+          data: {
+            totalPoints:     { increment: dup.totalPoints },
+            availablePoints: { increment: dup.availablePoints },
+            lifetimePoints:  { increment: dup.lifetimePoints },
+            // conserva el dato si la cuenta principal lo tenía vacío
+            phone:    keep.phone    || dup.phone    || null,
+            password: keep.password || dup.password || null,
+          },
+        });
+        await prisma.customer.delete({ where: { id: dup.id } });
+      }
+      logger.info(`🔗 Fusionadas ${remove.length} cuentas duplicadas de ${key}`);
+    }
+
+    // Normaliza TODOS los emails a minúsculas para que no vuelva a pasar
+    const normalized = await prisma.$executeRawUnsafe(
+      `UPDATE customers SET email = LOWER(TRIM(email)) WHERE email <> LOWER(TRIM(email))`
+    );
+    if (normalized > 0) logger.info(`📧 ${normalized} emails normalizados a minúsculas`);
+
+    // Índice único case-insensitive: la BD misma impide crear otro duplicado
+    await prisma.$executeRawUnsafe(
+      `CREATE UNIQUE INDEX IF NOT EXISTS customers_email_lower_idx ON customers (LOWER(email))`
+    );
+  } catch (e) {
+    logger.warn('Dedupe de emails:', e.message);
+  }
+
+  // 1c. Asigna número de socio a quien no lo tenga (arranca en 1001)
+  try {
+    await prisma.$executeRawUnsafe(`
+      WITH numbered AS (
+        SELECT id, ROW_NUMBER() OVER (ORDER BY "createdAt" ASC) + 1000
+               + COALESCE((SELECT MAX(member_number) - 1000 FROM customers), 0) AS n
+        FROM customers WHERE member_number IS NULL
+      )
+      UPDATE customers c SET member_number = numbered.n
+      FROM numbered WHERE c.id = numbered.id
+    `);
+    await prisma.$executeRawUnsafe(
+      `CREATE UNIQUE INDEX IF NOT EXISTS customers_member_number_idx ON customers (member_number)`
+    );
+    const [{ count }] = await prisma.$queryRawUnsafe(
+      `SELECT COUNT(*)::int AS count FROM customers WHERE member_number IS NOT NULL`
+    );
+    logger.info(`🎫 ${count} clientes con número de socio`);
+  } catch (e) {
+    logger.warn('Números de socio:', e.message);
   }
 
   // 2. Create permanent accounts (upsert — safe to run every deploy)
@@ -201,92 +297,79 @@ async function setupDatabase() {
     }
   } catch (e) { logger.warn('Config update:', e.message); }
 
-  // 5. Seed products from menu if table is empty
-  try {
-    const productCount = await prisma.product.count();
-    if (productCount === 0) {
-      // Costo de CANJE: 1 Pino = $1 MXN, y 1 Pino = 10 puntos internos
-      // ⇒ puntos = precio × 10 (ej: $95 → 950 pts = 95 Pinos).
-      // (Antes: Math.ceil(price/10)*10, que daba 95 pts = 9 Pinos — mezclaba la
-      //  tasa de ganancia "1 Pino por $10" con la de canje.)
-      const pines = (price) => Math.round(price) * 10;
-      const products = [
-        // ── Cold Coffees (frío) ──────────────────────────────────
-        { name: 'Iced Coffee',                              description: 'Café frío con hielo.',                                                                         price: 65,  pointsValue: pines(65),  category: 'frío',       sortOrder: 1  },
-        { name: 'Iced Latte',                               description: 'Café espresso mezclado con leche y hielos (16oz).',                                             price: 70,  pointsValue: pines(70),  category: 'frío',       sortOrder: 2  },
-        { name: 'Iced Vanilla Latte',                       description: 'Café espresso mezclado con jarabe sabor vainilla, leche y hielos (16oz).',                      price: 88,  pointsValue: pines(88),  category: 'frío',       sortOrder: 3  },
-        { name: 'White Mocha',                              description: 'Café espresso mezclado con mocha blanco y leche con hielos (16oz).',                            price: 88,  pointsValue: pines(88),  category: 'frío',       sortOrder: 4  },
-        { name: 'Caramel Macchiato',                        description: 'Caramel Macchiato con café, leche y caramelo, servido frío.',                                   price: 88,  pointsValue: pines(88),  category: 'frío',       sortOrder: 5  },
-        { name: 'Mocha',                                    description: 'Café espresso mezclado con mocha y leche con hielos (16oz).',                                   price: 90,  pointsValue: pines(90),  category: 'frío',       sortOrder: 6  },
-        { name: 'Iced Tiramisu Latte',                      description: 'Doble espresso frío, leche cremosa y vainilla/cacao, inspirado en el tiramisú.',                price: 95,  pointsValue: pines(95),  category: 'frío',       sortOrder: 7  },
-        { name: 'Iced Latte & Lavander Cold Foam',          description: 'Latte con doble espresso, leche vaporizada y un toque de lavanda con cold foam.',               price: 95,  pointsValue: pines(95),  category: 'frío',       sortOrder: 8  },
-        { name: 'Coconut Iced Latte & Coconut Cold Foam',   description: 'Latte helado con leche de coco y espuma fría de coco.',                                        price: 95,  pointsValue: pines(95),  category: 'frío',       sortOrder: 9  },
-        { name: 'Pistachio Iced Latte & Pistachio Cold Foam', description: 'Latte con doble espresso, polvo de pistacho y cold foam de pistacho.',                       price: 95,  pointsValue: pines(95),  category: 'frío',       sortOrder: 10 },
-        { name: 'Teddy Bear Latte',                         description: 'Latte frío con doble espresso, miel, vainilla y canela.',                                       price: 95,  pointsValue: pines(95),  category: 'frío',       sortOrder: 11 },
-        { name: 'Iced Brown Sugar Oatmilk Shaken Espresso', description: 'Espresso con azúcar morena, leche de avena y hielo, agitado.',                                 price: 96,  pointsValue: pines(96),  category: 'frío',       sortOrder: 12 },
-        { name: 'Vienna Iced Latte',                        description: 'Espresso fuerte con leche fría cubierta con dos capas de cold foam.',                           price: 96,  pointsValue: pines(96),  category: 'frío',       sortOrder: 13 },
-        { name: 'Sunset Tonic',                             description: 'Tónica con jugo cítrico y cold brew o doble espresso. Refrescante y único.',                   price: 111, pointsValue: pines(111), category: 'frío',       sortOrder: 14 },
-        // ── Cold Brew (frío) ─────────────────────────────────────
-        { name: 'Cold Brew',                                description: 'Café infusionado en frío por 20 horas para un sabor suave y concentrado.',                     price: 98,  pointsValue: pines(98),  category: 'frío',       sortOrder: 15 },
-        { name: 'Vanilla Sweet Cream Cold Brew',            description: 'Cold brew con crema dulce de vainilla.',                                                        price: 105, pointsValue: pines(105), category: 'frío',       sortOrder: 16 },
-        // ── Matcha (especiales) ──────────────────────────────────
-        { name: 'Iced Matcha',                              description: 'Té verde matcha batido con hielo y leche. Sabor suave y herbáceo.',                             price: 89,  pointsValue: pines(89),  category: 'especiales', sortOrder: 17 },
-        { name: 'Iced Matcha Lemonade',                     description: 'Té verde matcha mezclado con limonada. Refrescante y equilibrado.',                             price: 88,  pointsValue: pines(88),  category: 'especiales', sortOrder: 18 },
-        { name: 'Iced Matcha & Lavander Cold Foam',         description: 'Matcha frío con cold foam de lavanda. Refrescante y floral.',                                   price: 94,  pointsValue: pines(94),  category: 'especiales', sortOrder: 19 },
-        { name: 'Iced Matcha & Mint Cold Foam',             description: 'Matcha frío con espuma fría de menta.',                                                         price: 94,  pointsValue: pines(94),  category: 'especiales', sortOrder: 20 },
-        { name: 'Iced Salted Caramel Pretzel Matcha',       description: 'Matcha frío con caramelo salado y pretzel. Dulce y salado al mismo tiempo.',                   price: 94,  pointsValue: pines(94),  category: 'especiales', sortOrder: 21 },
-        { name: 'Iced Tiramisu Matcha',                     description: 'Matcha frío con el sabor cremoso del tiramisú, cacao y vainilla.',                              price: 94,  pointsValue: pines(94),  category: 'especiales', sortOrder: 22 },
-        { name: 'Passion Fruit Matcha',                     description: 'Matcha con maracuyá y limonada fresca. Cítrico y exótico.',                                     price: 96,  pointsValue: pines(96),  category: 'especiales', sortOrder: 23 },
-        // ── Fitfresh (especiales) ────────────────────────────────
-        { name: 'Ginger Mint Lemonade',                     description: 'Limonada con té de jengibre y menta. Vibrante y refrescante (16oz).',                          price: 89,  pointsValue: pines(89),  category: 'especiales', sortOrder: 24 },
-        { name: 'Pink Coconut Drink',                       description: 'Bebida de coco y fresa con trozos de fresa y hielo. Tropical.',                                 price: 89,  pointsValue: pines(89),  category: 'especiales', sortOrder: 25 },
-        { name: 'Strawberry Acai Lemonade',                 description: 'Extracto de café verde con concentrado de frutas, acai y fresa.',                               price: 89,  pointsValue: pines(89),  category: 'especiales', sortOrder: 26 },
-        // ── Chai (especiales) ────────────────────────────────────
-        { name: 'Chai',                                     description: 'Chai frío con hielo.',                                                                          price: 88,  pointsValue: pines(88),  category: 'especiales', sortOrder: 27 },
-        { name: 'Dirty Chai',                               description: 'Mezcla de chai y café, servido frío con hielo. Lo mejor de dos mundos.',                        price: 93,  pointsValue: pines(93),  category: 'especiales', sortOrder: 28 },
-        // ── Milkshakes (especiales) ──────────────────────────────
-        { name: 'Vanilla Milkshake',                        description: 'Helado de vainilla, leche y extracto de vainilla (16oz).',                                     price: 99,  pointsValue: pines(99),  category: 'especiales', sortOrder: 29 },
-        { name: 'Caramel Pretzel Milkshake',                description: 'Helado de vainilla, leche, caramelo y trozos de pretzel salado.',                              price: 110, pointsValue: pines(110), category: 'especiales', sortOrder: 30 },
-        { name: 'Chocolate Milkshake',                      description: 'Helado de chocolate, leche y jarabe de chocolate.',                                             price: 110, pointsValue: pines(110), category: 'especiales', sortOrder: 31 },
-        { name: 'Pistachio Milkshake',                      description: 'Batido cremoso con delicado sabor a pistacho.',                                                 price: 110, pointsValue: pines(110), category: 'especiales', sortOrder: 32 },
-        { name: "S'more Milkshake",                         description: 'Helado de vainilla, malvavisco, galletas graham y chocolate.',                                  price: 110, pointsValue: pines(110), category: 'especiales', sortOrder: 33 },
-        // ── Repostería (alimentos) ───────────────────────────────
-        { name: 'Chocolate Cookie',                         description: 'Galleta de chocolate ideal para satisfacer un antojo dulce.',                                   price: 69,  pointsValue: pines(69),  category: 'alimentos',  sortOrder: 34 },
-        { name: 'Lotus Cookie',                             description: 'Galleta Lotus con sabor a caramelo y especias. Para acompañar bebidas calientes.',              price: 69,  pointsValue: pines(69),  category: 'alimentos',  sortOrder: 35 },
-        { name: 'Croissant',                                description: 'Clásico croissant de hojaldre, ideal para acompañar con café o té.',                            price: 74,  pointsValue: pines(74),  category: 'alimentos',  sortOrder: 36 },
-        { name: 'Chocolatine',                              description: 'Chocolatine de hojaldre con relleno de chocolate.',                                             price: 74,  pointsValue: pines(74),  category: 'alimentos',  sortOrder: 37 },
-        { name: 'Pumpkin Muffin',                           description: 'Muffin esponjoso con sabor a calabaza.',                                                        price: 79,  pointsValue: pines(79),  category: 'alimentos',  sortOrder: 38 },
-      ];
-      await prisma.product.createMany({ data: products.map(p => ({ ...p, active: true })) });
-      logger.info(`✅ ${products.length} productos del menú sembrados`);
-    }
-  } catch (e) {
-    logger.warn('Products seed:', e.message);
-  }
-
-  // 6. Recalibrar el costo de canje de productos ya sembrados con la fórmula
-  //    vieja (pointsValue ≈ precio ⇒ una bebida de $95 costaba 9 Pinos en vez
-  //    de 95). Regla correcta: 1 Pino = $1 ⇒ puntos = precio × 10.
+  // 5. Sincroniza la tabla `products` con el menú público (src/data/menu.js).
+  //    Es la MISMA lista que ve el cliente en la web, así que el catálogo de
+  //    canje del staff nunca queda desfasado del menú real.
   //
-  //    Guarda: solo toca filas claramente mal calibradas (pointsValue < precio
-  //    × 1.5). Un valor correcto (precio × 10) jamás cumple esa condición, así
-  //    que esto es idempotente y NUNCA pisa un costo que el admin haya
-  //    ajustado a mano desde el panel (p. ej. una promo).
+  //    - Producto del menú que no existe en BD  → se crea
+  //    - Producto del menú que sí existe        → se actualiza (precio, categoría, costo)
+  //    - Producto en BD que ya NO está en menú  → se desactiva (active=false),
+  //      nunca se borra: las transacciones históricas deben seguir siendo legibles.
   try {
-    const mispriced = await prisma.product.findMany();
-    let fixed = 0;
-    for (const p of mispriced) {
-      if (p.pointsValue < p.price * 1.5) {
-        await prisma.product.update({
-          where: { id: p.id },
-          data: { pointsValue: Math.round(p.price) * 10 },
+    const { MENU_ITEMS } = require('./data/menu');
+    const { puntosCostForCategory } = require('./services/pinos');
+
+    const existing = await prisma.product.findMany();
+    const byName = new Map(existing.map(p => [p.name.trim().toLowerCase(), p]));
+    const menuNames = new Set(MENU_ITEMS.map(m => m.name.trim().toLowerCase()));
+
+    let created = 0, updated = 0, retired = 0;
+
+    for (const item of MENU_ITEMS) {
+      const key = item.name.trim().toLowerCase();
+      const pointsValue = puntosCostForCategory(item.category);
+      const imageUrl = `https://house-of-shake.vercel.app/images/products/${item.image}.png`;
+      const row = byName.get(key);
+
+      if (!row) {
+        await prisma.product.create({
+          data: {
+            name: item.name,
+            description: item.description,
+            price: item.price,
+            pointsValue,
+            category: item.category,
+            imageUrl,
+            sortOrder: item.sortOrder,
+            active: true,
+          },
         });
-        fixed++;
+        created++;
+      } else {
+        const needsUpdate =
+          row.price !== item.price ||
+          row.pointsValue !== pointsValue ||
+          row.category !== item.category ||
+          row.imageUrl !== imageUrl ||
+          row.active !== true;
+        if (needsUpdate) {
+          await prisma.product.update({
+            where: { id: row.id },
+            data: {
+              description: item.description,
+              price: item.price,
+              pointsValue,
+              category: item.category,
+              imageUrl,
+              sortOrder: item.sortOrder,
+              active: true,
+            },
+          });
+          updated++;
+        }
       }
     }
-    if (fixed > 0) logger.info(`🌲 Costo de canje recalibrado en ${fixed} productos (1 Pino = $1)`);
+
+    for (const row of existing) {
+      if (!menuNames.has(row.name.trim().toLowerCase()) && row.active) {
+        await prisma.product.update({ where: { id: row.id }, data: { active: false } });
+        retired++;
+      }
+    }
+
+    logger.info(`🌲 Menú sincronizado: ${created} nuevos, ${updated} actualizados, ${retired} retirados`);
   } catch (e) {
-    logger.warn('Recalibración de Pinos:', e.message);
+    logger.warn('Sync de menú:', e.message);
   }
 
   logger.info('🎉 Base de datos lista');

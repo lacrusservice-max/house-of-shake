@@ -7,6 +7,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Register from './pages/Register';
 import MiCuenta from './pages/MiCuenta';
+import MisPremios from './pages/MisPremios';
 import Staff from './pages/Staff';
 
 import AdminLogin from './pages/AdminLogin';
@@ -17,7 +18,6 @@ import Transactions from './pages/Transactions';
 import Config from './pages/Config';
 import Products from './pages/Products';
 import WalletSetup from './pages/WalletSetup';
-import Finanzas from './pages/Finanzas';
 import Personal from './pages/Personal';
 import Menu from './pages/Menu';
 
@@ -45,6 +45,7 @@ export default function App() {
 
         {/* Customer protected */}
         <Route path="/mi-cuenta" element={<CustomerRoute><MiCuenta /></CustomerRoute>} />
+        <Route path="/mis-premios" element={<CustomerRoute><MisPremios /></CustomerRoute>} />
 
         {/* Staff POS */}
         <Route path="/staff" element={<Staff />} />
@@ -60,7 +61,6 @@ export default function App() {
                 <Route path="/customers" element={<Customers />} />
                 <Route path="/transactions" element={<Transactions />} />
                 <Route path="/products" element={<Products />} />
-                <Route path="/finanzas" element={<Finanzas />} />
                 <Route path="/personal" element={<Personal />} />
                 <Route path="/wallet" element={<WalletSetup />} />
                 <Route path="/config" element={<Config />} />

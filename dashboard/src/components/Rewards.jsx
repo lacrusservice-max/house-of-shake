@@ -4,7 +4,7 @@ import {
   LightningIcon, ChartIcon, SparkleIcon,
 } from './Icons';
 
-// ── Sistema de Pinos: 1 Pino = $10 MXN · 120 Pinos = bebida gratis ──
+// ── Sistema de Pinos: 1 Pino por cada $10 MXN · canje desde 100 Pinos ──
 
 const STEPS = [
   {
@@ -17,24 +17,24 @@ const STEPS = [
   },
   {
     n: '03', Icon: GiftIcon, title: 'CANJEA GRATIS',
-    body: <>Al llegar a <b>120 Pinos</b> obtienes una bebida gratis de hasta $90 MXN. Y el ciclo vuelve a empezar.</>,
+    body: <>Desde <b>100 Pinos</b> canjeas un producto gratis: repostería 100, cafés y bebidas 110, milkshakes y alimentos 120.</>,
   },
 ];
 
 const LADDER = [
   { pinos: '0',   label: 'Empiezas aquí' },
-  { pinos: '30',  label: 'Vas arrancando' },
-  { pinos: '60',  label: 'A mitad de camino' },
-  { pinos: '90',  label: 'Ya casi lo tienes' },
-  { pinos: null,  label: '¡Bebida gratis!', final: true },
+  { pinos: '25',  label: 'Vas arrancando' },
+  { pinos: '50',  label: 'A mitad de camino' },
+  { pinos: '75',  label: 'Ya casi lo tienes' },
+  { pinos: null,  label: '¡Producto gratis!', final: true },
 ];
 
 const BENEFITS = [
   { Icon: GiftIcon,      title: '+10 Pinos de bienvenida', body: 'Solo por crear tu cuenta. Empiezas con ventaja desde el primer día.' },
   { Icon: CakeIcon,      title: '+20 Pinos en tu cumpleaños', body: 'Te celebramos con Pinos extra para que canjees tu bebida favorita.' },
   { Icon: LightningIcon, title: 'Pinos dobles', body: 'En temporadas y campañas especiales, cada Pino cuenta el doble.' },
-  { Icon: CoffeeIcon,    title: 'Bebida gratis cada 120 Pinos', body: 'Hasta $90 MXN. Si tu bebida cuesta más, solo pagas la diferencia.' },
-  { Icon: ChartIcon,     title: 'Consulta tus Pinos cuando quieras', body: 'Entra a tu cuenta online y revisa tu progreso hacia la próxima bebida gratis.' },
+  { Icon: CoffeeIcon,    title: 'Producto gratis desde 100 Pinos', body: 'Elige del menú: repostería 100, cafés y bebidas 110, milkshakes y alimentos 120 Pinos.' },
+  { Icon: ChartIcon,     title: 'Consulta tus Pinos cuando quieras', body: 'Entra a tu cuenta online y revisa tu progreso hacia el próximo premio.' },
   { Icon: CardIcon,      title: 'Tarjeta en Apple Wallet', body: 'Tus Pinos siempre contigo. Sin apps, sin plásticos, sin complicaciones.' },
 ];
 
@@ -46,11 +46,11 @@ export default function Rewards({ isLoggedIn = false }) {
 
         {/* ── Header ── */}
         <div className="hs-rw-hdr hs-rev">
-          <div className="hs-rw-coin"><SparkleIcon size={34} color="#1B2F56" animated /></div>
+          <div className="hs-rw-coin"><SparkleIcon size={34} color="#FFFFFF" animated /></div>
           <p className="hs-eyebrow" style={{ justifyContent: 'center' }}>House of Shake Rewards</p>
           <h2 className="hs-h-dark">GANA PINOS.<br />CANJEA BEBIDAS.</h2>
           <p className="hs-sub-dark" style={{ maxWidth: 560, margin: '10px auto 0' }}>
-            Nuestro programa de recompensas. Cada café te acerca a tu próxima bebida gratis — así de simple.
+            Nuestro programa de recompensas. Cada café te acerca a tu próximo premio — así de simple.
           </p>
         </div>
 
@@ -59,7 +59,7 @@ export default function Rewards({ isLoggedIn = false }) {
           {STEPS.map((s, i) => (
             <div key={i} className="hs-rw-step hs-rev">
               <span className="hs-rw-step-n">{s.n}</span>
-              <div className="hs-rw-ic"><s.Icon size={36} color="#F5C842" animated /></div>
+              <div className="hs-rw-ic"><s.Icon size={36} color="#0F448B" animated /></div>
               <h3>{s.title}</h3>
               <p>{s.body}</p>
             </div>
@@ -68,17 +68,17 @@ export default function Rewards({ isLoggedIn = false }) {
 
         {/* ── Ladder de Pinos ── */}
         <div className="hs-ladder-box hs-rev">
-          <h3>TU CAMINO A LA BEBIDA GRATIS</h3>
-          <p className="hs-ladder-sub">120 Pinos = 1 bebida gratis. Mira lo cerca que puedes estar.</p>
+          <h3>TU CAMINO AL PRIMER PREMIO</h3>
+          <p className="hs-ladder-sub">Desde 100 Pinos ya puedes canjear. Mira lo cerca que puedes estar.</p>
           <div className="hs-ladder">
             <div className="hs-ladder-track"><div className="hs-ladder-fill" /></div>
             {LADDER.map((n, i) => (
               <div key={i} className={`hs-node${n.final ? ' final' : ''}`}>
                 <div className="hs-node-dot">
-                  {n.final ? <GiftIcon size={30} color="#1B2F56" animated /> : n.pinos}
+                  {n.final ? <GiftIcon size={30} color="#FFFFFF" animated /> : n.pinos}
                 </div>
                 <div className="hs-node-text">
-                  <span className="hs-node-pinos">{n.final ? '120 Pinos' : `${n.pinos} Pinos`}</span>
+                  <span className="hs-node-pinos">{n.final ? '100 Pinos' : `${n.pinos} Pinos`}</span>
                   <span className="hs-node-lbl">{n.label}</span>
                 </div>
               </div>
@@ -94,7 +94,7 @@ export default function Rewards({ isLoggedIn = false }) {
         <div className="hs-benefits">
           {BENEFITS.map((b, i) => (
             <div key={i} className="hs-benefit hs-rev">
-              <div className="hs-benefit-ic"><b.Icon size={26} color="#F5C842" animated /></div>
+              <div className="hs-benefit-ic"><b.Icon size={26} color="#0F448B" animated /></div>
               <div>
                 <h5>{b.title}</h5>
                 <p>{b.body}</p>

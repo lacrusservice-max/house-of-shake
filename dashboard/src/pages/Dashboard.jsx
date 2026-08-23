@@ -57,9 +57,6 @@ export default function Dashboard() {
   const [setupResult, setSetupResult] = useState(null);
   const [setupLoading, setSetupLoading] = useState(false);
   const [birthdayCustomers, setBirthdayCustomers] = useState([]);
-  const [dpStatus, setDpStatus] = useState({ enabled: false, expiry: null });
-  const [dpHours, setDpHours] = useState(24);
-  const [dpLoading, setDpLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   const pollRef = useRef(null);
 
@@ -77,10 +74,6 @@ export default function Dashboard() {
       .then(({ data }) => setBirthdayCustomers(data.customers || []))
       .catch(() => {});
 
-    loyaltyApi.getDoublePointsStatus()
-      .then(({ data }) => setDpStatus(data))
-      .catch(() => {});
-
     // Auto-refresh stats every 30 seconds
     pollRef.current = setInterval(loadStats, 30000);
     return () => clearInterval(pollRef.current);
@@ -96,18 +89,6 @@ export default function Dashboard() {
       alert(err.response?.data?.error || 'Error en setup');
     } finally {
       setSetupLoading(false);
-    }
-  }
-
-  async function handleToggleDoublePoints(enable) {
-    setDpLoading(true);
-    try {
-      const { data } = await loyaltyApi.toggleDoublePoints(enable, dpHours);
-      setDpStatus(data);
-    } catch (err) {
-      alert(err.response?.data?.error || 'Error al cambiar puntos dobles');
-    } finally {
-      setDpLoading(false);
     }
   }
 
@@ -137,30 +118,14 @@ export default function Dashboard() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 900, color: '#111', margin: 0 }}>Dashboard</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 900, color: '#0F448B', margin: 0 }}>Dashboard</h1>
           {lastUpdated && (
-            <div style={{ fontSize: 11, color: '#bbb', marginTop: 3 }}>
+            <div style={{ fontSize: 11, color: '#aaa', marginTop: 3 }}>
               Actualizado {lastUpdated.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} · Auto-refresh cada 30s
             </div>
           )}
         </div>
-        <button onClick={handleSetupShopify} disabled={setupLoading}
-          style={{
-            padding: '9px 18px', background: '#F5C842', color: '#1B2F56',
-            border: 'none', borderRadius: 10, fontSize: 12, fontWeight: 800,
-            cursor: 'pointer', opacity: setupLoading ? .6 : 1,
-            fontFamily: 'inherit',
-          }}>
-          {setupLoading ? 'Configurando...' : 'Setup Shopify'}
-        </button>
       </div>
-
-      {setupResult && (
-        <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 12, padding: 16, marginBottom: 20 }}>
-          <p style={{ fontWeight: 700, color: '#166534', marginBottom: 8, fontSize: 13, display:'flex', alignItems:'center', gap:6 }}><CheckIcon size={14} color="#166534" /> Setup completado</p>
-          <pre style={{ fontSize: 11, color: '#15803d', overflow: 'auto', margin: 0 }}>{JSON.stringify(setupResult, null, 2)}</pre>
-        </div>
-      )}
 
       {/* Primary stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 14 }}>
@@ -176,10 +141,8 @@ export default function Dashboard() {
         <StatCard icon={<FlameIcon size={28} color="white" />} title="Activos 30 días" value={stats?.activeCustomers30d || 0} subtitle={`${engagementRate}% engagement`} gradient="linear-gradient(135deg,#0A2850,#071E3D)" />
       </div>
 
-      {/* Birthday customers today + Double Points toggle */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, marginBottom: 20 }}>
-
-        {/* 🎂 Birthday customers */}
+      {/* Birthday customers today */}
+      <div style={{ marginBottom: 20 }}>
         <div style={{ background: '#fff', borderRadius: 18, padding: '20px 24px', boxShadow: '0 1px 8px rgba(0,0,0,.06)' }}>
           <h2 style={{ fontSize: 15, fontWeight: 800, color: '#111', marginBottom: 4, marginTop: 0, display:'flex', alignItems:'center', gap:6 }}><CakeIcon size={16} color="#111" /> Cumpleaños hoy</h2>
           <p style={{ fontSize: 11, color: '#aaa', margin: '0 0 14px' }}>{birthdayCustomers.length} cliente(s) celebra(n) hoy</p>
@@ -201,76 +164,6 @@ export default function Dashboard() {
             </div>
           )}
         </div>
-
-        {/* ⚡ Double points toggle */}
-        <div style={{ background: '#fff', borderRadius: 18, padding: '20px 24px', boxShadow: '0 1px 8px rgba(0,0,0,.06)' }}>
-          <h2 style={{ fontSize: 15, fontWeight: 800, color: '#111', marginBottom: 4, marginTop: 0, display:'flex', alignItems:'center', gap:6 }}><LightningIcon size={16} color="#111" /> 🌲 Pinos Dobles</h2>
-          <p style={{ fontSize: 11, color: '#aaa', margin: '0 0 16px' }}>
-            {dpStatus.enabled
-              ? dpStatus.expiry ? `Activo hasta ${new Date(dpStatus.expiry).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}` : 'Activo sin límite'
-              : 'Desactivado'}
-          </p>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-            <div style={{
-              width: 52, height: 28, borderRadius: 99, cursor: 'pointer',
-              background: dpStatus.enabled ? '#F5C842' : '#e5e7eb',
-              position: 'relative', transition: 'background .2s', flexShrink: 0,
-            }} onClick={() => !dpLoading && handleToggleDoublePoints(!dpStatus.enabled)}>
-              <div style={{
-                width: 22, height: 22, borderRadius: 99, background: '#fff',
-                position: 'absolute', top: 3,
-                left: dpStatus.enabled ? 27 : 3,
-                transition: 'left .2s', boxShadow: '0 1px 4px rgba(0,0,0,.2)',
-              }} />
-            </div>
-            <span style={{ fontSize: 13, fontWeight: 700, color: dpStatus.enabled ? '#D9A62B' : '#6b7280' }}>
-              {dpStatus.enabled ? <span style={{ display:'flex', alignItems:'center', gap:4 }}><FlameIcon size={12} color="currentColor" /> ACTIVO</span> : 'Inactivo'}
-            </span>
-          </div>
-
-          <div style={{ marginBottom: 14 }}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', display: 'block', marginBottom: 6, letterSpacing: .5 }}>DURACIÓN (horas)</label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {[4, 8, 12, 24].map(h => (
-                <button key={h} onClick={() => setDpHours(h)} style={{
-                  flex: 1, padding: '8px 4px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700,
-                  background: dpHours === h ? 'rgba(245,200,66,.16)' : '#f9fafb',
-                  border: `1px solid ${dpHours === h ? '#F5C842' : '#e5e7eb'}`,
-                  color: dpHours === h ? '#8A6205' : '#6b7280',
-                }}>
-                  {h}h
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <button
-              onClick={() => handleToggleDoublePoints(true)}
-              disabled={dpLoading || dpStatus.enabled}
-              style={{
-                padding: '10px', background: 'rgba(245,200,66,.16)', border: '1px solid #F5C842',
-                borderRadius: 10, fontSize: 12, fontWeight: 800, cursor: 'pointer',
-                color: '#8A6205', opacity: (dpLoading || dpStatus.enabled) ? .5 : 1,
-              }}
-            >
-              🌲 Activar {dpHours}h
-            </button>
-            <button
-              onClick={() => handleToggleDoublePoints(false)}
-              disabled={dpLoading || !dpStatus.enabled}
-              style={{
-                padding: '10px', background: '#f3f4f6', border: '1px solid #e5e7eb',
-                borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                color: '#6b7280', opacity: (dpLoading || !dpStatus.enabled) ? .5 : 1,
-              }}
-            >
-              ✕ Desactivar
-            </button>
-          </div>
-        </div>
-
       </div>
 
       {/* Charts grid */}
