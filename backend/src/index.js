@@ -142,6 +142,9 @@ async function setupDatabase() {
     // Wallet o buscándolo por nombre.
     await prisma.$executeRawUnsafe(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS pending_product_id TEXT;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS pending_since TIMESTAMPTZ;`);
+    // Licencia de servicio. Arranca en NULL = sin límite, para que desplegar
+    // esto NUNCA apague un sistema que estaba operando.
+    await prisma.$executeRawUnsafe(`ALTER TABLE config ADD COLUMN IF NOT EXISTS license_until TIMESTAMPTZ;`);
     logger.info('✅ Schema actualizado');
   } catch (e) {
     logger.warn('Schema (puede que ya estén las columnas):', e.message);

@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import '../styles/mi-cuenta.css';
 import { CoffeeIcon, GiftIcon, StarIcon, CakeIcon, LightningIcon, SearchIcon, WarningIcon, CheckIcon } from '../components/Icons';
 import { fmtPinos, pinosEnteros, rewardStatus } from '../lib/pinos';
+import ServicioSuspendido from '../components/ServicioSuspendido';
 
 const QRScanner = lazy(() => import('../components/QRScanner'));
 
@@ -65,6 +66,8 @@ function POSView({ token, onLogout }) {
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState('');
   const [notice, setNotice]         = useState('');
+  // El backend responde 402 cuando la licencia del servicio venció.
+  const [suspended, setSuspended]   = useState(false);
   const [amount, setAmount]         = useState('');
   // Carrito del cobro por producto: el barista arma la venta desde el catálogo
   // y el backend recalcula el precio desde la base.
@@ -151,6 +154,7 @@ function POSView({ token, onLogout }) {
     setLoading(true); setError('');
     try {
       const res = await fetch(`${API}/pos/customer/${encodeURIComponent(term.trim())}`, { headers });
+      if (res.status === 402) { setSuspended(true); return; }
       const data = await res.json();
       if (!res.ok) {
         if (res.status === 404) throw new Error('No se encontró ningún cliente con ese dato. ¿Ya se registró?');
@@ -306,6 +310,8 @@ function POSView({ token, onLogout }) {
   // 40 productos pero llevarse solo 2 — la caja decía "le alcanza para 40".
   const reward = customer?.reward || rewardStatus(customer?.availablePoints || 0, products);
   const puedeLlevar = reward.redeemableCount;
+
+  if (suspended) return <ServicioSuspendido />;
 
   return (
     <div className="mc-root" style={{ minHeight: '100vh' }}>

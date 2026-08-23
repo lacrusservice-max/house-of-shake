@@ -33,6 +33,8 @@ export function useLiveCustomer({ onUnauthorized } = {}) {
   const [refreshing, setRefreshing] = useState(false);
   const [updatedAt, setUpdatedAt] = useState(null);
   const [offline, setOffline]     = useState(false);
+  // El backend responde 402 cuando la licencia del servicio está vencida.
+  const [suspended, setSuspended] = useState(false);
 
   // Evita que dos recargas simultáneas se pisen (volver a la app dispara
   // visibilitychange y focus casi a la vez).
@@ -57,6 +59,8 @@ export function useLiveCustomer({ onUnauthorized } = {}) {
         onUnauthRef.current?.();
         return null;
       }
+      if (res.status === 402) { setSuspended(true); return null; }
+      setSuspended(false);
       if (!res.ok) { setOffline(true); return null; }
 
       const data = await res.json();
@@ -102,7 +106,7 @@ export function useLiveCustomer({ onUnauthorized } = {}) {
     };
   }, [refresh]);
 
-  return { customer, setCustomer, loading, refreshing, updatedAt, offline, refresh };
+  return { customer, setCustomer, loading, refreshing, updatedAt, offline, suspended, refresh };
 }
 
 /** "hace un momento" · "hace 3 min" — para que se vea que el dato está fresco. */

@@ -734,7 +734,46 @@ async function getPublicStats(req, res, next) {
   }
 }
 
+
+// ── Licencia de servicio ─────────────────────────────────────────────────────
+// Estas rutas jamás pasan por requireActiveLicense: son las que permiten
+// reactivar, y bloquearlas cerraría el sistema con la llave dentro.
+const licenseService = require('../services/license');
+
+async function getLicense(req, res) {
+  try {
+    res.json(await licenseService.getStatus());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+async function renewLicense(req, res) {
+  try {
+    const st = await licenseService.renew(req.body?.days);
+    logger.info(`🔑 Licencia renovada por ${req.admin?.email}`);
+    res.json({ success: true, ...st });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}
+
+async function setLicense(req, res) {
+  try {
+    const { until } = req.body || {};
+    const st = await licenseService.setUntil(until === null || until === '' ? null : until);
+    logger.info(`🔑 Licencia fijada por ${req.admin?.email}: ${st.until || 'sin límite'}`);
+    res.json({ success: true, ...st });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}
+
+
 module.exports = {
+  getLicense,
+  renewLicense,
+  setLicense,
   login,
   refreshToken,
   getDashboardStats,

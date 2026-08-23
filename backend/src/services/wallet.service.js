@@ -166,6 +166,13 @@ async function generatePassBuffer(customerData) {
     customerData.lifetimePoints
   );
 
+  // Con la licencia vencida el pass deja de mostrar el saldo. No se borra nada:
+  // los Pinos siguen en la base y reaparecen intactos al renovar.
+  let suspendido = false;
+  try {
+    suspendido = !(await require('./license').getStatus()).active;
+  } catch { /* si la consulta falla, el pass se genera normal */ }
+
   const pass = await PKPass.from(
     {
       model:        path.resolve(__dirname, '../../pass-template.pass'),
@@ -211,13 +218,15 @@ async function generatePassBuffer(customerData) {
   pass.headerFields.push({
     key:           'pines',
     label:         'PINOS',
-    value:         availLabel,
+    value:         suspendido ? '—' : availLabel,
     textAlignment: 'PKTextAlignmentRight',
   });
 
   // Campos nativos en la zona crema (SIEMPRE visibles, nunca se recortan):
   // fila 1 → nombre del cliente + Pinos restantes
-  const rewardMsg = hasReward
+  const rewardMsg = suspendido
+    ? 'Servicio temporalmente suspendido. Tus Pinos están guardados y volverán al reactivarse.'
+    : hasReward
     ? `🎉 ¡Llegaste a la meta! Te alcanza para ${rewardsReady} producto${rewardsReady === 1 ? '' : 's'} gratis. Muestra este QR al staff.`
     : `Te faltan ${pinesLeft} Pinos para tu primer producto gratis.`;
 
@@ -230,7 +239,7 @@ async function generatePassBuffer(customerData) {
     {
       key:           'restantes',
       label:         'TE FALTAN',
-      value:         hasReward ? '¡YA!' : `${pinesLeft}`,
+      value:         suspendido ? '—' : hasReward ? '¡YA!' : `${pinesLeft}`,
       textAlignment: 'PKTextAlignmentRight',
     }
   );

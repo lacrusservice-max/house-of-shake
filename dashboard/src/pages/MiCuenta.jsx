@@ -5,6 +5,7 @@ import '../styles/mi-cuenta.css';
 import { CoffeeIcon, GiftIcon, ShakeIcon, StarIcon, LightningIcon, TrophyIcon, CardIcon, CheckIcon, CakeIcon } from '../components/Icons';
 import { fmtPinos, pinosEnteros, pinosDeProducto, rewardStatus } from '../lib/pinos';
 import { useLiveCustomer, haceCuanto } from '../lib/useLiveCustomer';
+import ServicioSuspendido from '../components/ServicioSuspendido';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -63,7 +64,7 @@ export default function MiCuenta() {
   const headers = { Authorization: `Bearer ${token}` };
 
   // Saldo siempre al día: se recarga al volver a la app, al enfocar y cada 20s.
-  const { customer, setCustomer, loading, refreshing, updatedAt, offline, refresh } =
+  const { customer, setCustomer, loading, refreshing, updatedAt, offline, suspended, refresh } =
     useLiveCustomer({ onUnauthorized: () => handleLogout() });
 
   // Los movimientos se recargan junto con el saldo: si al cliente le acaban de
@@ -198,6 +199,8 @@ export default function MiCuenta() {
     localStorage.removeItem('hos_customer');
     navigate('/login');
   }
+
+  if (suspended) return <ServicioSuspendido />;
 
   if (!customer) {
     return (

@@ -5,6 +5,7 @@ import '../styles/mi-cuenta.css';
 import { GiftIcon, CheckIcon, CoffeeIcon } from '../components/Icons';
 import { fmtPinos, rewardStatus, pinosDeProducto, TIER_REPOSTERIA, TIER_BEBIDAS, TIER_ESPECIALES } from '../lib/pinos';
 import { useLiveCustomer } from '../lib/useLiveCustomer';
+import ServicioSuspendido from '../components/ServicioSuspendido';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -43,7 +44,7 @@ export default function MisPremios() {
 
   // El saldo se mantiene al día solo (al volver a la app, al enfocar y cada 20s),
   // así el catálogo de premios refleja lo que el cliente realmente puede pedir.
-  const { customer, loading: loadingCliente } = useLiveCustomer({
+  const { customer, loading: loadingCliente, suspended } = useLiveCustomer({
     onUnauthorized: () => {
       localStorage.removeItem('hos_customer_token');
       navigate('/login');
@@ -128,6 +129,8 @@ export default function MisPremios() {
     : filtro === 'disponibles'
       ? disponibles
       : items.filter(i => i.category === filtro);
+
+  if (suspended) return <ServicioSuspendido />;
 
   if (loading) {
     return (

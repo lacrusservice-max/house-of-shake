@@ -11,6 +11,7 @@ const posController = require('../controllers/pos.controller');
 const productsController = require('../controllers/products.controller');
 const { authenticateAdmin, authenticateStaff, authenticateCustomer } = require('../middleware/auth');
 const { verifyShopifyWebhook } = require('../middleware/webhook');
+const license = require('../services/license');
 
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000'),
@@ -67,6 +68,8 @@ router.post('/webhooks/shopify/orders-cancelled', verifyShopifyWebhook, webhookC
 router.post('/webhooks/shopify/customers-create', verifyShopifyWebhook, webhookController.handleCustomerCreate);
 
 // === CUSTOMER AUTH ===
+router.use('/me', license.requireActiveLicense);
+router.use('/auth', license.requireActiveLicense);
 router.post('/auth/register', authLimiter, customerAuthController.register);
 router.post('/auth/login', authLimiter, customerAuthController.login);
 router.post('/auth/forgot-password', authLimiter, customerAuthController.forgotPassword);
@@ -123,6 +126,10 @@ router.get('/wallet/demo-pass', async (req, res) => {
 });
 
 // === POS (staff Y admin pueden usar el POS) ===
+// La licencia se exige aquí y en las rutas del cliente, NUNCA en /admin ni en
+// /health: si se exigiera ahí, una licencia vencida dejaría fuera a quien tiene
+// que renovarla.
+router.use('/pos', license.requireActiveLicense);
 router.get('/pos/search', authenticateStaff, posController.searchCustomers);
 router.get('/pos/customer/:code', authenticateStaff, posController.lookupCustomer);
 // Cobro por PRODUCTO: el barista elige del catálogo y el precio sale de la BD.
@@ -174,6 +181,11 @@ router.post('/admin/products/recompute-points', authenticateAdmin, productsContr
 router.get('/admin/birthday-customers', authenticateAdmin, adminController.getBirthdayCustomers);
 router.post('/admin/double-points', authenticateAdmin, adminController.toggleDoublePoints);
 router.get('/admin/double-points/status', authenticateAdmin, adminController.getDoublePointsStatus);
+
+// Admin: licencia de servicio. Nunca pasa por requireActiveLicense.
+router.get('/admin/license',        authenticateAdmin, adminController.getLicense);
+router.post('/admin/license/renew', authenticateAdmin, adminController.renewLicense);
+router.put('/admin/license',        authenticateAdmin, adminController.setLicense);
 
 // Admin: Apple Wallet
 router.get('/admin/wallet/status',        authenticateAdmin, adminController.getWalletStatus);
