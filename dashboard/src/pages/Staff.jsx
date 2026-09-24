@@ -141,7 +141,11 @@ function POSView({ token, onLogout }) {
       setCustomer(data.customer || data);
       setScreen('customer');
     } catch (err) {
-      setError(err.name === 'TypeError' ? 'Sin conexión al servidor.' : err.message);
+      setError(err.name === 'TypeError'
+        ? (navigator.onLine === false
+            ? 'Sin conexión. Revisa el internet del local.'
+            : 'El servidor no responde. Avisa al proveedor del sistema.')
+        : err.message);
     } finally {
       setLoading(false);
     }
@@ -163,7 +167,11 @@ function POSView({ token, onLogout }) {
       setCustomer(data);
       setScreen('customer');
     } catch (err) {
-      setError(err.name === 'TypeError' ? 'Sin conexión.' : err.message);
+      setError(err.name === 'TypeError'
+        ? (navigator.onLine === false
+            ? 'Sin conexión. Revisa el internet del local.'
+            : 'El servidor no responde. Avisa al proveedor del sistema.')
+        : err.message);
     } finally {
       setLoading(false);
     }

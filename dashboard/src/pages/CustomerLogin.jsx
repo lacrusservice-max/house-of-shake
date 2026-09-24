@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { apiFetch, ApiError } from '../lib/api';
 import { Link, useNavigate } from 'react-router-dom';
 import '../styles/mi-cuenta.css';
 
@@ -40,21 +41,23 @@ export default function CustomerLogin() {
     } catch { /* fall through */ }
 
     try {
-      const res = await fetch(`${API}/auth/login`, { method: 'POST', headers, body });
-      const d = await res.json();
-      if (!res.ok) {
-        // El servidor distingue "no existe / contraseña mal" de "tu cuenta la
-        // creó el staff y aún no tiene contraseña". Tragarse ese mensaje dejaba
-        // al cliente sin saber que debe usar "¿Olvidaste tu contraseña?".
-        setError(d.error || 'Email o contraseña incorrectos');
-        setNeedsPassword(!!d.needsPassword);
-        return;
-      }
+      const d = await apiFetch('/auth/login', { method: 'POST', headers, body });
       localStorage.setItem('hos_customer_token', d.token);
       localStorage.setItem('hos_customer', JSON.stringify(d.customer));
       navigate('/mi-cuenta');
-    } catch {
-      setError('Sin conexión. Revisa tu internet e intenta de nuevo.');
+    } catch (err) {
+      // Un 4xx trae el motivo real: el servidor distingue "no existe /
+      // contraseña mal" de "tu cuenta la creó el staff y aún no tiene
+      // contraseña". Tragarse ese mensaje dejaba al cliente sin saber que
+      // debe usar "¿Olvidaste tu contraseña?".
+      if (err instanceof ApiError && err.kind === 'http') {
+        setError(err.message || 'Email o contraseña incorrectos');
+        setNeedsPassword(!!err.data?.needsPassword);
+      } else {
+        // Caída del servidor o falta de internet: cada una con su mensaje,
+        // sin culpar al cliente de algo que no es suyo.
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }

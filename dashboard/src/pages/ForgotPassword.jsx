@@ -34,7 +34,12 @@ export default function ForgotPassword() {
       }
       setDone(true);
     } catch (err) {
-      setError(err.name === 'TypeError' ? 'Sin conexión. Revisa tu internet.' : err.message);
+      // No culpar al internet del cliente cuando el caído es el servidor.
+      setError(err.name === 'TypeError'
+        ? (navigator.onLine === false
+            ? 'Sin conexión. Revisa tu internet.'
+            : 'No pudimos conectar con el servidor. No es tu internet: es de nuestro lado. Intenta en unos minutos.')
+        : err.message);
     } finally {
       setLoading(false);
     }
