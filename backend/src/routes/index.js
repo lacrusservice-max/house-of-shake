@@ -61,6 +61,35 @@ router.get('/health', (req, res) => res.json({
   ],
 }));
 
+// === TAREAS PROGRAMADAS ===
+// Sin servidor no hay proceso que sostenga un cron: Vercel llama a estas rutas
+// según el horario de vercel.json. Van protegidas con CRON_SECRET para que no
+// las pueda disparar cualquiera desde fuera.
+function soloCron(req, res, next) {
+  const esperado = process.env.CRON_SECRET;
+  if (!esperado) return res.status(503).json({ error: 'CRON_SECRET no configurado' });
+  if (req.headers.authorization !== `Bearer ${esperado}`) {
+    return res.status(401).json({ error: 'No autorizado' });
+  }
+  next();
+}
+
+router.get('/cron/inactive-customers', soloCron, async (req, res) => {
+  try {
+    const { runInactiveCustomersCheck } = require('../jobs/inactive-customers.job');
+    await runInactiveCustomersCheck();
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/cron/backup', soloCron, async (req, res) => {
+  try {
+    const { runBackup } = require('../jobs/backup.job');
+    await runBackup();
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // === SHOPIFY WEBHOOKS ===
 router.post('/webhooks/shopify/orders-create', verifyShopifyWebhook, webhookController.handleOrderCreate);
 router.post('/webhooks/shopify/orders-paid', verifyShopifyWebhook, webhookController.handleOrderPaid);

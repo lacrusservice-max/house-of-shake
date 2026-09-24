@@ -1,69 +1,88 @@
 const cron = require('node-cron');
-const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const prisma = require('../config/prisma');
 const logger = require('../config/logger');
 
-// Uploads a backup file to Cloudflare R2 (S3-compatible)
-async function uploadToR2(filePath, fileName) {
-  if (!process.env.R2_ACCESS_KEY_ID || !process.env.R2_SECRET_ACCESS_KEY || !process.env.R2_BUCKET) {
-    logger.warn('[job:backup] R2 not configured — skipping upload (set R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET, R2_ENDPOINT)');
-    return;
-  }
+/**
+ * RESPALDO DE LA BASE
+ *
+ * La versión anterior llamaba a pg_dump por consola y subía el archivo a
+ * Cloudflare R2. Nunca produjo ni un respaldo: R2 jamás se configuró, así que
+ * la tarea se saltaba con un aviso, y cuando el proveedor suspendió la base no
+ * existía ninguna copia de los clientes ni de sus Pinos.
+ *
+ * Ahora lee las tablas con Prisma —sin depender de binarios externos, que no
+ * existen en un entorno sin servidor— y guarda un JSON. Destino: Vercel Blob
+ * si está configurado; si no, disco local. Nunca se salta en silencio: si no
+ * hay dónde guardar, lo dice fuerte.
+ */
 
-  const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
-  const client = new S3Client({
-    region: 'auto',
-    endpoint: process.env.R2_ENDPOINT,
-    credentials: {
-      accessKeyId: process.env.R2_ACCESS_KEY_ID,
-      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
-    },
+const TABLAS = ['customers', 'transactions', 'products', 'wallet_registrations', 'admin_users', 'config'];
+
+/** Los BigInt de Postgres no son serializables a JSON. */
+const reemplazo = (_k, v) => (typeof v === 'bigint' ? Number(v) : v);
+
+async function crearDump() {
+  const datos = { fecha: new Date().toISOString(), tablas: {} };
+  for (const t of TABLAS) {
+    try {
+      datos.tablas[t] = await prisma.$queryRawUnsafe(`SELECT * FROM ${t}`);
+    } catch (e) {
+      logger.warn(`[job:backup] tabla ${t} omitida: ${e.message}`);
+      datos.tablas[t] = [];
+    }
+  }
+  const n = datos.tablas.customers?.length || 0;
+  const m = datos.tablas.transactions?.length || 0;
+  logger.info(`[job:backup] Dump: ${n} clientes · ${m} movimientos`);
+  return { json: JSON.stringify(datos, reemplazo), clientes: n, movimientos: m };
+}
+
+/** Sube a Vercel Blob. Requiere BLOB_READ_WRITE_TOKEN. */
+async function subirABlob(nombre, json) {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return null;
+  const { put } = require('@vercel/blob');
+  const { url } = await put(`backups/${nombre}`, json, {
+    access: 'public',
+    contentType: 'application/json',
+    token: process.env.BLOB_READ_WRITE_TOKEN,
+    addRandomSuffix: false,
+  });
+  logger.info(`[job:backup] Subido a Vercel Blob: ${url}`);
+  return url;
+}
+
+async function runBackup() {
+  const { json, clientes, movimientos } = await crearDump();
+  const nombre = `hos-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.json`;
+
+  const url = await subirABlob(nombre, json).catch(e => {
+    logger.error(`[job:backup] Fallo al subir a Blob: ${e.message}`);
+    return null;
   });
 
-  const fileStream = fs.createReadStream(filePath);
-  await client.send(new PutObjectCommand({
-    Bucket: process.env.R2_BUCKET,
-    Key: `backups/db/${fileName}`,
-    Body: fileStream,
-    ContentType: 'application/gzip',
-  }));
+  if (url) return { destino: url, clientes, movimientos };
 
-  logger.info(`[job:backup] Backup subido a R2: backups/db/${fileName}`);
+  // Sin destino remoto, al menos queda una copia en disco. En un entorno sin
+  // servidor /tmp desaparece, así que esto es un último recurso, no un plan.
+  const dir = process.env.BACKUP_DIR || path.join(__dirname, '../../backups');
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    const ruta = path.join(dir, nombre);
+    fs.writeFileSync(ruta, json);
+    logger.warn(`[job:backup] ⚠️ Sin destino remoto. Copia local: ${ruta}`);
+    logger.warn('[job:backup] ⚠️ Configura BLOB_READ_WRITE_TOKEN para respaldo fuera del servidor.');
+    return { destino: ruta, clientes, movimientos, soloLocal: true };
+  } catch (e) {
+    logger.error(`[job:backup] ❌ SIN RESPALDO: ${e.message}`);
+    throw e;
+  }
 }
 
 function startBackupJob() {
-  // Runs every Sunday at 3:00 AM
-  cron.schedule('0 3 * * 0', async () => {
-    logger.info('[job:backup] Iniciando backup de base de datos...');
-
-    const dbUrl = process.env.DATABASE_URL;
-    if (!dbUrl) {
-      logger.warn('[job:backup] DATABASE_URL no configurado — backup omitido');
-      return;
-    }
-
-    const tmpDir = '/tmp';
-    const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const fileName = `hos-db-${ts}.sql.gz`;
-    const filePath = path.join(tmpDir, fileName);
-
-    try {
-      execSync(`pg_dump "${dbUrl}" | gzip > "${filePath}"`, { timeout: 120000 });
-      const stat = fs.statSync(filePath);
-      logger.info(`[job:backup] Dump creado: ${fileName} (${(stat.size / 1024).toFixed(0)} KB)`);
-
-      await uploadToR2(filePath, fileName);
-
-      fs.unlinkSync(filePath);
-      logger.info('[job:backup] Backup completado');
-    } catch (err) {
-      logger.error('[job:backup] Error:', err.message);
-      try { fs.unlinkSync(filePath); } catch (_) {}
-    }
-  }, { timezone: 'America/Mexico_City' });
-
+  cron.schedule('0 3 * * 0', () => runBackup().catch(() => {}), { timezone: 'America/Mexico_City' });
   logger.info('[job:backup] Job programado — domingos a las 3:00 AM');
 }
 
-module.exports = { startBackupJob };
+module.exports = { startBackupJob, runBackup };

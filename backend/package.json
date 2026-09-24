@@ -12,10 +12,13 @@
     "db:studio": "prisma studio",
     "db:seed": "node prisma/seed.js",
     "build:widget": "npm run build --prefix ../widget",
-    "setup": "node scripts/setup.js"
+    "setup": "node scripts/setup.js",
+    "vercel-build": "prisma generate",
+    "build": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^5.10.0",
+    "@vercel/blob": "^2.8.0",
     "apn": "^2.2.0",
     "archiver": "^7.0.1",
     "axios": "^1.6.7",
