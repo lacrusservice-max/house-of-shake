@@ -125,7 +125,11 @@ async function getLatestPass(req, res, next) {
 
     if (!customer) return res.status(401).json({ error: 'No autorizado' });
 
-    const passBuffer = await walletService.generatePass(customer);
+    // Sin esto, el pass que iOS regenera pierde el "SOCIO #" bajo el QR y cae
+    // al UUID: quedaba distinto del que el cliente descargó desde la web.
+    const { getMemberNumber } = require('../services/member');
+    const memberNumber = await getMemberNumber(customer.id);
+    const passBuffer = await walletService.generatePass({ ...customer, memberNumber });
     res.set({
       'Content-Type': 'application/vnd.apple.pkpass',
       'Last-Modified': customer.updatedAt.toUTCString(),

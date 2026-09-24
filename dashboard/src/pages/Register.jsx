@@ -4,11 +4,42 @@ import '../styles/mi-cuenta.css';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
+const BLUE   = '#0F448B';
+const WHITE  = '#FFFFFF';
+const BORDER = 'rgba(15,68,139,.15)';
+const MUTED  = 'rgba(15,68,139,.5)';
+
+/* ── Field definido FUERA de Register para evitar desmontaje en cada render ── */
+function Field({ label, type, placeholder, required, value, onChange, autoComplete, inputMode }) {
+  return (
+    <div>
+      <label style={labelStyle}>{label}</label>
+      <input
+        type={type || 'text'}
+        required={required !== false}
+        autoComplete={autoComplete}
+        inputMode={inputMode}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder || ''}
+        style={inputStyle}
+        onFocus={e => e.target.style.borderColor = BLUE}
+        onBlur={e => e.target.style.borderColor = BORDER}
+      />
+    </div>
+  );
+}
+
 export default function Register() {
-  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', birthday: '', password: '', confirm: '' });
-  const [error, setError] = useState('');
+  const [form, setForm] = useState({
+    firstName: '', lastName: '', email: '',
+    phone: '', birthday: '', password: '', confirm: '',
+  });
+  const [error, setError]     = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  const set = (key) => (e) => setForm(p => ({ ...p, [key]: e.target.value }));
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -19,7 +50,14 @@ export default function Register() {
       const res = await fetch(`${API}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ firstName: form.firstName, lastName: form.lastName, email: form.email, phone: form.phone, password: form.password, birthday: form.birthday || undefined }),
+        body: JSON.stringify({
+          firstName: form.firstName,
+          lastName:  form.lastName,
+          email:     form.email,
+          phone:     form.phone || undefined,
+          password:  form.password,
+          birthday:  form.birthday || undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al registrar');
@@ -33,109 +71,125 @@ export default function Register() {
     }
   }
 
-  function Field({ name, label, type = 'text', placeholder = '', required = true }) {
-    return (
-      <div>
-        <label style={labelStyle}>{label}</label>
-        <input type={type} required={required}
-          value={form[name]}
-          onChange={e => setForm(p => ({ ...p, [name]: e.target.value }))}
-          placeholder={placeholder}
-          style={inputStyle}
-          onFocus={e => e.target.style.borderColor = 'var(--gold)'}
-          onBlur={e => e.target.style.borderColor = 'rgba(251,247,240,.12)'}
-        />
-      </div>
-    );
-  }
-
   return (
-    <div className="mc-root" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <div className="mc-root auth-page">
 
-      {/* NAV */}
-      <nav className="mc-nav">
-        <Link to="/" className="mc-nav-brand">
-          <img src="/logo-white.png" alt="House of Shake" width="32" height="32" style={{ objectFit: "contain", borderRadius: 6 }} />
-          <span className="mc-nav-title">HOUSE OF SHAKE</span>
+      <header className="auth-header">
+        <Link to="/" className="auth-back">← Inicio</Link>
+        <Link to="/" className="auth-logo-link">
+          <img src="/logo-encabezado.png" alt="House of Shake" className="auth-logo" />
         </Link>
-      </nav>
+        <span className="auth-header-spacer" />
+      </header>
 
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px' }}>
-        <div style={{ width: '100%', maxWidth: 420 }}>
+      <div className="auth-body">
+        <div className="auth-card">
 
-          {/* Header */}
           <div style={{ textAlign: 'center', marginBottom: 32 }}>
-            <div className="mc-eyebrow" style={{ justifyContent: 'center' }}>
-              <span>Únete al programa</span>
-            </div>
-            <h1 className="mc-heading" style={{ fontSize: 46 }}>
+            <h1 className="mc-heading">
               Crear <span>cuenta</span>
             </h1>
-            <p className="mc-sub" style={{ marginTop: 8 }}>Empieza a ganar puntos desde hoy</p>
-
+            <p className="mc-sub" style={{ marginTop: 8 }}>
+              Empieza a ganar Pinos desde hoy
+            </p>
             <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              background: 'rgba(245,200,66,.08)', border: '1px solid rgba(245,200,66,.2)',
-              color: 'var(--gold)', fontSize: 12, fontWeight: 700, letterSpacing: 1,
-              padding: '8px 16px', borderRadius: 99, marginTop: 14,
+              display: 'inline-flex', alignItems: 'center',
+              background: 'rgba(15,68,139,.06)', border: '1px solid rgba(15,68,139,.18)',
+              color: BLUE, fontSize: 12, fontWeight: 700, letterSpacing: 1,
+              padding: '8px 18px', borderRadius: 99, marginTop: 14,
               fontFamily: "'Montserrat', sans-serif",
             }}>
-              🎁 Recibes 50 puntos de bienvenida
+              🌲 Recibes 10 Pinos de bienvenida
             </div>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-              <Field name="firstName" label="Nombre" placeholder="Juan" />
-              <Field name="lastName"  label="Apellido" placeholder="García" />
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <Field name="email" label="Email" type="email" placeholder="tu@email.com" />
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <Field name="phone" label="Teléfono (opcional)" type="tel" placeholder="+52 55 0000 0000" required={false} />
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <label style={labelStyle}>🎂 Fecha de cumpleaños (opcional)</label>
-              <input type="date"
-                value={form.birthday}
-                onChange={e => setForm(p => ({ ...p, birthday: e.target.value }))}
-                style={inputStyle}
-                onFocus={e => e.target.style.borderColor = 'var(--gold)'}
-                onBlur={e => e.target.style.borderColor = 'rgba(251,247,240,.12)'}
+          <form onSubmit={handleSubmit} noValidate>
+
+            <div className="auth-name-grid">
+              <Field
+                label="Nombre" placeholder="Juan"
+                value={form.firstName} onChange={set('firstName')}
+                autoComplete="given-name"
               />
-              <p style={{ fontSize: 10, color: 'rgba(251,247,240,.3)', marginTop: 4, fontFamily: "'Montserrat', sans-serif", letterSpacing: .5 }}>
-                Recibirás +200 puntos de regalo el día de tu cumpleaños
+              <Field
+                label="Apellido" placeholder="García"
+                value={form.lastName} onChange={set('lastName')}
+                autoComplete="family-name"
+              />
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <Field
+                label="Email" type="email" placeholder="tu@email.com"
+                value={form.email} onChange={set('email')}
+                autoComplete="email" inputMode="email"
+              />
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <Field
+                label="Teléfono (opcional)" type="tel"
+                placeholder="+52 55 0000 0000" required={false}
+                value={form.phone} onChange={set('phone')}
+                autoComplete="tel" inputMode="tel"
+              />
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={labelStyle}>Fecha de cumpleaños (opcional)</label>
+              <input
+                type="date"
+                value={form.birthday}
+                onChange={set('birthday')}
+                style={inputStyle}
+                onFocus={e => e.target.style.borderColor = BLUE}
+                onBlur={e => e.target.style.borderColor = BORDER}
+              />
+              <p style={{ fontSize: 11, color: MUTED, marginTop: 5, fontFamily: "'Montserrat', sans-serif" }}>
+                🎂 Recibirás +20 Pinos de regalo el día de tu cumpleaños
               </p>
             </div>
+
             <div style={{ marginBottom: 12 }}>
-              <Field name="password" label="Contraseña" type="password" placeholder="Mínimo 6 caracteres" />
-            </div>
-            <div style={{ marginBottom: 20 }}>
-              <Field name="confirm" label="Confirmar contraseña" type="password" placeholder="••••••••" />
+              <Field
+                label="Contraseña" type="password"
+                placeholder="Mínimo 6 caracteres"
+                value={form.password} onChange={set('password')}
+                autoComplete="new-password"
+              />
             </div>
 
-            {error && (
-              <div style={errorStyle}>{error}</div>
-            )}
+            <div style={{ marginBottom: 24 }}>
+              <Field
+                label="Confirmar contraseña" type="password"
+                placeholder="••••••••"
+                value={form.confirm} onChange={set('confirm')}
+                autoComplete="new-password"
+              />
+            </div>
 
-            <button type="submit" disabled={loading}
+            {error && <div style={errorStyle}>{error}</div>}
+
+            <button
+              type="submit"
+              disabled={loading}
               style={{
                 width: '100%', padding: '16px', borderRadius: 12,
-                background: 'var(--gold)', color: '#2C1A0E',
+                background: BLUE, color: WHITE,
                 border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
                 fontSize: 14, fontWeight: 800, letterSpacing: 1.5,
                 textTransform: 'uppercase', fontFamily: "'Montserrat', sans-serif",
                 opacity: loading ? .6 : 1, transition: 'opacity .2s',
-              }}>
+                display: 'block',
+              }}
+            >
               {loading ? 'Creando cuenta...' : '¡Crear mi cuenta! →'}
             </button>
           </form>
 
-          <p style={{ textAlign: 'center', marginTop: 24, fontSize: 13, color: 'rgba(251,247,240,.4)' }}>
+          <p style={{ textAlign: 'center', marginTop: 28, fontSize: 13, color: MUTED }}>
             ¿Ya tienes cuenta?{' '}
-            <Link to="/login" style={{ color: 'var(--gold)', fontWeight: 700, textDecoration: 'none' }}>
+            <Link to="/login" style={{ color: BLUE, fontWeight: 700, textDecoration: 'none' }}>
               Iniciar sesión
             </Link>
           </p>
@@ -152,27 +206,29 @@ const labelStyle = {
   fontWeight: 700,
   letterSpacing: 2,
   textTransform: 'uppercase',
-  color: 'rgba(251,247,240,.4)',
+  color: 'rgba(15,68,139,.5)',
   marginBottom: 8,
   fontFamily: "'Montserrat', sans-serif",
 };
 
 const inputStyle = {
   width: '100%',
-  background: 'rgba(251,247,240,.04)',
-  color: 'var(--cream)',
-  border: '1px solid rgba(251,247,240,.12)',
+  background: '#FFFFFF',
+  color: '#0F448B',
+  border: '1px solid rgba(15,68,139,.15)',
   borderRadius: 12,
   padding: '14px 16px',
   outline: 'none',
-  fontSize: 14,
+  fontSize: 16,
   fontFamily: "'Montserrat', sans-serif",
   transition: 'border-color .2s',
   boxSizing: 'border-box',
+  WebkitAppearance: 'none',
+  appearance: 'none',
 };
 
 const errorStyle = {
-  background: 'rgba(224,92,92,.1)',
+  background: 'rgba(224,92,92,.08)',
   border: '1px solid rgba(224,92,92,.25)',
   color: '#E05C5C',
   fontSize: 13,

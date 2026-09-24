@@ -190,8 +190,31 @@ async function forceUpdateWalletPass(req, res, next) {
     const customer = await prisma.customer.findUnique({ where: { id: customerId } });
     if (!customer) return res.status(404).json({ error: 'Cliente no encontrado' });
 
-    await walletService.sendPushUpdate(customer);
-    res.json({ success: true, message: `Push enviado a ${customer.email}` });
+    // Devuelve el resultado REAL de Apple. Antes respondía "Push enviado"
+    // siempre, incluso si APNs rechazaba los tokens o faltaba la credencial:
+    // no había forma de saber si la tarjeta se actualizó de verdad.
+    const r = await walletService.sendPushUpdate(customer);
+
+    if (!r) {
+      return res.status(503).json({
+        success: false,
+        error: 'APNs no está configurado — la tarjeta no puede avisarse al instante.',
+      });
+    }
+    if (r.sinDispositivos) {
+      return res.json({
+        success: true, enviados: 0, fallidos: 0, sinDispositivos: true,
+        message: `${customer.firstName} no tiene la tarjeta agregada en ningún iPhone.`,
+      });
+    }
+    res.json({
+      success: r.fallidos === 0,
+      enviados: r.enviados,
+      fallidos: r.fallidos,
+      message: r.fallidos === 0
+        ? `Apple aceptó el push en ${r.enviados} dispositivo(s) de ${customer.email}`
+        : `${r.enviados} aceptados, ${r.fallidos} rechazados`,
+    });
   } catch (err) {
     next(err);
   }
@@ -469,7 +492,11 @@ async function getFinancialStats(req, res, next) {
     }
 
     const config = await prisma.config.findFirst();
-    const redeemRatio = config ? (config.redeemValueUsd / config.pointsToRedeem) : 0.05;
+    // Con canje por categoría ya no hay una equivalencia fija Pino→dinero.
+    // Se valora cada canje al precio real del producto entregado; a falta de
+    // ese dato, 1 Pino ≈ $1 MXN, que es lo que costó generarlo ($10 = 1 Pino
+    // no aplica aquí: el cliente gastó $10 para ganar 1 Pino).
+    const redeemRatio = 0.1;
 
     const [earnTxs, redeemTxs, monthlyEarn, staffActivity] = await Promise.all([
       // Ingresos (ventas registradas en POS con orderAmount)
@@ -707,7 +734,46 @@ async function getPublicStats(req, res, next) {
   }
 }
 
+
+// ── Licencia de servicio ─────────────────────────────────────────────────────
+// Estas rutas jamás pasan por requireActiveLicense: son las que permiten
+// reactivar, y bloquearlas cerraría el sistema con la llave dentro.
+const licenseService = require('../services/license');
+
+async function getLicense(req, res) {
+  try {
+    res.json(await licenseService.getStatus());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+async function renewLicense(req, res) {
+  try {
+    const st = await licenseService.renew(req.body?.days);
+    logger.info(`🔑 Licencia renovada por ${req.admin?.email}`);
+    res.json({ success: true, ...st });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}
+
+async function setLicense(req, res) {
+  try {
+    const { until } = req.body || {};
+    const st = await licenseService.setUntil(until === null || until === '' ? null : until);
+    logger.info(`🔑 Licencia fijada por ${req.admin?.email}: ${st.until || 'sin límite'}`);
+    res.json({ success: true, ...st });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}
+
+
 module.exports = {
+  getLicense,
+  renewLicense,
+  setLicense,
   login,
   refreshToken,
   getDashboardStats,

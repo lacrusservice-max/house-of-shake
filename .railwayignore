@@ -1,0 +1,33 @@
+# El backend se despliega desde la raíz del repo (el servicio busca
+# backend/Dockerfile), así que hay que excluir todo lo que no necesita el
+# contenedor: assets de diseño, el frontend (va a Vercel) y dependencias.
+node_modules/
+dist/
+build/
+
+# Frontend — se despliega en Vercel, no en Railway
+dashboard/
+
+# Material de origen y diseño: pesa ~55 MB y no lo usa el backend
+PRODUCTOS/
+PRODUCTOS-CAMBIO/
+CAPTURAS STAFF/
+DISEÑO APPLE Wallet/
+widget/
+*.png
+*.jpg
+*.jpeg
+*.mp4
+*.pkpass
+Guia-Staff-House-of-Shake.html
+
+# Los assets que el backend SÍ necesita para el pass de Apple Wallet
+!backend/assets/**
+!backend/pass-template/**
+!backend/pass-template.pass/**
+
+logs/
+*.log
+.DS_Store
+.git/
+.claude/

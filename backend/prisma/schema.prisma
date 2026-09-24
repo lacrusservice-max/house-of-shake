@@ -7,6 +7,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// NOTA: member_number, birthday, visit_count, last_visit_at y birthday_reward_year
+// existen en la tabla pero NO se declaran aquí a propósito. Se crean y se leen con
+// SQL crudo desde setupDatabase()/services/member.js. Si se declararan, Prisma las
+// incluiría en cada SELECT y toda consulta de clientes fallaría en el arranque
+// anterior a que la columna exista.
 model Customer {
   id                String        @id @default(uuid())
   shopifyCustomerId String?       @unique

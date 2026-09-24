@@ -3,35 +3,54 @@ const pointsService = require('../services/points.service');
 const walletService = require('../services/wallet.service');
 const shopifyService = require('../services/shopify.service');
 const { getRedis } = require('../config/redis');
+const { normalizeEmail, assignMemberNumber, getMemberNumber } = require('../services/member');
 const logger = require('../config/logger');
 
 async function getOrCreateCustomer(req, res, next) {
   try {
-    const { email, shopifyCustomerId, firstName, lastName, phone } = req.body;
+    const { shopifyCustomerId, firstName, lastName, phone } = req.body;
+    const email = normalizeEmail(req.body.email);
 
     if (!email && !shopifyCustomerId) {
       return res.status(400).json({ error: 'Email o shopifyCustomerId requerido' });
     }
 
-    let customer = shopifyCustomerId
-      ? await prisma.customer.findUnique({ where: { shopifyCustomerId } })
-      : await prisma.customer.findUnique({ where: { email } });
+    // Busca por Shopify ID y también por email: un mismo cliente puede llegar
+    // por la tienda online y por caja, y no debe terminar con dos cuentas.
+    let customer = null;
+    if (shopifyCustomerId) {
+      customer = await prisma.customer.findUnique({ where: { shopifyCustomerId } });
+    }
+    if (!customer && email) {
+      customer = await prisma.customer.findFirst({
+        where: { email: { equals: email, mode: 'insensitive' } },
+      });
+      // Enlaza la cuenta existente con Shopify en vez de duplicarla
+      if (customer && shopifyCustomerId && !customer.shopifyCustomerId) {
+        customer = await prisma.customer.update({
+          where: { id: customer.id },
+          data: { shopifyCustomerId },
+        });
+      }
+    }
 
     if (!customer) {
       customer = await prisma.customer.create({
         data: {
-          shopifyCustomerId: shopifyCustomerId || `manual_${Date.now()}`,
+          shopifyCustomerId: shopifyCustomerId || null,
           email,
           firstName: firstName || '',
           lastName: lastName || '',
-          phone,
+          phone: phone || null,
         },
       });
+      await assignMemberNumber(customer.id);
       await pointsService.addWelcomeBonus(customer.id);
       customer = await prisma.customer.findUnique({ where: { id: customer.id } });
     }
 
-    res.json({ customer });
+    const memberNumber = await getMemberNumber(customer.id);
+    res.json({ customer: { ...customer, memberNumber } });
   } catch (err) {
     next(err);
   }
@@ -110,7 +129,9 @@ async function redeemPoints(req, res, next) {
     const result = await pointsService.redeemPoints(id, points);
 
     // Crear código de descuento en Shopify
-    const discount = await shopifyService.createDiscountCode(id, result.discountUsd);
+    // El valor en dinero salía de la economía vieja (1 Pino = $1). Con canje por
+    // categoría ya no hay una equivalencia fija, así que se usa el saldo en Pinos.
+    const discount = await shopifyService.createDiscountCode(id, result.pinosRedeemed);
 
     const customer = await prisma.customer.findUnique({ where: { id } });
     await walletService.sendPushUpdate(customer);
@@ -145,7 +166,10 @@ async function downloadWalletPass(req, res, next) {
       });
     }
 
-    const passBuffer = await walletService.generatePass(customer);
+    // El número de socio va bajo el QR del pass: si la cámara no lo lee, el
+    // staff puede teclearlo.
+    const memberNumber = await getMemberNumber(customer.id);
+    const passBuffer = await walletService.generatePass({ ...customer, memberNumber });
     res.set({
       'Content-Type': 'application/vnd.apple.pkpass',
       'Content-Disposition': `attachment; filename="houseofshake.pkpass"`,
@@ -180,16 +204,30 @@ async function getPublicProfile(req, res, next) {
 
 async function quickRegisterFromPOS(req, res, next) {
   try {
-    const { firstName, lastName, email, phone } = req.body;
-    if (!email) return res.status(400).json({ error: 'Email requerido' });
-    if (!firstName) return res.status(400).json({ error: 'Nombre requerido' });
+    const { firstName, lastName, phone } = req.body;
+    const email = normalizeEmail(req.body.email);
 
-    const existing = await prisma.customer.findUnique({ where: { email: email.toLowerCase() } });
+    if (!email) return res.status(400).json({ error: 'Email requerido' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: 'Ese correo no parece válido' });
+    }
+    if (!firstName || !String(firstName).trim()) {
+      return res.status(400).json({ error: 'Nombre requerido' });
+    }
+
+    const existing = await prisma.customer.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
+    });
     if (existing) {
-      return res.status(409).json({
-        error: 'Ya existe una cuenta con ese email',
+      // No es un error para el staff: el cliente ya estaba dado de alta, así que
+      // se le devuelve su ficha lista para cobrar en vez de un mensaje muerto.
+      const memberNumber = await getMemberNumber(existing.id);
+      return res.status(200).json({
+        alreadyExisted: true,
+        message: `${existing.firstName} ya estaba registrado — puedes cobrarle directo.`,
         customer: {
           id: existing.id,
+          memberNumber,
           firstName: existing.firstName,
           lastName: existing.lastName,
           email: existing.email,
@@ -203,20 +241,27 @@ async function quickRegisterFromPOS(req, res, next) {
 
     const customer = await prisma.customer.create({
       data: {
-        shopifyCustomerId: `pos_${Date.now()}`,
-        email: email.toLowerCase(),
-        firstName,
-        lastName: lastName || '',
-        phone: phone || null,
+        // shopifyCustomerId queda null: rellenarlo con "pos_<timestamp>" impedía
+        // enlazar después la cuenta real de Shopify de este mismo cliente.
+        shopifyCustomerId: null,
+        email,
+        firstName: String(firstName).trim(),
+        lastName: String(lastName || '').trim(),
+        phone: String(phone || '').trim() || null,
       },
     });
 
+    const memberNumber = await assignMemberNumber(customer.id);
     await pointsService.addWelcomeBonus(customer.id);
     const updated = await prisma.customer.findUnique({ where: { id: customer.id } });
 
+    logger.info(`🆕 Cliente dado de alta en caja: ${email} (socio #${memberNumber}) por ${req.admin?.email || 'POS'}`);
+
     res.status(201).json({
+      alreadyExisted: false,
       customer: {
         id: updated.id,
+        memberNumber,
         firstName: updated.firstName,
         lastName: updated.lastName,
         email: updated.email,
@@ -227,6 +272,7 @@ async function quickRegisterFromPOS(req, res, next) {
       },
     });
   } catch (err) {
+    logger.error('quickRegisterFromPOS error:', err.message);
     next(err);
   }
 }
