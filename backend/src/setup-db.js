@@ -187,14 +187,38 @@ async function setupDatabase() {
     } catch (e) { /* ignore */ }
   }
 
-  // 4. Fix welcomeBonus to 100 pts (= 10 Pinos) if still at old default of 50
+  // 4. La fila de configuración.
+  //
+  //    Antes este bloque SOLO actualizaba la fila si ya existía. En una base
+  //    nueva la tabla está vacía, así que nunca se creaba y todo lo que lee la
+  //    configuración reventaba con "Cannot read properties of null": el
+  //    registro de clientes quedaba roto y el sistema no podía arrancar de
+  //    cero. Solo se notó al migrar de proveedor.
   try {
-    const cfg = await prisma.config.findFirst();
-    if (cfg && cfg.welcomeBonus < 100) {
+    let cfg = await prisma.config.findFirst();
+
+    if (!cfg) {
+      cfg = await prisma.config.create({
+        data: {
+          pointsPerDollar:    parseFloat(process.env.POINTS_PER_DOLLAR   || '1'),
+          pointsToRedeem:     parseInt(process.env.POINTS_TO_REDEEM      || '100', 10),
+          redeemValueUsd:     parseFloat(process.env.REDEEM_VALUE_USD    || '5'),
+          welcomeBonus:       parseInt(process.env.POINTS_WELCOME_BONUS  || '100', 10),
+          expiryMonths:       parseInt(process.env.POINTS_EXPIRY_MONTHS  || '12', 10),
+          silverThreshold:    parseInt(process.env.SILVER_THRESHOLD      || '101', 10),
+          goldThreshold:      parseInt(process.env.GOLD_THRESHOLD        || '301', 10),
+          silverBonusPercent: parseFloat(process.env.SILVER_BONUS_PERCENT || '10'),
+          goldBonusPercent:   parseFloat(process.env.GOLD_BONUS_PERCENT   || '20'),
+        },
+      });
+      logger.info('✅ Configuración inicial creada');
+    }
+
+    if (cfg.welcomeBonus < 100) {
       await prisma.config.updateMany({ data: { welcomeBonus: 100 } });
       logger.info('✅ welcomeBonus actualizado a 100 (10 Pinos)');
     }
-  } catch (e) { logger.warn('Config update:', e.message); }
+  } catch (e) { logger.warn('Config:', e.message); }
 
   // 5. Sincroniza la tabla `products` con el menú público (src/data/menu.js).
   //    Es la MISMA lista que ve el cliente en la web, así que el catálogo de

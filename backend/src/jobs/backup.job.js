@@ -43,8 +43,10 @@ async function crearDump() {
 async function subirABlob(nombre, json) {
   if (!process.env.BLOB_READ_WRITE_TOKEN) return null;
   const { put } = require('@vercel/blob');
+  // PRIVADO: el respaldo lleva correos, teléfonos y contraseñas cifradas de
+  // los clientes. Un enlace público sería una filtración de datos personales.
   const { url } = await put(`backups/${nombre}`, json, {
-    access: 'public',
+    access: 'private',
     contentType: 'application/json',
     token: process.env.BLOB_READ_WRITE_TOKEN,
     addRandomSuffix: false,

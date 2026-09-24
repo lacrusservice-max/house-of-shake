@@ -23,8 +23,16 @@ const logger = require('./config/logger');
 const routes = require('./routes/index');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 
-const logDir = process.env.LOG_DIR || './logs';
-if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+// Sin servidor el disco es de solo lectura salvo /tmp, así que crear la
+// carpeta de registros al arrancar reventaba con EROFS y tumbaba TODA la API.
+const esServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+const logDir = process.env.LOG_DIR || (esServerless ? '/tmp/logs' : './logs');
+try {
+  if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+} catch (e) {
+  // Que no se pueda escribir un registro jamás debe impedir servir peticiones.
+  console.warn('No se pudo crear la carpeta de registros:', e.message);
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
