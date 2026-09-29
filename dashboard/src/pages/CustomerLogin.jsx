@@ -152,10 +152,12 @@ export default function CustomerLogin() {
                 <strong style={{ display: 'block', marginBottom: 6 }}>
                   ¿Ya eras cliente y no puedes entrar?
                 </strong>
-                Cambiamos el sistema a una plataforma nueva. Regístrate otra vez
-                con <strong>este mismo correo</strong>: es rápido y{' '}
-                <strong>tus Pinos no se perdieron</strong> — se te devuelven a tu
-                cuenta en cuanto termine la mudanza.
+                Tuvimos una falla en el servidor y las cuentas anteriores se
+                perdieron. Regístrate otra vez con <strong>este mismo correo</strong>:
+                toma menos de un minuto y te damos{' '}
+                <strong>10 Pinos de bienvenida</strong>. Si tenías Pinos
+                acumulados, muéstrale este mensaje al personal en barra y te los
+                reponen.
                 <Link to="/registro" style={{ display: 'block', marginTop: 10, color: BLUE, fontWeight: 800, textDecoration: 'underline' }}>
                   Registrarme con mi mismo correo →
                 </Link>
