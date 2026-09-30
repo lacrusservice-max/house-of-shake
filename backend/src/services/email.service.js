@@ -12,167 +12,254 @@ function getResend() {
 
 const FROM = process.env.EMAIL_FROM || 'House of Shake <noreply@houseofshake.com>';
 
+/** ¿Hay proveedor de correo configurado? Sin esto no sale ni un solo email. */
+function isConfigured() {
+  return !!process.env.RESEND_API_KEY;
+}
+
+let avisoFaltaKey = false;
+
 async function send(to, subject, html) {
   const client = getResend();
   if (!client) {
-    logger.debug(`[email skip — no RESEND_API_KEY] To: ${to} | Subject: ${subject}`);
-    return;
+    // Antes esto era logger.debug: el envío se saltaba en silencio y nadie se
+    // enteraba de que NINGÚN correo salía (bienvenida, Pinos, reset de
+    // contraseña). Ahora avisa fuerte una vez y deja rastro en cada intento.
+    if (!avisoFaltaKey) {
+      logger.error(
+        '⚠️  RESEND_API_KEY no está configurada — NO se está enviando ningún correo ' +
+        '(bienvenida, puntos, recuperación de contraseña). Configúrala en las ' +
+        'variables de entorno para activarlos.'
+      );
+      avisoFaltaKey = true;
+    }
+    logger.warn(`[correo NO enviado — falta RESEND_API_KEY] Para: ${to} | Asunto: ${subject}`);
+    return { sent: false, reason: 'not_configured' };
   }
   try {
-    await client.emails.send({ from: FROM, to, subject, html });
+    const res = await client.emails.send({ from: FROM, to, subject, html });
+    if (res?.error) {
+      logger.error(`[error de correo] ${to} — ${res.error.message || JSON.stringify(res.error)}`);
+      return { sent: false, reason: res.error.message || 'rechazado por el proveedor' };
+    }
+    logger.info(`📧 Correo enviado a ${to} — ${subject} (id ${res?.data?.id || '—'})`);
+    return { sent: true, id: res?.data?.id };
   } catch (err) {
-    logger.warn(`[email error] ${err.message}`);
+    logger.error(`[error de correo] ${to} — ${err.message}`);
+    return { sent: false, reason: err.message };
   }
 }
 
-// ── Templates ────────────────────────────────────────────────────────────────
+// ── Plantilla ────────────────────────────────────────────────────────────────
+//
+// Solo dos colores, los mismos de la web: azul #0F448B y blanco.
+// Fondo totalmente blanco, sin grises ni crema, y el logo del encabezado en grande.
 
-const NAVY = '#1B2F56';
-const GOLD  = '#C8961E';
-const CREAM = '#FBF7F0';
+const BLUE      = '#0F448B';
+const BLUE_SOFT = 'rgba(15,68,139,.06)';
+const LINE      = 'rgba(15,68,139,.14)';
+const TEXT      = '#0F448B';
+const TEXT_SOFT = 'rgba(15,68,139,.65)';
+
+const LOGO = 'https://house-of-shake.vercel.app/logo-encabezado.png';
+const SITE = 'https://house-of-shake.vercel.app';
 
 function baseLayout(body) {
   return `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<style>
-  body { margin:0; padding:0; background:#f4f4f4; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
-  .wrap { max-width:580px; margin:32px auto; background:#fff; border-radius:16px; overflow:hidden; }
-  .hdr { background:${NAVY}; padding:28px 32px; text-align:center; }
-  .hdr img { height:44px; }
-  .hdr h1 { color:${CREAM}; margin:12px 0 0; font-size:20px; font-weight:800; letter-spacing:1px; }
-  .body { padding:32px; color:#333; font-size:15px; line-height:1.7; }
-  .pts-box { background:${NAVY}; border-radius:12px; padding:20px 24px; text-align:center; margin:20px 0; }
-  .pts-num { font-size:44px; font-weight:900; color:${GOLD}; line-height:1; }
-  .pts-lbl { color:${CREAM}; font-size:12px; letter-spacing:2px; text-transform:uppercase; margin-top:4px; }
-  .btn { display:inline-block; background:${GOLD}; color:#2C1A0E; padding:14px 32px; border-radius:10px; font-weight:800; text-decoration:none; font-size:14px; letter-spacing:.5px; margin-top:8px; }
-  .ftr { background:#f8f8f8; padding:16px 32px; font-size:11px; color:#aaa; text-align:center; }
-  .level-badge { display:inline-block; background:${GOLD}; color:#2C1A0E; padding:4px 14px; border-radius:20px; font-weight:800; font-size:12px; letter-spacing:1px; text-transform:uppercase; }
-  .product-row { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f0f0f0; font-size:14px; }
-  .product-pts { font-weight:800; color:${GOLD}; }
-</style>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light only">
+<meta name="supported-color-schemes" content="light only">
 </head>
-<body>
-<div class="wrap">
-  <div class="hdr">
-    <img src="https://house-of-shake.vercel.app/logo-white.png" alt="House of Shake" />
-    <h1>HOUSE OF SHAKE</h1>
-  </div>
-  <div class="body">${body}</div>
-  <div class="ftr">House of Shake · Puebla, México<br>
-    <a href="https://house-of-shake.vercel.app/mi-cuenta" style="color:${GOLD}">Ver mi cuenta de puntos</a>
-  </div>
-</div>
-</body></html>`;
+<body style="margin:0;padding:0;background:#FFFFFF;">
+  <!-- Tablas y estilos en línea: Gmail y Outlook ignoran gran parte del CSS
+       en <style>, y con clases el correo llegaba sin formato. -->
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+         style="background:#FFFFFF;margin:0;padding:0;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+               style="max-width:560px;background:#FFFFFF;">
+
+          <!-- Logo grande, el mismo del encabezado de la web -->
+          <tr>
+            <td align="center" style="padding:8px 0 28px;">
+              <img src="${LOGO}" alt="House of Shake" width="220"
+                   style="display:block;width:220px;max-width:70%;height:auto;border:0;outline:none;text-decoration:none;">
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:0 8px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
+                       font-size:15px;line-height:1.75;color:${TEXT_SOFT};">
+              ${body}
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:32px 8px 0;">
+              <div style="border-top:1px solid ${LINE};padding-top:18px;
+                          font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
+                          font-size:12px;line-height:1.7;color:${TEXT_SOFT};text-align:center;">
+                House of Shake · Av. Teziutlán Nte. 42, La Paz, Puebla<br>
+                <a href="${SITE}/mi-cuenta" style="color:${BLUE};font-weight:700;text-decoration:none;">
+                  Ver mi cuenta
+                </a>
+              </div>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
 }
+
+/** Título de sección, en azul. */
+function heading(text) {
+  return `<h1 style="margin:0 0 16px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
+                     font-size:26px;line-height:1.2;font-weight:800;color:${BLUE};
+                     letter-spacing:-.3px;">${text}</h1>`;
+}
+
+/** Botón azul con texto SIEMPRE blanco. */
+function button(label, href) {
+  return `
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center"
+           style="margin:26px auto 8px;">
+      <tr>
+        <td align="center" bgcolor="${BLUE}" style="border-radius:12px;">
+          <a href="${href}"
+             style="display:inline-block;padding:15px 34px;background:${BLUE};
+                    color:#FFFFFF;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
+                    font-size:14px;font-weight:800;letter-spacing:1px;text-transform:uppercase;
+                    text-decoration:none;border-radius:12px;">${label}</a>
+        </td>
+      </tr>
+    </table>`;
+}
+
+/** Cifra destacada: azul sobre fondo blanco con borde suave. */
+function bigNumber(value, label) {
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+           style="margin:22px 0;">
+      <tr>
+        <td align="center" style="background:${BLUE_SOFT};border:1px solid ${LINE};
+                                  border-radius:16px;padding:24px 20px;">
+          <div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:46px;
+                      line-height:1;font-weight:800;color:${BLUE};">${value}</div>
+          <div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;
+                      letter-spacing:2px;text-transform:uppercase;color:${TEXT_SOFT};
+                      margin-top:8px;font-weight:700;">${label}</div>
+        </td>
+      </tr>
+    </table>`;
+}
+
+const p = (t) => `<p style="margin:0 0 14px;">${t}</p>`;
+const strong = (t) => `<strong style="color:${TEXT};font-weight:800;">${t}</strong>`;
+const small = (t) => `<p style="margin:18px 0 0;font-size:12.5px;line-height:1.65;color:${TEXT_SOFT};">${t}</p>`;
+
+// ── Correos ──────────────────────────────────────────────────────────────────
 
 async function sendPointsEarned({ to, firstName, pointsAdded, newBalance }) {
-  const pinesAdded   = Math.floor(pointsAdded / 10);
-  const pinesTotal   = Math.floor(newBalance / 10);
-  const pinesInCycle = pinesTotal % 120;
-  const pinesLeft    = 120 - pinesInCycle;
-
+  const pinos = (v) => {
+    const n = Math.round((v / 10) * 10) / 10;
+    return Number.isInteger(n) ? String(n) : n.toFixed(1);
+  };
   const body = `
-    <p>Hola <strong>${firstName}</strong>,</p>
-    <p>¡Acabas de acumular Pinos en tu visita a House of Shake! 🌲</p>
-    <div class="pts-box">
-      <div class="pts-num">+${pinesAdded} 🌲</div>
-      <div class="pts-lbl">Pinos ganados</div>
-    </div>
-    <p style="text-align:center;color:#666;font-size:14px">
-      Pinos en tu ciclo: <strong style="color:${NAVY}">${pinesInCycle} / 120</strong>
-      ${pinesInCycle >= 120 ? '&nbsp;·&nbsp; <strong style="color:#16a34a">¡Bebida lista!</strong>' : `&nbsp;·&nbsp; Te faltan <strong>${pinesLeft}</strong> para bebida gratis`}
-    </p>
-    <p style="text-align:center;margin-top:24px">
-      <a class="btn" href="https://house-of-shake.vercel.app/mi-cuenta">Ver mis Pinos</a>
-    </p>
-    <p style="color:#aaa;font-size:12px;margin-top:20px">1 Pino = $10 MXN · 120 Pinos = bebida gratis hasta $90 MXN</p>
+    ${heading('Sumaste Pinos')}
+    ${p(`Hola ${strong(firstName)}, gracias por tu visita a House of Shake.`)}
+    ${bigNumber(`+${pinos(pointsAdded)}`, 'Pinos ganados')}
+    ${p(`Tu saldo ahora es de ${strong(pinos(newBalance) + ' Pinos')}.`)}
+    ${button('Ver mis Pinos', `${SITE}/mi-cuenta`)}
+    ${small('Ganas 1 Pino por cada $10 MXN. Desde 100 Pinos ya puedes canjear un producto gratis.')}
   `;
-  await send(to, `+${pinesAdded} Pinos 🌲 en House of Shake`, baseLayout(body));
+  return send(to, `Sumaste ${pinos(pointsAdded)} Pinos en House of Shake`, baseLayout(body));
 }
 
-async function sendLevelUp({ to, firstName, newLevel, newBalance }) {
-  // En el sistema de Pinos no hay niveles visibles; este email solo se usa internamente.
-  // Lo mantenemos silencioso (no enviamos nada al cliente).
-  logger.debug(`sendLevelUp skipped for ${to} — no hay niveles en el sistema de Pinos`);
+async function sendLevelUp({ to }) {
+  // El sistema de Pinos no tiene niveles visibles: no se envía nada al cliente.
+  logger.debug(`sendLevelUp omitido para ${to} — no hay niveles en el sistema de Pinos`);
+  return { sent: false, reason: 'sin_niveles' };
 }
 
-async function sendPointsRedeemed({ to, firstName, pointsRedeemed, discountMxn, newBalance }) {
+async function sendPointsRedeemed({ to, firstName, pointsRedeemed, newBalance }) {
+  const pinos = (v) => Math.round(v / 10);
   const body = `
-    <p>Hola <strong>${firstName}</strong>,</p>
-    <p>Tu canje de puntos fue aplicado exitosamente en tu visita a House of Shake.</p>
-    <div class="pts-box">
-      <div class="pts-num">$${parseFloat(discountMxn).toFixed(0)} MXN</div>
-      <div class="pts-lbl">descuento aplicado · ${pointsRedeemed} pts canjeados</div>
-    </div>
-    <p style="text-align:center;color:#666;font-size:14px">
-      Puntos restantes: <strong style="color:${NAVY}">${newBalance} puntos</strong>
-    </p>
-    <p style="text-align:center;margin-top:24px">
-      <a class="btn" href="https://house-of-shake.vercel.app/mi-cuenta">Ver mi cuenta</a>
-    </p>
+    ${heading('Canje realizado')}
+    ${p(`Hola ${strong(firstName)}, tu canje se aplicó correctamente.`)}
+    ${bigNumber(`${pinos(pointsRedeemed)}`, 'Pinos canjeados')}
+    ${p(`Te quedan ${strong(pinos(newBalance) + ' Pinos')} disponibles.`)}
+    ${button('Ver mi cuenta', `${SITE}/mi-cuenta`)}
   `;
-  await send(to, `Canje exitoso — $${parseFloat(discountMxn).toFixed(0)} MXN de descuento`, baseLayout(body));
+  return send(to, 'Canje realizado — House of Shake', baseLayout(body));
 }
 
 async function sendWelcome({ to, firstName, availablePoints = 0 }) {
-  const pinesBonus = Math.floor(availablePoints / 10);
+  const bonus = Math.round(availablePoints / 10);
   const body = `
-    <p>Hola <strong>${firstName}</strong>,</p>
-    <p>Bienvenido a la membresía House of Shake. A partir de ahora, cada visita suma Pinos. 🌲</p>
-    <div class="pts-box">
-      <div class="pts-num" style="font-size:32px">🌲 BIENVENIDO</div>
-      <div class="pts-lbl" style="margin-top:4px">
-        ${pinesBonus > 0 ? `+${pinesBonus} Pinos de regalo — ya puedes usarlos` : 'Membresía activa — listo para acumular'}
-      </div>
-    </div>
-    <p><strong>¿Cómo funciona?</strong></p>
-    <ul style="color:#555;font-size:14px;line-height:2">
-      <li>Ganas <strong>1 Pino por cada $10 MXN</strong> que consumas</li>
-      <li>Con <strong>120 Pinos</strong> obtienes una bebida gratis hasta $90 MXN</li>
-      <li>Muestra tu código QR al staff antes de pagar</li>
-      <li>Bonus: +20 Pinos en tu cumpleaños 🎂 · Pinos dobles en temporadas especiales ⚡</li>
-    </ul>
-    <p style="text-align:center;margin-top:24px">
-      <a class="btn" href="https://house-of-shake.vercel.app/mi-cuenta">Ver mis Pinos</a>
-    </p>
+    ${heading('Bienvenido a House of Shake')}
+    ${p(`Hola ${strong(firstName)}, tu membresía ya está activa. Desde hoy, cada visita suma.`)}
+    ${bonus > 0 ? bigNumber(`${bonus}`, 'Pinos de regalo') : ''}
+    ${p(strong('Cómo funciona'))}
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:4px 0 8px;">
+      ${[
+        'Ganas 1 Pino por cada $10 MXN que consumas.',
+        'Desde 100 Pinos puedes canjear un producto gratis.',
+        'Repostería 100 · Cafés y bebidas 110 · Milkshakes y alimentos 120 Pinos.',
+        'Muestra tu código QR al staff antes de pagar.',
+      ].map(t => `
+      <tr>
+        <td width="18" valign="top" style="padding:5px 0;color:${BLUE};font-weight:800;">·</td>
+        <td style="padding:5px 0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
+                   font-size:14.5px;line-height:1.65;color:${TEXT_SOFT};">${t}</td>
+      </tr>`).join('')}
+    </table>
+    ${button('Ver mi cuenta', `${SITE}/mi-cuenta`)}
   `;
-  await send(to, 'Bienvenido a House of Shake — Membresía activa 🌲', baseLayout(body));
+  return send(to, 'Bienvenido a House of Shake', baseLayout(body));
 }
 
 async function sendPasswordReset({ to, firstName, resetLink }) {
   const body = `
-    <p>Hola <strong>${firstName}</strong>,</p>
-    <p>Recibimos una solicitud para restablecer tu contraseña de House of Shake Rewards.</p>
-    <p style="text-align:center;margin-top:24px">
-      <a class="btn" href="${resetLink}">Crear nueva contraseña</a>
-    </p>
-    <p style="color:#888;font-size:12px;margin-top:20px">
-      Este enlace expira en 30 minutos. Si tú no solicitaste esto, puedes ignorar este correo — tu contraseña actual sigue funcionando normalmente.
-    </p>
+    ${heading('Recupera tu contraseña')}
+    ${p(`Hola ${strong(firstName)}, recibimos una solicitud para restablecer la contraseña de tu cuenta.`)}
+    ${p('Toca el botón para elegir una nueva:')}
+    ${button('Crear nueva contraseña', resetLink)}
+    ${small(`Este enlace expira en 30 minutos. Si no fuiste tú, ignora este correo — tu contraseña actual sigue funcionando.`)}
+    ${small(`¿El botón no funciona? Copia y pega este enlace:<br>
+      <a href="${resetLink}" style="color:${BLUE};word-break:break-all;">${resetLink}</a>`)}
   `;
-  await send(to, 'Restablece tu contraseña — House of Shake', baseLayout(body));
+  return send(to, 'Recupera tu contraseña — House of Shake', baseLayout(body));
 }
 
 async function sendInactiveReminder({ to, firstName, availablePoints, daysSinceVisit }) {
+  const pinos = Math.round(availablePoints / 10);
   const body = `
-    <p>Hola <strong>${firstName}</strong>,</p>
-    <p>Hace ${daysSinceVisit} días que no te vemos por House of Shake — ¡te extrañamos!</p>
-    ${availablePoints > 0
-      ? `<div class="pts-box">
-           <div class="pts-num">${Math.floor(availablePoints / 10)} 🌲</div>
-           <div class="pts-lbl">Pinos esperándote</div>
-         </div>
-         <p style="text-align:center;color:#666;font-size:14px">
-           Te faltan <strong style="color:${NAVY}">${120 - (Math.floor(availablePoints / 10) % 120)} Pinos</strong> para tu bebida gratis
-         </p>`
-      : `<p>Todavía no tienes Pinos — tu próxima visita es el mejor momento para empezar.</p>`
-    }
-    <p style="text-align:center;margin-top:24px">
-      <a class="btn" href="https://house-of-shake.vercel.app">Visitarnos hoy</a>
-    </p>
+    ${heading('Te extrañamos')}
+    ${p(`Hola ${strong(firstName)}, hace ${daysSinceVisit} días que no te vemos por House of Shake.`)}
+    ${pinos > 0
+      ? bigNumber(`${pinos}`, 'Pinos esperándote') + p(pinos >= 100
+          ? `Ya te alcanza para canjear un producto ${strong('gratis')}.`
+          : `Te faltan ${strong((100 - pinos) + ' Pinos')} para tu primer premio.`)
+      : p('Tu próxima visita es el mejor momento para empezar a acumular.')}
+    ${button('Ver el menú', `${SITE}/menu`)}
   `;
-  await send(to, `Te extrañamos en House of Shake ☕ — tienes ${Math.floor(availablePoints / 10)} Pinos`, baseLayout(body));
+  return send(to, `Te extrañamos en House of Shake`, baseLayout(body));
 }
 
-module.exports = { sendPointsEarned, sendLevelUp, sendPointsRedeemed, sendWelcome, sendPasswordReset, sendInactiveReminder };
+module.exports = {
+  sendPointsEarned,
+  sendLevelUp,
+  sendPointsRedeemed,
+  sendWelcome,
+  sendPasswordReset,
+  sendInactiveReminder,
+  isConfigured,
+};

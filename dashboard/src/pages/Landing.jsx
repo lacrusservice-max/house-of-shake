@@ -8,42 +8,16 @@ const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const LOGO_IMG = <img src="/logo-white.png" alt="House of Shake" width="42" height="42" style={{ objectFit: "contain" }} />;
 
-const REVIEWS = [
-  [
-    { txt: '"Me encanta como preparan el foam. Nunca había probado algo así en Puebla."', name: 'Fernanda L.', src: 'Uber Eats · Verificada', stars: 5 },
-    { txt: '"Excelente bebida y me llegó rápido. El Coconut Iced Latte es para repetir sin dudarlo."', name: 'Regina C.', src: 'Uber Eats · Verificada', stars: 5 },
-    { txt: '"Muy buena atención y la bebida llegó perfecta. El matcha fue una experiencia."', name: 'Sofía R.', src: 'Rappi · Verificada', stars: 5 },
-  ],
-  [
-    { txt: '"El Tiramisu Latte es una locura. Nunca pensé que iba a querer un latte de postre."', name: 'Mariana G.', src: 'Rappi · Verificada', stars: 5 },
-    { txt: '"Pedí el Pistachio Milkshake y tardó menos de 30 minutos. Frío, cremoso, perfecto."', name: 'Andrés V.', src: 'Uber Eats · Verificado', stars: 5 },
-    { txt: '"El matcha con lavender cold foam es distinto a todo lo que he probado."', name: 'Paula S.', src: 'Rappi · Verificada', stars: 5 },
-  ],
-  [
-    { txt: '"La cookie de chocolate llegó caliente. ¿Cómo hicieron eso?"', name: 'Pablo M.', src: 'Rappi · Verificado', stars: 5 },
-    { txt: '"El packaging está increíble. Ya quisiera que todos los pedidos llegaran así de bien."', name: 'Camila T.', src: 'Uber Eats · Verificada', stars: 5 },
-    { txt: '"La Strawberry Acai Lemonade es mi nueva obsesión de verano."', name: 'Laura B.', src: 'Uber Eats · Verificada', stars: 5 },
-  ],
-];
-
-const ACCORDION_ITEMS = [
-  { num: '01', title: 'SPECIALTY COFFEE', desc: 'Granos seleccionados, preparación precisa y un foam que no encontrarás en otro lugar de Puebla.', img: '/images/img_8.png' },
-  { num: '02', title: 'COLD SHAKES', desc: 'Recetas únicas que combinan sabores inesperados. Cada shake, una experiencia distinta.', img: '/images/img_9.png' },
-  { num: '03', title: 'CAMP VIBES', desc: 'Un espacio diseñado para que te quedes. Buena música, buena luz y mejor café.', img: '/images/img_10.png' },
-  { num: '04', title: 'DELIVERY EXPRESS', desc: 'Pedimos que tu orden llegue exactamente como la preparamos. En tiempo, temperatura y detalle.', img: '/images/img_11.png' },
-  { num: '05', title: 'PROGRAMA PUNTOS', desc: 'Cada visita suma. Acumula puntos y canjéalos por bebidas gratis. Así de simple.', img: '/images/img_12.png' },
-];
-
-const UE = (h) => `https://tb-static.uber.com/prod/image-proc/processed_images/${h}/c67fc65e9b4e16a553eb7574fba090f1.jpeg`;
+const I = (name) => `/images/products/${name}.png`;
 const FEATURED_ITEMS = [
-  { name: 'Teddy Bear Latte',      desc: 'Latte frío con sabor a galleta de osito: miel, vainilla y canela.',          price: 95,  img: UE('5ae6d3a270612c4d22f6616087056ec5'), tag: 'Favorito' },
-  { name: 'Coconut Iced Latte',    desc: 'Latte helado con leche de coco y espuma fría de coco.',                       price: 95,  img: UE('d320b187d4e1640bd8a8fbd2cf0ce473'), tag: '#1 Más Pedido' },
-  { name: 'Iced Tiramisu Latte',   desc: 'Doble espresso frío con vainilla y cacao, inspirado en el tiramisú.',         price: 95,  img: UE('8479da6854d3123d46f1975583f70ead'), tag: '#2 Favorito' },
-  { name: 'Pistachio Milkshake',   desc: 'Batido cremoso verde claro con delicado sabor a pistacho.',                   price: 110, img: UE('7965058b76761f50fefd6b7dd49d6771'), tag: 'Milkshake' },
-  { name: 'Chocolate Milkshake',   desc: 'Helado de chocolate, leche y jarabe de chocolate. Perfección cremosa.',       price: 110, img: UE('09893e14c0dbb41abf502db806eafe48'), tag: 'Milkshake' },
-  { name: 'Iced Matcha Lavander',  desc: 'Matcha frío con cold foam de lavanda. Refrescante y floral.',                 price: 94,  img: UE('0492f4430c143e890ad15e99e0dd1a39'), tag: 'Matcha' },
-  { name: 'Dirty Chai',            desc: 'Mezcla fría de chai y café con hielo. Lo mejor de dos mundos.',              price: 93,  img: UE('699626effe115aecb33a4ce8f60db8ba'), tag: 'Chai' },
-  { name: 'Pink Coconut Drink',    desc: 'Mezcla de bebida de coco y fresa con hielo. Tropical y refrescante.',        price: 89,  img: UE('bedc022baa6e511569c29fdda53dc15d'), tag: 'Fitfresh' },
+  { name: 'Teddy Bear Latte',      desc: 'Latte frío con sabor a galleta de osito: miel, vainilla y canela.',          price: 95,  img: I('teddy-bear-latte'),               tag: 'Favorito' },
+  { name: 'Coconut Latte',    desc: 'Latte helado con leche de coco y espuma fría de coco.',                       price: 95,  img: I('coconut-iced-latte'),             tag: '#1 Más Pedido' },
+  { name: 'Tiramisu Latte',   desc: 'Doble espresso frío con vainilla y cacao, inspirado en el tiramisú.',         price: 95,  img: I('iced-tiramisu-latte'),            tag: '#2 Favorito' },
+  { name: 'Pistachio Milkshake',   desc: 'Batido cremoso verde claro con delicado sabor a pistacho.',                   price: 110, img: I('pistachio-milkshake'),            tag: 'Milkshake' },
+  { name: 'Chocolate Milkshake',   desc: 'Helado de chocolate, leche y jarabe de chocolate. Perfección cremosa.',       price: 110, img: I('chocolate-milkshake'),            tag: 'Milkshake' },
+  { name: 'Matcha Lavander',  desc: 'Matcha frío con cold foam de lavanda. Refrescante y floral.',                 price: 94,  img: I('iced-matcha-lavander-cold-foam'), tag: 'Matcha' },
+  { name: 'Dirty Chai',            desc: 'Mezcla fría de chai y café con hielo. Lo mejor de dos mundos.',              price: 93,  img: I('dirty-chai'),                     tag: 'Chai' },
+  { name: 'Pink Coconut Drink',    desc: 'Mezcla de bebida de coco y fresa con hielo. Tropical y refrescante.',        price: 89,  img: I('pink-coconut-drink'),             tag: 'Fitfresh' },
 ];
 
 const SCHEDULE = [
@@ -55,40 +29,40 @@ const SCHEDULE = [
 export default function Landing() {
   const [navScrolled, setNavScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [activeAcc, setActiveAcc] = useState(0);
   const [products, setProducts] = useState([]);
-  const [activeTab, setActiveTab] = useState('all');
-  const [reviewSlide, setReviewSlide] = useState(0);
   const [openSched, setOpenSched] = useState(null);
-  const [counts, setCounts] = useState({ ratings: 0, stars: 0, ig: 0, months: 0 });
-  const statsRef = useRef(null);
-  const statsAnimated = useRef(false);
   const navigate = useNavigate();
   const isLoggedIn = !!localStorage.getItem('hos_customer_token');
+  const heroVideoRef = useRef(null);
 
-  // Load products
+  useEffect(() => {
+    const v = heroVideoRef.current;
+    if (!v) return;
+    v.muted = true;
+    v.defaultMuted = true;
+    v.playsInline = true;
+    const tryPlay = () => v.play().catch(() => {});
+    tryPlay();
+    document.addEventListener('touchstart', tryPlay, { once: true, passive: true });
+    document.addEventListener('click', tryPlay, { once: true });
+    return () => {
+      document.removeEventListener('touchstart', tryPlay);
+      document.removeEventListener('click', tryPlay);
+    };
+  }, []);
+
   useEffect(() => {
     fetch(`${API}/products`).then(r => r.json()).then(setProducts).catch(() => {});
   }, []);
 
-  // Navbar scroll + progress bar + reveal
   useEffect(() => {
     const cur = document.getElementById('hs-cur');
 
     const onScroll = () => {
       setNavScrolled(window.scrollY > 60);
-      // Reveal
       document.querySelectorAll('.hs-rev').forEach(el => {
         if (el.getBoundingClientRect().top < window.innerHeight * 0.88) el.classList.add('on');
       });
-      // Stats counter
-      if (statsRef.current && !statsAnimated.current) {
-        const r = statsRef.current.getBoundingClientRect();
-        if (r.top < window.innerHeight * 0.9) {
-          statsAnimated.current = true;
-          animateCounters();
-        }
-      }
     };
 
     const onMouseMove = (e) => {
@@ -111,55 +85,29 @@ export default function Landing() {
     };
   }, []);
 
-  function animateCounters() {
-    const targets = { ratings: 86, stars: 4.0, ig: 2487, months: 30 };
-    const dur = 1800;
-    const start = performance.now();
-    const tick = (now) => {
-      const p = Math.min((now - start) / dur, 1);
-      const ease = p < .5 ? 2 * p * p : -1 + (4 - 2 * p) * p;
-      setCounts({
-        ratings: Math.round(targets.ratings * ease),
-        stars: parseFloat((targets.stars * ease).toFixed(1)),
-        ig: Math.round(targets.ig * ease),
-        months: Math.round(targets.months * ease),
-      });
-      if (p < 1) requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-  }
-
-  const grouped = products.reduce((acc, p) => {
-    if (!acc[p.category]) acc[p.category] = [];
-    acc[p.category].push(p);
-    return acc;
-  }, {});
-  const categories = Object.keys(grouped);
-  const filteredProducts = activeTab === 'all' ? products : (grouped[activeTab] || []);
-
   const scrollTo = (id) => {
     setMobileMenuOpen(false);
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
   };
 
   return (
-    <div style={{ background: '#071E3D', fontFamily: "'Montserrat', sans-serif", cursor: 'none' }}>
+    <div style={{ background: '#FFFFFF', fontFamily: "'Montserrat', sans-serif", cursor: 'none' }}>
       {/* Cursor */}
       <div id="hs-cur" />
 
       {/* ── NAVBAR ── */}
       <nav id="hs-nav" className={navScrolled ? 'sc' : ''}>
-        <a className="hs-nav-logo" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-          {LOGO_IMG}
-          <span className="hs-nav-logo-txt">HOUSE OF SHAKE</span>
-        </a>
+        {/* Izquierda: links */}
         <ul className="hs-nav-links">
-          <li><a onClick={() => scrollTo('hs-menu')}>Menú</a></li>
+          <li><Link to="/menu">Menú</Link></li>
           <li><a onClick={() => scrollTo('hs-rewards')}>Rewards</a></li>
-          <li><a onClick={() => scrollTo('hs-about')}>Nosotros</a></li>
-          <li><a onClick={() => scrollTo('hs-reviews')}>Reseñas</a></li>
           <li><a onClick={() => scrollTo('hs-location')}>Encuéntranos</a></li>
         </ul>
+        {/* Centro: logo */}
+        <a className="hs-nav-logo-center" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+          <img src="/logo-encabezado.png" alt="House of Shake" className="hs-nav-logo-img" />
+        </a>
+        {/* Derecha: CTAs */}
         <div className="hs-nav-ctas">
           {isLoggedIn ? (
             <Link to="/mi-cuenta" className="hs-btn hs-btn-gold" style={{ padding: '10px 20px', fontSize: '10px' }}>
@@ -189,10 +137,8 @@ export default function Landing() {
       {/* ── MOBILE MENU ── */}
       <div className={`hs-mnav${mobileMenuOpen ? ' open' : ''}`}>
         <ul className="hs-mnav-links">
-          <li><a onClick={() => scrollTo('hs-menu')}>Menú</a></li>
+          <li><Link to="/menu" onClick={() => setMobileMenuOpen(false)}>Menú</Link></li>
           <li><a onClick={() => scrollTo('hs-rewards')}>Rewards</a></li>
-          <li><a onClick={() => scrollTo('hs-about')}>Nosotros</a></li>
-          <li><a onClick={() => scrollTo('hs-reviews')}>Reseñas</a></li>
           <li><a onClick={() => scrollTo('hs-location')}>Encuéntranos</a></li>
         </ul>
         <div className="hs-mnav-ctas">
@@ -215,10 +161,24 @@ export default function Landing() {
 
       {/* ── HERO ── */}
       <section id="hs-hero">
-        <div className="hs-hero-img" style={{ backgroundImage: "url('/hero.png')" }} />
+        <video
+          ref={heroVideoRef}
+          className="hs-hero-img"
+          poster="/hero-poster.jpg"
+          autoPlay
+          muted
+          loop
+          playsInline
+          webkit-playsinline="true"
+          preload="auto"
+          disablePictureInPicture
+          style={{ objectFit:'cover', width:'100%', height:'100%' }}
+        >
+          <source src="/hero-mobile.mp4" media="(max-width: 768px)" type="video/mp4" />
+          <source src="/hero.mp4" type="video/mp4" />
+        </video>
         <div className="hs-hero-ov1" />
         <div className="hs-hero-ov2" />
-        {/* sparks */}
         {[{l:'7%',t:'22%',d:'5s',dl:'0s',sz:'5px'},{l:'16%',t:'68%',d:'4s',dl:'.5s',sz:'4px'},
           {l:'28%',t:'38%',d:'6s',dl:'1s',sz:'6px'},{l:'83%',t:'28%',d:'5s',dl:'.3s',sz:'4px'},
           {l:'91%',t:'62%',d:'4.5s',dl:'1.2s',sz:'5px'},{l:'72%',t:'18%',d:'6s',dl:'.8s',sz:'3px'}
@@ -226,24 +186,16 @@ export default function Landing() {
           <div key={i} className="hs-sp" style={{ left:s.l,top:s.t,'--d':s.d,'--dl':s.dl,'--sz':s.sz }} />
         ))}
         <div className="hs-hero-body">
-          <div className="hs-camp-badge"><TentIcon size={14} color="#F5C842" animated /> Summer Camp Edition 2026</div>
+          <div className="hs-camp-badge"><TentIcon size={14} color="#0F448B" animated /> Summer Camp Edition 2026</div>
           <h1 className="hs-hero-title">HOUSE<br /><span className="acc">OF</span><br />SHAKE</h1>
-          <p className="hs-hero-sub">COFFEE THAT KNOWS NO BOUNDARIES</p>
-          <p className="hs-hero-desc">Specialty coffee, cold shakes y un espacio diseñado para los que saben lo que quieren. La Paz, Puebla.</p>
           <div className="hs-hero-ctas">
             <Link to="/registro" className="hs-btn hs-btn-gold">ÚNETE AL PROGRAMA</Link>
             <Link to="/menu" className="hs-btn hs-btn-ghost">VER MENÚ COMPLETO</Link>
           </div>
-          <div className="hs-hero-badges">
-            <div className="hs-hbadge"><strong>86</strong> Reseñas</div>
-            <div className="hs-hbadge"><strong>4.0★</strong> Rating</div>
-            <div className="hs-hbadge"><strong>2K+</strong> Seguidores IG</div>
-            <div className="hs-hbadge"><strong>La Paz</strong> Puebla</div>
-          </div>
         </div>
       </section>
 
-      {/* ── MENU (productos primero, tras el hero) ── */}
+      {/* ── MENU ── */}
       <section id="hs-menu">
         <div className="hs-menu-hdr hs-rev">
           <p className="hs-eyebrow" style={{ justifyContent:'center' }}>Specialty Drinks</p>
@@ -257,176 +209,24 @@ export default function Landing() {
                 {p.img ? (
                   <img src={p.img} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover', position:'absolute', inset:0 }} onError={e => { e.target.style.display='none'; }} />
                 ) : null}
-                <div style={{ position:'absolute', bottom:12, right:12, zIndex:3, display:'flex', filter:'drop-shadow(0 2px 4px rgba(0,0,0,.6))' }}><CoffeeIcon size={28} color="#F5C842" animated /></div>
+                <div style={{ position:'absolute', bottom:12, right:12, zIndex:3, display:'flex', filter:'drop-shadow(0 2px 4px rgba(0,0,0,.6))' }}><CoffeeIcon size={28} color="#0F448B" animated /></div>
                 <span className="hs-cbadge" style={{ zIndex:2 }}>{p.tag}</span>
               </div>
               <div className="hs-cbody">
                 <p className="hs-cname">{p.name}</p>
                 <p className="hs-cdesc">{p.desc}</p>
-                <div className="hs-cfoot">
-                  <span className="hs-cprice">${p.price}</span>
-                  <span className="hs-ctag">MXN</span>
-                </div>
               </div>
             </Link>
           ))}
         </div>
         <div style={{ textAlign:'center', marginTop:48, display:'flex', gap:16, justifyContent:'center', flexWrap:'wrap' }}>
-          <Link to="/menu" className="hs-btn hs-btn-gold">VER MENÚ COMPLETO — 39 PRODUCTOS</Link>
-          <Link to="/registro" className="hs-btn hs-btn-blue">ÚNETE Y GANA PUNTOS</Link>
+          <Link to="/menu" className="hs-btn hs-btn-gold">VER MENÚ COMPLETO{products.length ? ` — ${products.length} PRODUCTOS` : ''}</Link>
+          <Link to="/registro" className="hs-btn hs-btn-blue">ÚNETE Y GANA PINOS</Link>
         </div>
       </section>
 
-      {/* ── REWARDS (programa de fidelización, estilo Starbucks) ── */}
+      {/* ── REWARDS ── */}
       <Rewards isLoggedIn={isLoggedIn} />
-
-      {/* ── ABOUT ── */}
-      <section id="hs-about">
-        <div className="hs-about-grid">
-          <div className="hs-about-img">
-            <img src="/images/img_2.png" alt="House of Shake interior" />
-            <div className="hs-about-imgov" />
-          </div>
-          <div className="hs-about-txt">
-            <p className="hs-eyebrow hs-rev">Nuestra historia</p>
-            <h2 className="hs-about-q hs-rev">EL CAFÉ QUE <span className="hl">CAMBIA</span> TODO LO QUE CONOCÍAS.</h2>
-            <p className="hs-about-p hs-rev">House of Shake nació con una idea simple: que cada bebida sea una razón para volver. Nos obsesionamos con los detalles — el foam, la temperatura, el balance — porque creemos que el café merece más que lo de siempre.</p>
-            <p className="hs-about-p hs-rev">Desde Av. Teziutlán Nte. en La Paz, Puebla, llevamos nuestro café hasta tu puerta o te esperamos aquí.</p>
-            <div className="hs-about-chips hs-rev" style={{ display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
-              {['Specialty Coffee', 'Cold Brew', 'Cold Shakes', 'Pastelería', 'Delivery'].map(c => (
-                <span key={c} className="hs-chip">{c}</span>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── GALLERY ── */}
-      <section id="hs-gallery">
-        <div className="hs-gcell span2">
-          <img src="/images/img_3.png" alt="House of Shake" />
-          <div className="hs-gcell-ov" /><div className="hs-gcell-lbl">CAMP HOUSE</div>
-          <span style={{ position:'absolute',top:16,left:16,zIndex:2,background:'rgba(11,21,9,.85)',backdropFilter:'blur(8px)',border:'1px solid rgba(245,200,66,.28)',borderRadius:6,padding:'8px 12px',fontSize:9,letterSpacing:2,textTransform:'uppercase',color:'#F5C842',fontWeight:700,fontFamily:'Montserrat' }}>LA PAZ · PUEBLA</span>
-        </div>
-        <div className="hs-gcell"><img src="/images/img_4.png" alt="" /><div className="hs-gcell-ov" /><div className="hs-gcell-lbl">COLD SHAKES</div></div>
-        <div className="hs-gcell"><img src="/images/img_5.png" alt="" /><div className="hs-gcell-ov" /><div className="hs-gcell-lbl">SPECIALTY</div></div>
-        <div className="hs-gcell"><img src="/images/img_6.png" alt="" /><div className="hs-gcell-ov" /><div className="hs-gcell-lbl">COLD BREW</div></div>
-        <div className="hs-gcell"><img src="/images/img_7.png" alt="" /><div className="hs-gcell-ov" /><div className="hs-gcell-lbl">CAMP VIBES</div></div>
-      </section>
-
-      {/* ── ACCORDION — POR QUÉ SOMOS DISTINTOS ── */}
-      <section id="hs-accordion">
-        <div className="hs-rev" style={{ textAlign:'center', marginBottom:52 }}>
-          <p className="hs-eyebrow" style={{ justifyContent:'center' }}>House of Shake</p>
-          <h2 className="hs-h-light">POR QUÉ SOMOS<br />DISTINTOS</h2>
-          <p className="hs-sub-light">Desde el primer sorbo, lo notas.</p>
-        </div>
-        <div className="hs-acc-wrap hs-rev">
-          {ACCORDION_ITEMS.map((item, i) => (
-            <div key={i} className={`hs-ap${activeAcc === i ? ' apon' : ''}`}
-              onClick={() => setActiveAcc(i)}>
-              <div className="hs-ap-img" style={{ backgroundImage: `url('${item.img}')` }} />
-              <div className="hs-ap-tint" />
-              <span className="hs-ap-lbl">{item.title}</span>
-              <div className="hs-ap-txt">
-                <p className="hs-ap-num">{item.num} / 05</p>
-                <h3 className="hs-ap-title">{item.title}</h3>
-                <p className="hs-ap-desc">{item.desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── MARQUEE ── */}
-      <div className="hs-marquee-wrap">
-        <div className="hs-marquee">
-          {[...Array(2)].map((_, rep) => (
-            <span key={rep} style={{ display:'contents' }}>
-              <span>HOUSE OF SHAKE</span><span className="dot">◆</span>
-              <span>CAMP HOUSE</span><span className="dot">◆</span>
-              <span>COLD SHAKES</span><span className="dot">◆</span>
-              <span>GOOD VIBES</span><span className="dot">◆</span>
-              <span>SPECIALTY COFFEE</span><span className="dot">◆</span>
-              <span>LA PAZ PUEBLA</span><span className="dot">◆</span>
-              <span>SUMMER CAMP</span><span className="dot">◆</span>
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* ── STATS ── */}
-      <div className="hs-stats" ref={statsRef}>
-        <div className="hs-si hs-rev">
-          <div className="hs-snum"><span>{counts.ratings}</span></div>
-          <div className="hs-slbl">Calificaciones</div>
-        </div>
-        <div className="hs-si hs-rev">
-          <div className="hs-snum"><span>{counts.stars.toFixed(1)}</span><span className="hs-su">★</span></div>
-          <div className="hs-slbl">Rating Promedio</div>
-        </div>
-        <div className="hs-si hs-rev">
-          <div className="hs-snum"><span>{counts.ig.toLocaleString()}</span></div>
-          <div className="hs-slbl">Seguidores IG</div>
-        </div>
-        <div className="hs-si hs-rev">
-          <div className="hs-snum"><span>{counts.months}</span><span className="hs-su">+</span></div>
-          <div className="hs-slbl">Meses en La Paz</div>
-        </div>
-      </div>
-
-      {/* ── REVIEWS ── */}
-      <section id="hs-reviews">
-        <div className="hs-rev-hdr hs-rev">
-          <p className="hs-eyebrow" style={{ justifyContent:'center' }}>Social Proof</p>
-          <h2 className="hs-h-light">LO QUE DICEN<br />LOS QUE YA SABEN</h2>
-          <div className="hs-rating-num">4.0</div>
-          <div className="hs-stars">
-            <span className="hs-s">★★★★</span>
-            <span style={{ color:'#ccc', fontSize:22 }}>★</span>
-          </div>
-          <p className="hs-rev-sub">86 calificaciones · Uber Eats &amp; Rappi</p>
-        </div>
-        <div className="hs-carousel hs-rev">
-          <div className="hs-ctrack" style={{ transform: `translateX(-${reviewSlide * 100}%)` }}>
-            {REVIEWS.map((slide, si) => (
-              <div key={si} className="hs-cslide">
-                {slide.map((r, ri) => (
-                  <div key={ri} className={`hs-rcard${ri === 1 ? ' mid' : ''}`}>
-                    <div className="hs-r-stars">
-                      {Array(r.stars).fill('★').map((s, i) => <span key={i}>{s}</span>)}
-                    </div>
-                    <p className="hs-r-txt">{r.txt}</p>
-                    <p className="hs-r-name">{r.name}</p>
-                    <p className="hs-r-src">{r.src}</p>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-          <div className="hs-cdots">
-            {REVIEWS.map((_, i) => (
-              <div key={i} className={`hs-dot${reviewSlide === i ? ' on' : ''}`} onClick={() => setReviewSlide(i)} />
-            ))}
-          </div>
-        </div>
-
-        {/* IG WALL */}
-        <div style={{ textAlign:'center', marginTop:56, marginBottom:16 }}>
-          <p className="hs-ig-handle">@houseofshake</p>
-          <p className="hs-ig-fol">2,487 seguidores · Instagram</p>
-          <a href="https://instagram.com" target="_blank" rel="noreferrer" className="hs-btn hs-btn-wood">
-            SÍGUENOS EN IG
-          </a>
-        </div>
-        <div className="hs-ig-wall">
-          {[16,17,18,19,20,21].map(n => (
-            <div key={n} className="hs-ig-cell">
-              <img src={`/images/img_${n}.png`} alt="Instagram" />
-            </div>
-          ))}
-        </div>
-      </section>
 
       {/* ── LOCATION ── */}
       <section id="hs-location">
@@ -453,7 +253,7 @@ export default function Landing() {
                     <span className="hs-dinit">{['L','S','D'][i]}</span>
                     {s.day}
                   </div>
-                  <span style={{ color: openSched === i ? '#F5C842' : undefined }}>
+                  <span style={{ color: openSched === i ? '#0F448B' : undefined }}>
                     {openSched === i ? '−' : '+'}
                   </span>
                 </button>
@@ -462,7 +262,7 @@ export default function Landing() {
             ))}
             <div className="hs-addr">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ flexShrink:0, marginTop:2 }}>
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#F5C842"/>
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#0F448B"/>
               </svg>
               <div>
                 <h4>Av. Teziutlán Nte. 42</h4>

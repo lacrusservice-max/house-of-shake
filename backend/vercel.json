@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
+  "functions": {
+    "api/index.js": { "maxDuration": 30, "memory": 1024 }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index.js" },
+    { "source": "/(.*)",     "destination": "/api/index.js" }
+  ],
+  "crons": [
+    { "path": "/api/cron/inactive-customers", "schedule": "0 10 * * *" },
+    { "path": "/api/cron/backup",             "schedule": "0 3 * * 0" }
+  ]
+}

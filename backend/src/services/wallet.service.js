@@ -16,6 +16,7 @@ const fs         = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const prisma     = require('../config/prisma');
 const logger     = require('../config/logger');
+const { puntosToPinos, formatPinos, TIER_REPOSTERIA, TIER_BEBIDAS, TIER_ESPECIALES } = require('./pinos');
 const { generateStripImage } = require('./stamp.composer');
 
 // ─── Certificate loading & cache ─────────────────────────────────────────────
@@ -100,19 +101,38 @@ function areCertsAvailable() {
   return !!(p12 && wwdr && team && team !== 'PENDIENTE' && process.env.WALLET_PASS_TYPE_ID);
 }
 
+let avisoFaltaAPNs = false;
+
 // ─── Pass helpers ─────────────────────────────────────────────────────────────
 
-// Sistema de Pinos: 1 Pino = 10 pts = $10 MXN | 120 Pinos = bebida hasta $90
-// Ciclo basado en availablePoints para que el canje de bebida reinicie el ciclo.
-// lifetimePoints/10 = Pinos totales históricos (solo para display).
-function getPineProgress(availablePoints, lifetimePoints) {
-  const availPines   = Math.floor((availablePoints || 0) / 10);
-  const pinesInCycle = availPines % 120;
-  const slotsEarned  = (pinesInCycle === 0 && availPines > 0) ? 10 : Math.floor(pinesInCycle / 12);
-  const pinesLeft    = slotsEarned === 10 ? 0 : 120 - pinesInCycle;
-  const totalPines   = Math.floor((lifetimePoints || 0) / 10);
-  return { availPines, pinesInCycle, slotsEarned, pinesLeft, totalPines };
+// Premio más barato del menú (repostería). Es la meta a partir de la cual el
+// cliente ya puede canjear algo.
+const CHEAPEST_REWARD = TIER_REPOSTERIA;
+
+// Sistema de Pinos: 1 Pino = 10 pts. Canje por categoría: 100 / 110 / 120.
+//
+// El saldo ES el progreso. Antes se usaba `availPines % 120`, así que la
+// tarjeta de alguien con 243 Pinos mostraba "3/120" — igual que la web, ocultaba
+// que ya tenía premio. Ahora el pass refleja el mismo estado que la cuenta.
+function getPineProgress(availablePoints, lifetimePoints, meta = CHEAPEST_REWARD) {
+  // Se usa puntosToPinos/formatPinos del módulo central: con Math.floor, una
+  // compra de $65 (6.5 Pinos) se veía como 6 en la tarjeta y como 6.5 en la
+  // web, y el cliente creía que el Wallet le contaba de menos.
+  const availPines   = puntosToPinos(availablePoints || 0);
+  const availLabel   = formatPinos(availablePoints || 0);
+  const hasReward    = availPines >= meta;
+  const sobrante     = availPines % meta;
+  const pinesLeft    = round1(hasReward
+    ? (sobrante === 0 ? meta : meta - sobrante)
+    : Math.max(0, meta - availPines));
+  const pinesInCycle = round1(hasReward ? meta - pinesLeft : availPines);
+  const totalPines   = puntosToPinos(lifetimePoints || 0);
+  const totalLabel   = formatPinos(lifetimePoints || 0);
+  const rewardsReady = Math.floor(availPines / meta);
+  return { availPines, availLabel, pinesInCycle, pinesLeft, totalPines, totalLabel, hasReward, rewardsReady, meta };
 }
+
+const round1 = (n) => Math.round(n * 10) / 10;
 
 function buildWebServiceURL() {
   if (process.env.WALLET_WEB_SERVICE_URL) {
@@ -141,10 +161,17 @@ async function generatePassBuffer(customerData) {
   const serial    = customerData.walletPassSerial || uuidv4();
   const passToken = customerData.walletPassToken  || uuidv4().replace(/-/g, '');
 
-  const { pinesInCycle, pinesLeft } = getPineProgress(
+  const { pinesInCycle, pinesLeft, hasReward, rewardsReady, availPines, availLabel, totalLabel, meta } = getPineProgress(
     customerData.availablePoints,
     customerData.lifetimePoints
   );
+
+  // Con la licencia vencida el pass deja de mostrar el saldo. No se borra nada:
+  // los Pinos siguen en la base y reaparecen intactos al renovar.
+  let suspendido = false;
+  try {
+    suspendido = !(await require('./license').getStatus()).active;
+  } catch { /* si la consulta falla, el pass se genera normal */ }
 
   const pass = await PKPass.from(
     {
@@ -173,7 +200,7 @@ async function generatePassBuffer(customerData) {
     pass.addBuffer('strip.png',    strip1x);
     pass.addBuffer('strip@2x.png', strip2x);
     pass.addBuffer('strip@3x.png', strip2x);
-    logger.info(`Wallet strip generado (${pinesInCycle}/120 Pinos) — cliente ${customerData.id.substring(0, 8)}`);
+    logger.info(`Wallet strip generado (${pinesInCycle}/${meta} Pinos) — cliente ${customerData.id.substring(0, 8)}`);
   } catch (err) {
     logger.error(`Stamp composer falló: ${err.message}`);
   }
@@ -182,22 +209,26 @@ async function generatePassBuffer(customerData) {
     format:          'PKBarcodeFormatQR',
     message:         customerData.id,
     messageEncoding: 'utf-8',
-    altText:         `ID: ${customerData.id.substring(0, 8).toUpperCase()}`,
+    altText:         customerData.memberNumber
+      ? `SOCIO #${customerData.memberNumber}`
+      : `ID: ${customerData.id.substring(0, 8).toUpperCase()}`,
   });
 
   // Header (arriba, junto al logo): contador de Pinos del ciclo
   pass.headerFields.push({
     key:           'pines',
     label:         'PINOS',
-    value:         `${pinesInCycle}/120`,
+    value:         suspendido ? '—' : availLabel,
     textAlignment: 'PKTextAlignmentRight',
   });
 
   // Campos nativos en la zona crema (SIEMPRE visibles, nunca se recortan):
   // fila 1 → nombre del cliente + Pinos restantes
-  const rewardMsg = pinesLeft === 0
-    ? '¡Bebida gratis lista! Muéstrame al staff para canjear.'
-    : `Te faltan ${pinesLeft} Pinos para tu bebida gratis.`;
+  const rewardMsg = suspendido
+    ? 'Servicio temporalmente suspendido. Tus Pinos están guardados y volverán al reactivarse.'
+    : hasReward
+    ? `🎉 ¡Llegaste a la meta! Te alcanza para ${rewardsReady} producto${rewardsReady === 1 ? '' : 's'} gratis. Muestra este QR al staff.`
+    : `Te faltan ${pinesLeft} Pinos para tu primer producto gratis.`;
 
   pass.secondaryFields.push(
     {
@@ -208,7 +239,7 @@ async function generatePassBuffer(customerData) {
     {
       key:           'restantes',
       label:         'TE FALTAN',
-      value:         pinesLeft === 0 ? '¡0!' : `${pinesLeft}`,
+      value:         suspendido ? '—' : hasReward ? '¡YA!' : `${pinesLeft}`,
       textAlignment: 'PKTextAlignmentRight',
     }
   );
@@ -219,9 +250,9 @@ async function generatePassBuffer(customerData) {
   });
   pass.backFields.push(
     { key: 'how',      label: '¿Cómo funciona?',    value: '1 Pino por cada $10 MXN gastados. Muestra tu tarjeta al staff antes de pagar.' },
-    { key: 'reward',   label: 'Recompensa',          value: '120 Pinos = bebida gratis de hasta $90 MXN. Si cuesta más, solo pagas la diferencia.' },
+    { key: 'reward',   label: 'Recompensa',          value: `Desde ${TIER_REPOSTERIA} Pinos canjeas un producto gratis: repostería ${TIER_REPOSTERIA} · cafés y bebidas ${TIER_BEBIDAS} · milkshakes y alimentos ${TIER_ESPECIALES}.` },
     { key: 'bonuses',  label: 'Bonos especiales',    value: '+20 Pinos en tu cumpleaños · +10 Pinos al registrarte · Pinos dobles en temporadas especiales' },
-    { key: 'redeem',   label: 'Canjear',             value: 'Muestra tu QR al staff con 120 Pinos en ciclo completo. Ellos registran el canje.' },
+    { key: 'redeem',   label: 'Canjear',             value: 'Muestra tu QR al staff y pide lo que quieras del catálogo. Tus Pinos se descuentan solo al canjear; el resto se queda contigo.' },
     { key: 'app',      label: 'Ver tus Pinos online', value: 'house-of-shake.vercel.app/mi-cuenta' },
     { key: 'id',       label: 'ID de Cliente',        value: customerData.id.substring(0, 8).toUpperCase() }
   );
@@ -270,13 +301,26 @@ async function sendPushUpdate(customer) {
       : null;
 
   if (!apnKeyBuffer || !process.env.APN_KEY_ID || process.env.APN_KEY_ID === 'PENDIENTE') {
-    return; // APNs not configured — skip silently
+    // Antes se saltaba en silencio y nadie se enteraba de que las tarjetas de
+    // Apple Wallet nunca recibían el aviso de "tus Pinos cambiaron". El pass sí
+    // se regenera con el saldo correcto cuando iOS lo consulta por su cuenta
+    // (getLatestPass), pero eso puede tardar horas: sin push, el cliente ve su
+    // tarjeta congelada justo después de pagar.
+    if (!avisoFaltaAPNs) {
+      logger.error(
+        '⚠️  APNs sin configurar (falta APN_KEY_BASE64/APN_KEY_PATH o APN_KEY_ID) — ' +
+        'las tarjetas de Apple Wallet NO se actualizan al instante. Se refrescarán ' +
+        'solas cuando iOS consulte el pass, pero no justo después de cobrar.'
+      );
+      avisoFaltaAPNs = true;
+    }
+    return;
   }
 
   const registrations = await prisma.walletRegistration.findMany({
     where: { customerId: customer.id },
   });
-  if (!registrations.length) return;
+  if (!registrations.length) return { enviados: 0, fallidos: 0, sinDispositivos: true };
 
   const apnProvider = new apn.Provider({
     token: {
@@ -292,15 +336,39 @@ async function sendPushUpdate(customer) {
   notification.pushType = 'background';
   notification.expiry   = Math.floor(Date.now() / 1000) + 3600;
 
-  for (const reg of registrations) {
-    try {
-      await apnProvider.send(notification, reg.pushToken);
-      logger.info(`APNs push enviado a dispositivo ${reg.deviceId}`);
-    } catch (err) {
-      logger.warn(`APNs push falló para ${reg.deviceId}: ${err.message}`);
+  let enviados = 0, fallidos = 0;
+  try {
+    for (const reg of registrations) {
+      try {
+        // apnProvider.send() NO lanza excepción cuando APNs rechaza: resuelve
+        // con { sent, failed }. Antes se daba por enviado todo lo que no
+        // explotara, así que un token inválido o una credencial mala se
+        // registraban como éxito.
+        const res = await apnProvider.send(notification, reg.pushToken);
+        if (res?.failed?.length) {
+          fallidos++;
+          const r = res.failed[0];
+          logger.warn(`APNs rechazó a ${reg.deviceId}: ${r.response?.reason || r.error?.message || r.status}`);
+          // 410 = el dispositivo desinstaló el pass: su registro ya no sirve.
+          if (r.status === '410' || r.response?.reason === 'Unregistered') {
+            await prisma.walletRegistration.delete({ where: { id: reg.id } }).catch(() => {});
+            logger.info(`Registro de Wallet retirado (dispositivo dio de baja el pass): ${reg.deviceId}`);
+          }
+        } else {
+          enviados++;
+        }
+      } catch (err) {
+        fallidos++;
+        logger.warn(`APNs push falló para ${reg.deviceId}: ${err.message}`);
+      }
     }
+  } finally {
+    // En finally: antes, un throw dejaba el Provider abierto y filtraba
+    // conexiones con cada cobro.
+    apnProvider.shutdown();
   }
-  apnProvider.shutdown();
+  logger.info(`🍎 Wallet push — enviados: ${enviados}, fallidos: ${fallidos} (cliente ${customer.id.substring(0,8)})`);
+  return { enviados, fallidos };
 }
 
 // ─── Config status (for admin UI) ────────────────────────────────────────────
