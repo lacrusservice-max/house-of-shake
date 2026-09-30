@@ -44,6 +44,9 @@ export default function CustomerLogin() {
       const d = await apiFetch('/auth/login', { method: 'POST', headers, body });
       localStorage.setItem('hos_customer_token', d.token);
       localStorage.setItem('hos_customer', JSON.stringify(d.customer));
+      // El backend avisa cuando esta entrada fue la que fijó la contraseña.
+      // Se guarda para confirmárselo al cliente dentro de su cuenta.
+      if (d.passwordJustSet) localStorage.setItem('hos_password_restaurada', '1');
       navigate('/mi-cuenta');
     } catch (err) {
       // Un 4xx trae el motivo real: el servidor distingue "no existe /
@@ -86,6 +89,36 @@ export default function CustomerLogin() {
                 misma pantalla. El formulario ya enruta por rol al entrar. */}
             <p className="mc-sub" style={{ marginTop: 8 }}>
               Entra a tu cuenta de Pinos
+            </p>
+          </div>
+
+          {/*
+            AVISO DE RESTAURACIÓN — visible antes de intentar entrar.
+            Tras la falla del servidor, las contraseñas cifradas se perdieron y
+            no las puede recuperar nadie. El cliente que probaba la suya veía
+            "contraseña incorrecta" y se iba creyendo que perdió sus Pinos.
+            Ahora la primera contraseña que escriba queda como suya y entra en
+            el mismo intento, sin correo de por medio. Esto se lo dice ANTES,
+            para que no llegue a ver un error.
+            QUITAR cuando la mayoría ya haya restaurado su acceso.
+          */}
+          <div style={{
+            margin: '0 0 22px', padding: '14px 16px', borderRadius: 12,
+            background: 'rgba(15,68,139,.06)', border: '1px solid rgba(15,68,139,.18)',
+          }}>
+            <p style={{
+              margin: 0, fontSize: 13.5, fontWeight: 800, color: '#0F448B', lineHeight: 1.4,
+            }}>
+              ¿Ya eras cliente? Restaura tu acceso aquí mismo
+            </p>
+            <p style={{
+              margin: '7px 0 0', fontSize: 12.5, lineHeight: 1.6, color: 'rgba(15,68,139,.72)',
+            }}>
+              Tuvimos una falla en el servidor y las contraseñas se perdieron.
+              Escribe <strong>tu mismo correo</strong> y{' '}
+              <strong>la contraseña que quieras usar de ahora en adelante</strong>:
+              con eso entras y tu cuenta queda restaurada. No te llega ningún
+              correo y <strong>tus Pinos siguen ahí</strong>.
             </p>
           </div>
 

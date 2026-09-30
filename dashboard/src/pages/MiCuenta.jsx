@@ -55,6 +55,11 @@ export default function MiCuenta() {
   const [bdMsg, setBdMsg] = useState('');
 
   const [products, setProducts] = useState([]);
+  // Confirmación de cuenta restaurada: se muestra una sola vez, justo después
+  // de que el cliente fijó su contraseña al entrar.
+  const [restaurada, setRestaurada] = useState(
+    () => localStorage.getItem('hos_password_restaurada') === '1'
+  );
   const [rewardCat, setRewardCat] = useState('all');
 
   const TX_PAGE_SIZE = 10;
@@ -202,6 +207,34 @@ export default function MiCuenta() {
 
   if (suspended) return <ServicioSuspendido />;
 
+
+  const bannerRestaurada = restaurada ? (
+    <div style={{
+      maxWidth: 960, margin: '16px auto 0', padding: '14px 18px',
+      background: 'rgba(28,154,91,.08)', border: '1px solid rgba(28,154,91,.3)',
+      borderRadius: 12, display: 'flex', gap: 12, alignItems: 'flex-start',
+    }}>
+      <span style={{ fontSize: 18, lineHeight: 1 }}>✓</span>
+      <div style={{ flex: 1 }}>
+        <p style={{ margin: 0, fontSize: 13.5, fontWeight: 800, color: '#1C9A5B' }}>
+          Tu cuenta quedó restaurada
+        </p>
+        <p style={{ margin: '5px 0 0', fontSize: 12.5, lineHeight: 1.6, color: 'rgba(15,68,139,.7)' }}>
+          Esa es tu contraseña de ahora en adelante y tus Pinos están a salvo.
+          Si algo no cuadra con lo que tenías, dilo en barra y te lo ajustan.
+        </p>
+      </div>
+      <button
+        onClick={() => { localStorage.removeItem('hos_password_restaurada'); setRestaurada(false); }}
+        style={{
+          background: 'none', border: 'none', color: 'rgba(15,68,139,.45)',
+          cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 0,
+        }}
+        aria-label="Cerrar aviso"
+      >×</button>
+    </div>
+  ) : null;
+
   if (!customer) {
     return (
       <div className="mc-root" style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
@@ -248,6 +281,8 @@ export default function MiCuenta() {
           <button onClick={handleLogout} className="mc-nav-logout">Salir</button>
         </div>
       </nav>
+
+      {bannerRestaurada}
 
       <div className="mc-wrap">
 
