@@ -126,11 +126,33 @@ async function login(req, res) {
       return res.status(401).json({ error: 'Email o contraseña incorrectos' });
     }
     if (!customer.password) {
-      // Cuenta creada en caja o importada de Shopify: existe y tiene Pinos,
-      // pero nunca definió contraseña. Decirlo evita que crea que no está registrado.
-      return res.status(403).json({
-        error: 'Tu cuenta existe pero aún no tiene contraseña. Usa "¿Olvidaste tu contraseña?" para crear una.',
-        needsPassword: true,
+      // CUENTA SIN CONTRASEÑA → la primera entrada la define.
+      //
+      // Son cuentas que existen y tienen Pinos pero nunca fijaron contraseña:
+      // las creadas en caja, las importadas de Shopify y las restauradas tras
+      // la falla del servidor, cuyas contraseñas cifradas se perdieron con la
+      // base y no las puede recuperar nadie.
+      //
+      // Antes se les negaba el paso y se les mandaba a "¿Olvidaste tu
+      // contraseña?", pero ese correo no llega mientras el dominio no esté
+      // verificado, así que el cliente quedaba encerrado fuera de su propia
+      // cuenta. Ahora la contraseña que escriba queda como suya y entra.
+      //
+      // El costo: mientras una cuenta no tenga contraseña, quien conozca ese
+      // correo puede reclamarla. Por eso queda registrado en el log, para
+      // poder auditarlo si algo se disputa.
+      const hashed = await bcrypt.hash(password, SALT_ROUNDS);
+      const actualizado = await prisma.customer.update({
+        where: { id: customer.id },
+        data: { password: hashed },
+      });
+      logger.info(`🔑 Contraseña definida en el primer acceso: ${email}`);
+      const token = signToken(actualizado);
+      const memberNumber = await getMemberNumber(actualizado.id);
+      return res.json({
+        token,
+        customer: { ...safeCustomer(actualizado), memberNumber },
+        passwordJustSet: true,
       });
     }
 

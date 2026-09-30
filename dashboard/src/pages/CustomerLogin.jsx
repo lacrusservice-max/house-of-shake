@@ -137,32 +137,6 @@ export default function CustomerLogin() {
               </div>
             )}
 
-            {/*
-              Aviso de la migración de plataforma.
-              Las cuentas anteriores viven en el servidor antiguo y todavía no
-              están aquí, así que a quien ya era cliente le sale "contraseña
-              incorrecta" y cree que el sistema está roto. Este aviso le dice
-              qué hacer y, sobre todo, que sus Pinos no se perdieron.
-              Solo aparece tras un intento fallido: no revela si un correo
-              existe ni estorba a quien entra bien.
-              QUITAR cuando los saldos anteriores estén fusionados.
-            */}
-            {error && !needsPassword && (
-              <div style={S.notice}>
-                <strong style={{ display: 'block', marginBottom: 6 }}>
-                  ¿Ya eras cliente y no puedes entrar?
-                </strong>
-                Tuvimos una falla en el servidor y las cuentas anteriores se
-                perdieron. Regístrate otra vez con <strong>este mismo correo</strong>:
-                toma menos de un minuto y te damos{' '}
-                <strong>10 Pinos de bienvenida</strong>. Si tenías Pinos
-                acumulados, muéstrale este mensaje al personal en barra y te los
-                reponen.
-                <Link to="/registro" style={{ display: 'block', marginTop: 10, color: BLUE, fontWeight: 800, textDecoration: 'underline' }}>
-                  Registrarme con mi mismo correo →
-                </Link>
-              </div>
-            )}
 
             <button type="submit" disabled={loading} style={S.btn(loading)}>
               {loading ? 'Ingresando…' : 'Iniciar sesión →'}
