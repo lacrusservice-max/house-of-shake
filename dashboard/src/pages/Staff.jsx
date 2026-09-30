@@ -468,9 +468,25 @@ function POSView({ token, onLogout }) {
                   <p style={{ fontSize: 11, opacity: .8, marginBottom: 10 }}>
                     QR: <code style={{ background: 'rgba(224,92,92,.15)', padding: '2px 6px', borderRadius: 4, fontFamily: 'monospace', fontSize: 10 }}>{scannedId?.substring(0, 16)}…</code>
                   </p>
-                  <p style={{ fontSize: 12, opacity: .75, marginBottom: 12, lineHeight: 1.5 }}>
+                  <p style={{ fontSize: 12, opacity: .75, marginBottom: 10, lineHeight: 1.5 }}>
                     Regístralo ahora o pídele ir a: <strong>house-of-shake.vercel.app/registro</strong>
                   </p>
+                  {/*
+                    Tras la falla del servidor, algunos clientes anteriores ya no
+                    están en el sistema y su tarjeta de Wallet no los encuentra.
+                    Sin esta nota el barista los registra de cero y les borra sus
+                    Pinos sin darse cuenta.
+                  */}
+                  <div style={{
+                    fontSize: 11.5, lineHeight: 1.55, marginBottom: 12, padding: '9px 11px',
+                    background: 'rgba(15,68,139,.07)', border: '1px solid rgba(15,68,139,.2)',
+                    borderRadius: 8, color: '#0F448B',
+                  }}>
+                    <strong>¿Ya era cliente de antes?</strong> Por la falla del servidor puede
+                    que su cuenta ya no exista. Regístralo aquí y, en seguida,
+                    <strong> repónle los Pinos que tenía</strong> con «Acumular → monto exacto»
+                    (10 Pinos por cada $100 que tuviera).
+                  </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <button onClick={() => setQuickReg(q => ({ ...q, show: true }))}
                       style={{ flex: 1, padding: '9px 12px', background: '#0F448B', border: 'none', borderRadius: 8, color: '#FFFFFF', cursor: 'pointer', fontSize: 11, fontWeight: 800 }}>
