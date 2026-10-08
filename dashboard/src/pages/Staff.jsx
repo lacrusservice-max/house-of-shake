@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import '../styles/mi-cuenta.css';
 import { CoffeeIcon, GiftIcon, StarIcon, CakeIcon, LightningIcon, SearchIcon, WarningIcon, CheckIcon } from '../components/Icons';
@@ -68,6 +68,11 @@ function POSView({ token, onLogout }) {
   const [notice, setNotice]         = useState('');
   // El backend responde 402 cuando la licencia del servicio venció.
   const [suspended, setSuspended]   = useState(false);
+  // Búsqueda por nombre: estado propio para no confundir "no existe" con "falló".
+  const [searchError, setSearchError] = useState('');
+  const [searchState, setSearchState] = useState('idle'); // idle | buscando | ok | error
+  const busquedaRef = useRef(0);   // descarta respuestas que llegan fuera de orden
+  const debounceRef = useRef(null); // una petición por pausa, no una por tecla
   const [amount, setAmount]         = useState('');
   // Carrito del cobro por producto: el barista arma la venta desde el catálogo
   // y el backend recalcula el precio desde la base.
@@ -177,14 +182,61 @@ function POSView({ token, onLogout }) {
     }
   }
 
+  /**
+   * Búsqueda por nombre, correo o número de socio.
+   *
+   * Esta función tenía tres fallos que hacían desaparecer clientes reales:
+   *
+   *  1. No miraba el código HTTP. Un 401 (sesión caducada), 429 (demasiadas
+   *     búsquedas) o 500 traía `{error:"..."}`, `data.customers` quedaba
+   *     undefined y la lista se vaciaba. La pantalla pintaba «Sin resultados»
+   *     igual que si el cliente no existiera, y el barista lo daba de alta otra
+   *     vez — borrándole sus Pinos.
+   *  2. Disparaba una petición POR CADA TECLA. Escribir "Valeria" son siete
+   *     peticiones; en una hora pico se agota el tope de 100 por minuto y a
+   *     partir de ahí NADIE aparece.
+   *  3. Las respuestas podían llegar fuera de orden: la de "Val" llegaba
+   *     después que la de "Valeria" y borraba los resultados buenos.
+   */
   async function searchByName(q) {
     setNameInput(q);
-    if (q.trim().length < 2) { setNameResults([]); return; }
-    try {
-      const res = await fetch(`${API}/pos/search?q=${encodeURIComponent(q.trim())}`, { headers });
-      const data = await res.json();
-      setNameResults(data.customers || []);
-    } catch { setNameResults([]); }
+    setSearchError('');
+
+    const termino = q.trim();
+    if (termino.length < 2) { setNameResults([]); setSearchState('idle'); return; }
+
+    // Antiguedad de la petición: solo la más reciente puede escribir resultados.
+    const miTurno = ++busquedaRef.current;
+
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setSearchState('buscando');
+      try {
+        const res = await fetch(`${API}/pos/search?q=${encodeURIComponent(termino)}`, { headers });
+        if (miTurno !== busquedaRef.current) return; // llegó tarde: ignorar
+
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          if (res.status === 401)      { setSearchError('Tu sesión expiró. Vuelve a iniciar sesión.'); }
+          else if (res.status === 429) { setSearchError('Demasiadas búsquedas seguidas. Espera unos segundos.'); }
+          else if (res.status === 402) { setSuspended(true); return; }
+          else                         { setSearchError(d.error || 'El servidor no pudo completar la búsqueda.'); }
+          setSearchState('error');
+          return; // NO se vacía la lista: lo anterior sigue siendo válido
+        }
+
+        const data = await res.json();
+        if (miTurno !== busquedaRef.current) return;
+        setNameResults(data.customers || []);
+        setSearchState('ok');
+      } catch {
+        if (miTurno !== busquedaRef.current) return;
+        setSearchError(navigator.onLine === false
+          ? 'Sin conexión. Revisa el internet del local.'
+          : 'El servidor no responde. Intenta de nuevo en unos segundos.');
+        setSearchState('error');
+      }
+    }, 280);
   }
 
   function agregarAlCarrito(prod) {
@@ -636,15 +688,16 @@ function POSView({ token, onLogout }) {
               cliente no existía, cuando sí existe. Ahora el error de servidor
               se muestra como lo que es.
             */}
-            {nameInput.length >= 2 && nameResults.length === 0 && !loading && error && (
+            {searchError && (
               <div style={{ ...S.err, marginTop: 20 }}>
-                <strong>No se pudo buscar.</strong> {error}
+                <strong>No se pudo buscar.</strong> {searchError}
                 <div style={{ fontSize: 11.5, marginTop: 6, opacity: .85 }}>
                   Esto NO significa que el cliente no exista. Intenta de nuevo en unos segundos.
                 </div>
               </div>
             )}
-            {nameInput.length >= 2 && nameResults.length === 0 && !loading && !error && (
+            {/* "Sin resultados" SOLO cuando el servidor contestó bien y vino vacío. */}
+            {searchState === 'ok' && nameInput.length >= 2 && nameResults.length === 0 && (
               <div style={{ textAlign: 'center', color: 'rgba(15,68,139,.4)', fontSize: 13, marginTop: 20 }}>Sin resultados para "{nameInput}"</div>
             )}
           </div>
