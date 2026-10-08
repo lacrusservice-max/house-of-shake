@@ -82,6 +82,48 @@ router.get('/cron/inactive-customers', soloCron, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Vigilante EXTERNO: comprueba que OTRO despliegue siga vivo y avisa si no.
+//
+// El guardián de arriba corre dentro del mismo servidor que vigila, así que si
+// ese servidor muere, el guardián muere con él y nadie se entera. Esta ruta se
+// despliega en un proveedor distinto y observa al principal desde fuera.
+// Sin VIGILAR_URL no hace nada, así que la misma imagen sirve en ambos lados.
+router.get('/cron/vigilar-externo', soloCron, async (req, res) => {
+  const objetivo = process.env.VIGILAR_URL;
+  if (!objetivo) return res.json({ ok: true, omitido: 'VIGILAR_URL no configurada' });
+
+  const fallos = [];
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 20000);
+    const r = await fetch(objetivo, { signal: ctrl.signal, cache: 'no-store' });
+    clearTimeout(t);
+    if (!r.ok) fallos.push(`responde HTTP ${r.status}`);
+    else {
+      const d = await r.json().catch(() => null);
+      if (!d || d.status !== 'ok') fallos.push('responde pero no se declara sano');
+    }
+  } catch (e) {
+    fallos.push(`no responde (${e.name === 'AbortError' ? 'tiempo agotado' : e.message})`);
+  }
+
+  if (fallos.length) {
+    const email = require('../services/email.service');
+    const destino = process.env.ALERTA_EMAIL || process.env.ADMIN_EMAIL;
+    if (destino) {
+      await email.sendRaw({
+        to: destino,
+        subject: '🚨 House of Shake está caído',
+        html: `<p>El sistema no está respondiendo:</p><ul>${fallos.map(f => `<li>${f}</li>`).join('')}</ul>`
+            + `<p>Revisado: ${objetivo}</p>`
+            + `<p>Tus clientes no pueden usar sus Pinos ahora mismo.</p>`,
+      }).catch(() => {});
+    }
+    return res.status(503).json({ ok: false, objetivo, fallos });
+  }
+  res.json({ ok: true, objetivo });
+});
+
 // Vigilancia diaria: revisa, repara lo reparable y avisa por correo si queda
 // algo roto. Pensado para que el dueño se entere ANTES que sus clientes.
 router.get('/cron/vigilancia', soloCron, async (req, res) => {
