@@ -562,13 +562,19 @@ function POSView({ token, onLogout }) {
         {screen === 'searchEmail' && (
           <div>
             <button onClick={() => setScreen('home')} style={S.back}>← Volver</button>
-            <h2 className="mc-heading" style={{ fontSize: 34, marginBottom: 6 }}>Buscar por <span>email</span></h2>
-            <p style={{ color: 'rgba(15,68,139,.55)', fontSize: 13, fontWeight: 600, marginBottom: 20 }}>El cliente dice su correo electrónico</p>
+            <h2 className="mc-heading" style={{ fontSize: 34, marginBottom: 6 }}>Buscar por <span>correo o socio</span></h2>
+            <p style={{ color: 'rgba(15,68,139,.55)', fontSize: 13, fontWeight: 600, marginBottom: 20 }}>El cliente dice su correo o su número de socio</p>
             <form onSubmit={e => { e.preventDefault(); lookupByEmail(emailInput); }}>
-              <label style={S.lbl}>Correo del cliente</label>
-              <input type="email" required autoFocus value={emailInput}
+              <label style={S.lbl}>Correo o número de socio</label>
+              {/*
+                type="email" hacía que el navegador RECHAZARA "1049" antes de
+                enviarlo: el barista no podía teclear un número de socio en la
+                única pantalla donde se podía escribir algo, aunque el backend
+                sí lo acepta. Con type="text" pasan ambos.
+              */}
+              <input type="text" required autoFocus value={emailInput}
                 onChange={e => setEmailInput(e.target.value)}
-                placeholder="cliente@email.com" style={S.inp}
+                placeholder="cliente@email.com  ·  1049" style={S.inp}
                 onFocus={e => e.target.style.borderColor = '#0F448B'}
                 onBlur={e => e.target.style.borderColor = 'rgba(15,68,139,.15)'} />
               {error && <div style={S.err}>{error}</div>}
@@ -603,7 +609,14 @@ function POSView({ token, onLogout }) {
                       color: '#0F448B', fontFamily: 'inherit',
                     }}>
                       <div style={{ textAlign: 'left' }}>
-                        <div style={{ fontWeight: 700, fontSize: 14 }}>{c.firstName} {c.lastName}</div>
+                        <div style={{ fontWeight: 700, fontSize: 14 }}>
+                          {c.firstName} {c.lastName}
+                          {c.memberNumber && (
+                            <span style={{ fontWeight: 600, fontSize: 11.5, color: 'rgba(15,68,139,.5)', marginLeft: 6 }}>
+                              #{c.memberNumber}
+                            </span>
+                          )}
+                        </div>
                         {c.phone && <div style={{ fontSize: 11, color: 'rgba(15,68,139,.45)', marginTop: 2 }}>Tel: {c.phone}</div>}
                       </div>
                       <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -617,7 +630,21 @@ function POSView({ token, onLogout }) {
                 })}
               </div>
             )}
-            {nameInput.length >= 2 && nameResults.length === 0 && !loading && (
+            {/*
+              Antes esto salía ante CUALQUIER fallo: si el servidor se estaba
+              reiniciando, el barista leía "Sin resultados" y concluía que el
+              cliente no existía, cuando sí existe. Ahora el error de servidor
+              se muestra como lo que es.
+            */}
+            {nameInput.length >= 2 && nameResults.length === 0 && !loading && error && (
+              <div style={{ ...S.err, marginTop: 20 }}>
+                <strong>No se pudo buscar.</strong> {error}
+                <div style={{ fontSize: 11.5, marginTop: 6, opacity: .85 }}>
+                  Esto NO significa que el cliente no exista. Intenta de nuevo en unos segundos.
+                </div>
+              </div>
+            )}
+            {nameInput.length >= 2 && nameResults.length === 0 && !loading && !error && (
               <div style={{ textAlign: 'center', color: 'rgba(15,68,139,.4)', fontSize: 13, marginTop: 20 }}>Sin resultados para "{nameInput}"</div>
             )}
           </div>

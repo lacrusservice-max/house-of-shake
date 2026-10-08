@@ -44,6 +44,9 @@ async function setupDatabase() {
     // Licencia de servicio. Arranca en NULL = sin límite, para que desplegar
     // esto NUNCA apague un sistema que estaba operando.
     await prisma.$executeRawUnsafe(`ALTER TABLE config ADD COLUMN IF NOT EXISTS license_until TIMESTAMPTZ;`);
+    // unaccent: sin esto "Maria" no encuentra a "María" y media clientela
+    // queda invisible para el staff, que teclea sin acentos.
+    await prisma.$executeRawUnsafe(`CREATE EXTENSION IF NOT EXISTS unaccent;`).catch(() => {});
     logger.info('✅ Schema actualizado');
   } catch (e) {
     logger.warn('Schema (puede que ya estén las columnas):', e.message);

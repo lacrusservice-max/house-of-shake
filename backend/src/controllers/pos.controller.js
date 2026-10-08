@@ -31,16 +31,25 @@ async function lookupCustomer(req, res) {
     // El staff puede llegar por QR (id / serial del pass), por número de socio
     // (el cliente lo dicta) o por email — los tres resuelven al mismo cliente.
     const term = String(code || '').trim();
-    const asMemberNumber = /^\d+$/.test(term) ? parseInt(term, 10) : null;
+
+    // El barista teclea lo que ve. La tarjeta dice "SOCIO #1049", el cliente
+    // dicta "1049", y alguien escribe "#1049" o "01049". Antes solo se aceptaba
+    // la forma desnuda y todas las demás daban "Cliente no encontrado".
+    const soloDigitos = term.replace(/^socio\s*/i, '').replace(/^#/, '').trim();
+    const asMemberNumber = /^\d{1,9}$/.test(soloDigitos) ? parseInt(soloDigitos, 10) : null;
 
     const orConditions = [{ id: term }, { walletPassSerial: term }];
     if (term.includes('@')) {
       orConditions.push({ email: { equals: normalizeEmail(term), mode: 'insensitive' } });
     }
     if (asMemberNumber !== null) {
+      // SIN .catch(): si la base no responde, el barista debe ver "el servidor
+      // no responde", no "este cliente no existe". Tragarse el error aquí hacía
+      // que un reinicio de 30 segundos pareciera una cuenta borrada, y el
+      // barista daba de alta de nuevo a alguien que ya tenía Pinos.
       const rows = await prisma.$queryRawUnsafe(
         `SELECT id FROM customers WHERE member_number = $1 LIMIT 1`, asMemberNumber
-      ).catch(() => []);
+      );
       if (rows?.[0]?.id) orConditions.push({ id: rows[0].id });
     }
 
@@ -436,17 +445,57 @@ async function searchCustomers(req, res) {
       { phone:     { contains: term } },
     ]};
 
-    if (/^\d+$/.test(term)) {
+    // Nombre COMPLETO: "Valeria Flores" no coincidía con nada, porque el nombre
+    // vive en firstName y el apellido en lastName, y ningún campo contiene la
+    // cadena entera. Es la forma más natural de buscar a alguien.
+    const palabras = term.split(/\s+/).filter(w => w.length >= 2);
+    if (palabras.length > 1) {
+      where.OR.push({
+        AND: palabras.map(w => ({
+          OR: [
+            { firstName: { contains: w, mode: 'insensitive' } },
+            { lastName:  { contains: w, mode: 'insensitive' } },
+            // También dentro del correo: muchas cuentas quedaron sin apellido
+            // guardado, pero el correo casi siempre lo lleva
+            // (jorgecadomanica@… encuentra a "Jorge Cado").
+            { email:     { contains: w, mode: 'insensitive' } },
+          ],
+        })),
+      });
+    }
+
+    // ACENTOS: "Maria" no encontraba a "María", ni "sofia" a "sofía", ni
+    // "Rocio" a "Rocío". En México se teclea sin acentos casi siempre, así que
+    // media clientela quedaba invisible. unaccent() los iguala de ambos lados.
+    try {
       const rows = await prisma.$queryRawUnsafe(
-        `SELECT id FROM customers WHERE CAST(member_number AS TEXT) LIKE $1 LIMIT 8`,
+        `SELECT id FROM customers
+          WHERE unaccent(LOWER("firstName")) LIKE unaccent(LOWER($1))
+             OR unaccent(LOWER("lastName"))  LIKE unaccent(LOWER($1))
+             OR unaccent(LOWER("firstName" || ' ' || COALESCE("lastName",''))) LIKE unaccent(LOWER($1))
+          LIMIT 20`,
+        `%${term}%`
+      );
+      for (const r of rows) where.OR.push({ id: r.id });
+    } catch (e) {
+      // unaccent es una extensión opcional. Si no está, la búsqueda simple de
+      // arriba sigue funcionando: se pierde la tolerancia a acentos, no todo.
+      logger.warn('[pos:search] unaccent no disponible:', e.message);
+    }
+
+    if (/^\d+$/.test(term)) {
+      // Sin .catch() silencioso: un fallo aquí debe subir y responder error,
+      // no devolver una lista vacía que el barista lee como "no existe".
+      const rows = await prisma.$queryRawUnsafe(
+        `SELECT id FROM customers WHERE CAST(member_number AS TEXT) LIKE $1 LIMIT 20`,
         `${term}%`
-      ).catch(() => []);
+      );
       for (const r of rows) where.OR.push({ id: r.id });
     }
 
     const customers = await prisma.customer.findMany({
       where,
-      take: 8,
+      take: 25,
       select: {
         id: true, firstName: true, lastName: true, email: true,
         availablePoints: true, level: true, phone: true,
