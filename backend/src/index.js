@@ -23,7 +23,18 @@ app.listen(PORT, () => {
   startBackupJob();
 
   // No bloquea el arranque ni el healthcheck.
-  setImmediate(() => setupDatabase());
+  setImmediate(async () => {
+    await setupDatabase();
+    // Tras migrar, el guardián verifica que el sistema pueda operar de verdad
+    // y repara lo que sepa reparar. Cada caída grande de este proyecto empezó
+    // por una condición que dejó de cumplirse tras un reinicio.
+    try {
+      const { revisarSistema } = require('./services/guardian');
+      await revisarSistema();
+    } catch (e) {
+      logger.error('Guardián falló al arrancar:', e.message);
+    }
+  });
 });
 
 module.exports = app;

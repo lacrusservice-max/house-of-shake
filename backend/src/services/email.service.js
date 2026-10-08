@@ -254,7 +254,17 @@ async function sendInactiveReminder({ to, firstName, availablePoints, daysSinceV
   return send(to, `Te extrañamos en House of Shake`, baseLayout(body));
 }
 
+
+/**
+ * Correo de aviso interno, para el guardián del sistema.
+ * No usa la plantilla de clientes: va al dueño, no al público.
+ */
+async function sendRaw({ to, subject, html }) {
+  return send(to, subject, html);
+}
+
 module.exports = {
+  sendRaw,
   sendPointsEarned,
   sendLevelUp,
   sendPointsRedeemed,

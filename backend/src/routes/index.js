@@ -82,6 +82,30 @@ router.get('/cron/inactive-customers', soloCron, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Vigilancia diaria: revisa, repara lo reparable y avisa por correo si queda
+// algo roto. Pensado para que el dueño se entere ANTES que sus clientes.
+router.get('/cron/vigilancia', soloCron, async (req, res) => {
+  try {
+    const { revisarSistema } = require('../services/guardian');
+    const r = await revisarSistema();
+
+    if (!r.ok || r.reparados.length) {
+      const email = require('../services/email.service');
+      const destino = process.env.ALERTA_EMAIL || process.env.ADMIN_EMAIL;
+      if (destino && typeof email.sendRaw === 'function') {
+        await email.sendRaw({
+          to: destino,
+          subject: r.ok ? '🔧 House of Shake: se repararon cosas solas' : '🚨 House of Shake necesita atención',
+          html: `<p><strong>Revisión automática del sistema</strong></p>`
+            + (r.reparados.length ? `<p>Reparado solo:</p><ul>${r.reparados.map(x => `<li>${x}</li>`).join('')}</ul>` : '')
+            + (r.problemas.length ? `<p>Necesita que alguien lo vea:</p><ul>${r.problemas.map(x => `<li>${x}</li>`).join('')}</ul>` : ''),
+        }).catch(() => {});
+      }
+    }
+    res.json(r);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.get('/cron/backup', soloCron, async (req, res) => {
   try {
     const { runBackup } = require('../jobs/backup.job');

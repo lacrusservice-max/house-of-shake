@@ -129,7 +129,20 @@ async function listCustomers(req, res, next) {
       prisma.customer.count({ where }),
     ]);
 
-    res.json({ customers, total, page: parseInt(page), totalPages: Math.ceil(total / parseInt(limit)) });
+    // El número de socio vive en una columna fuera del esquema de Prisma, así
+    // que findMany NO lo devuelve: el listado del panel mostraba a todos los
+    // clientes sin número, que es justo el dato que el dueño necesita para
+    // buscarlos en caja o dictárselo al staff. Se adjunta aquí.
+    const numeros = customers.length
+      ? await prisma.$queryRawUnsafe(
+          `SELECT id, member_number FROM customers WHERE id = ANY($1::text[])`,
+          customers.map(c => c.id)
+        )
+      : [];
+    const porId = new Map(numeros.map(r => [r.id, r.member_number]));
+    const conNumero = customers.map(c => ({ ...c, memberNumber: porId.get(c.id) ?? null }));
+
+    res.json({ customers: conNumero, total, page: parseInt(page), totalPages: Math.ceil(total / parseInt(limit)) });
   } catch (err) {
     next(err);
   }

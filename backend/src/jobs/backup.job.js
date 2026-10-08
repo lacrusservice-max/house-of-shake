@@ -56,6 +56,12 @@ async function subirABlob(nombre, json) {
 }
 
 async function runBackup() {
+  // Antes de respaldar, verificar que lo que vamos a respaldar esté sano.
+  try {
+    const { revisarSistema } = require('../services/guardian');
+    await revisarSistema();
+  } catch (e) { logger.warn('[job:backup] guardián:', e.message); }
+
   const { json, clientes, movimientos } = await crearDump();
   const nombre = `hos-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.json`;
 
@@ -83,8 +89,10 @@ async function runBackup() {
 }
 
 function startBackupJob() {
-  cron.schedule('0 3 * * 0', () => runBackup().catch(() => {}), { timezone: 'America/Mexico_City' });
-  logger.info('[job:backup] Job programado — domingos a las 3:00 AM');
+  // DIARIO, no semanal: con respaldo semanal se podían perder hasta siete días
+  // de movimientos. El costo de guardar un JSON al día es despreciable.
+  cron.schedule('0 3 * * *', () => runBackup().catch(() => {}), { timezone: 'America/Mexico_City' });
+  logger.info('[job:backup] Job programado — todos los días a las 3:00 AM');
 }
 
 module.exports = { startBackupJob, runBackup };
