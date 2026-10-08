@@ -53,6 +53,21 @@ async function lookupCustomer(req, res) {
       if (rows?.[0]?.id) orConditions.push({ id: rows[0].id });
     }
 
+    // ID CORTO del pase. Cuando el cliente no tiene número de socio, la tarjeta
+    // imprime "ID: 3F7A2B91": los primeros 8 caracteres del identificador, en
+    // mayúsculas. El barista teclea justo eso cuando el QR no lee, y antes no
+    // encontraba a nadie: el identificador real tiene 36 caracteres y va en
+    // minúsculas, así que la comparación exacta nunca coincidía.
+    const idCorto = term.replace(/^id:\s*/i, '').trim();
+    if (/^[0-9a-fA-F]{8}$/.test(idCorto)) {
+      const rows = await prisma.$queryRawUnsafe(
+        `SELECT id FROM customers WHERE LOWER(id) LIKE LOWER($1) LIMIT 2`, `${idCorto}%`
+      );
+      // Solo si es inequívoco: con dos coincidencias, cobrarle al cliente
+      // equivocado sería peor que no encontrarlo.
+      if (rows?.length === 1) orConditions.push({ id: rows[0].id });
+    }
+
     const customer = await prisma.customer.findFirst({
       where: { OR: orConditions },
       include: {

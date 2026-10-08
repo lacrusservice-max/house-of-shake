@@ -205,12 +205,33 @@ async function generatePassBuffer(customerData) {
     logger.error(`Stamp composer falló: ${err.message}`);
   }
 
+  // El texto bajo el QR existe para UN caso: la pantalla está rayada o sucia,
+  // el código no lee, y el barista teclea lo que ve. Por eso tiene que ser algo
+  // que la búsqueda acepte.
+  //
+  // Antes, si al generar el pase no llegaba el número de socio, imprimía
+  // "ID: 3F7A2B91" — ocho caracteres que ninguna búsqueda reconocía: el barista
+  // tecleaba exactamente lo que el pase le mostraba y no encontraba a nadie.
+  //
+  // Ahora se busca el número de socio si no vino, y solo si de verdad no existe
+  // se cae al ID corto, que el backend ya sabe resolver por prefijo.
+  let numeroSocio = customerData.memberNumber;
+  if (!numeroSocio && customerData.id) {
+    try {
+      const prisma = require('../config/prisma');
+      const r = await prisma.$queryRawUnsafe(
+        `SELECT member_number FROM customers WHERE id = $1 LIMIT 1`, customerData.id
+      );
+      if (r?.[0]?.member_number) numeroSocio = Number(r[0].member_number);
+    } catch { /* si falla, se usa el ID corto */ }
+  }
+
   pass.setBarcodes({
     format:          'PKBarcodeFormatQR',
     message:         customerData.id,
     messageEncoding: 'utf-8',
-    altText:         customerData.memberNumber
-      ? `SOCIO #${customerData.memberNumber}`
+    altText:         numeroSocio
+      ? `SOCIO #${numeroSocio}`
       : `ID: ${customerData.id.substring(0, 8).toUpperCase()}`,
   });
 
