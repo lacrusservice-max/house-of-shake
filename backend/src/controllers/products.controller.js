@@ -1,11 +1,15 @@
 const prisma = require('../config/prisma');
 const logger = require('../config/logger');
+const { puntosCostForCategory, pinosCostForCategory } = require('../services/pinos');
 
-// Sistema de canje: 1 Pino = $1 MXN de valor. 1 Pino = 10 puntos internos.
-// Costo de canje de un producto (en puntos) = precio × 10.
-// Ej: bebida $90 → 900 puntos = 90 Pinos.
-function pointsFromPrice(price) {
-  return Math.round(parseFloat(price)) * 10;
+// El costo de canje NO depende del precio, sino de la categoría:
+//   Alimentos y repostería ....... 100 Pinos
+//   Cafés y bebidas .............. 110 Pinos
+//   Milkshakes y especiales ...... 120 Pinos
+// (Antes era precio × 10, así que un café de $65 pedía 65 Pinos: el cliente
+//  canjeaba mucho antes de completar su ciclo.)
+function pointsFromCategory(category) {
+  return puntosCostForCategory(category);
 }
 
 async function listProducts(req, res) {
@@ -21,9 +25,9 @@ async function createProduct(req, res) {
   if (!name || price === undefined || price === null || price === '') {
     return res.status(400).json({ error: 'name y price son requeridos' });
   }
-  // Si no envían pointsValue explícito, se deriva del precio (1 Pino = $1).
+  // Si no envían pointsValue explícito, se deriva de la categoría.
   const pts = (pointsValue === undefined || pointsValue === null || pointsValue === '')
-    ? pointsFromPrice(price)
+    ? pointsFromCategory(category || 'bebida')
     : parseInt(pointsValue);
   const product = await prisma.product.create({
     data: { name, description, price: parseFloat(price), pointsValue: pts, category: category || 'bebida', imageUrl, sortOrder: sortOrder || 0 },
@@ -40,9 +44,10 @@ async function updateProduct(req, res) {
   }
   if (data.price !== undefined) data.price = parseFloat(data.price);
   if (data.pointsValue !== undefined) data.pointsValue = parseInt(data.pointsValue);
-  // Si cambian el precio pero NO mandan un pointsValue explícito, re-derivar el costo en Pinos.
-  if (data.price !== undefined && req.body.pointsValue === undefined) {
-    data.pointsValue = pointsFromPrice(data.price);
+  // Si cambian la categoría pero NO mandan un pointsValue explícito, re-derivar
+  // el costo en Pinos. El precio ya no influye en el costo de canje.
+  if (data.category !== undefined && req.body.pointsValue === undefined) {
+    data.pointsValue = pointsFromCategory(data.category);
   }
   try {
     const product = await prisma.product.update({ where: { id }, data });
@@ -52,13 +57,13 @@ async function updateProduct(req, res) {
   }
 }
 
-// Admin: recalcula el costo en Pinos de TODOS los productos desde su precio (1 Pino = $1).
+// Admin: recalcula el costo en Pinos de TODOS los productos desde su categoría.
 async function recomputeAllPoints(req, res) {
   try {
     const products = await prisma.product.findMany();
     let updated = 0;
     for (const p of products) {
-      const target = pointsFromPrice(p.price);
+      const target = pointsFromCategory(p.category);
       if (p.pointsValue !== target) {
         await prisma.product.update({ where: { id: p.id }, data: { pointsValue: target } });
         updated++;
@@ -82,4 +87,4 @@ async function deleteProduct(req, res) {
   }
 }
 
-module.exports = { listProducts, createProduct, updateProduct, deleteProduct, recomputeAllPoints, pointsFromPrice };
+module.exports = { listProducts, createProduct, updateProduct, deleteProduct, recomputeAllPoints, pointsFromCategory };

@@ -11,6 +11,7 @@ const posController = require('../controllers/pos.controller');
 const productsController = require('../controllers/products.controller');
 const { authenticateAdmin, authenticateStaff, authenticateCustomer } = require('../middleware/auth');
 const { verifyShopifyWebhook } = require('../middleware/webhook');
+const license = require('../services/license');
 
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000'),
@@ -40,12 +41,120 @@ const posLimiter = rateLimit({
 
 router.use(limiter);
 
-// Health check
+// Health check.
+//
+// Incluye `features` a propósito: al guardar variables de entorno, Railway
+// redespliega una imagen ANTERIOR, y eso ya revivió dos veces código viejo
+// (el número de socio desapareció, y "Pídelo gratis" respondía 404). Sin un
+// marcador no había forma de notarlo salvo probando función por función.
 router.get('/health', (req, res) => res.json({
   status: 'ok',
   timestamp: new Date().toISOString(),
   version: process.env.npm_package_version || '1.0.0',
+  emailReady: require('../services/email.service').isConfigured(),
+  features: [
+    'member-numbers',    // número de socio visible
+    'reward-status',     // cuántos premios puede llevarse
+    'redeem-intent',     // "Pídelo gratis" desde la cuenta
+    'category-tiers',    // canje 100/110/120 por categoría
+    'decimal-pinos',     // $65 = 6.5 Pinos
+  ],
 }));
+
+// === TAREAS PROGRAMADAS ===
+// Sin servidor no hay proceso que sostenga un cron: Vercel llama a estas rutas
+// según el horario de vercel.json. Van protegidas con CRON_SECRET para que no
+// las pueda disparar cualquiera desde fuera.
+function soloCron(req, res, next) {
+  const esperado = process.env.CRON_SECRET;
+  if (!esperado) return res.status(503).json({ error: 'CRON_SECRET no configurado' });
+  if (req.headers.authorization !== `Bearer ${esperado}`) {
+    return res.status(401).json({ error: 'No autorizado' });
+  }
+  next();
+}
+
+router.get('/cron/inactive-customers', soloCron, async (req, res) => {
+  try {
+    const { runInactiveCustomersCheck } = require('../jobs/inactive-customers.job');
+    await runInactiveCustomersCheck();
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Vigilante EXTERNO: comprueba que OTRO despliegue siga vivo y avisa si no.
+//
+// El guardián de arriba corre dentro del mismo servidor que vigila, así que si
+// ese servidor muere, el guardián muere con él y nadie se entera. Esta ruta se
+// despliega en un proveedor distinto y observa al principal desde fuera.
+// Sin VIGILAR_URL no hace nada, así que la misma imagen sirve en ambos lados.
+router.get('/cron/vigilar-externo', soloCron, async (req, res) => {
+  const objetivo = process.env.VIGILAR_URL;
+  if (!objetivo) return res.json({ ok: true, omitido: 'VIGILAR_URL no configurada' });
+
+  const fallos = [];
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 20000);
+    const r = await fetch(objetivo, { signal: ctrl.signal, cache: 'no-store' });
+    clearTimeout(t);
+    if (!r.ok) fallos.push(`responde HTTP ${r.status}`);
+    else {
+      const d = await r.json().catch(() => null);
+      if (!d || d.status !== 'ok') fallos.push('responde pero no se declara sano');
+    }
+  } catch (e) {
+    fallos.push(`no responde (${e.name === 'AbortError' ? 'tiempo agotado' : e.message})`);
+  }
+
+  if (fallos.length) {
+    const email = require('../services/email.service');
+    const destino = process.env.ALERTA_EMAIL || process.env.ADMIN_EMAIL;
+    if (destino) {
+      await email.sendRaw({
+        to: destino,
+        subject: '🚨 House of Shake está caído',
+        html: `<p>El sistema no está respondiendo:</p><ul>${fallos.map(f => `<li>${f}</li>`).join('')}</ul>`
+            + `<p>Revisado: ${objetivo}</p>`
+            + `<p>Tus clientes no pueden usar sus Pinos ahora mismo.</p>`,
+      }).catch(() => {});
+    }
+    return res.status(503).json({ ok: false, objetivo, fallos });
+  }
+  res.json({ ok: true, objetivo });
+});
+
+// Vigilancia diaria: revisa, repara lo reparable y avisa por correo si queda
+// algo roto. Pensado para que el dueño se entere ANTES que sus clientes.
+router.get('/cron/vigilancia', soloCron, async (req, res) => {
+  try {
+    const { revisarSistema } = require('../services/guardian');
+    const r = await revisarSistema();
+
+    if (!r.ok || r.reparados.length) {
+      const email = require('../services/email.service');
+      const destino = process.env.ALERTA_EMAIL || process.env.ADMIN_EMAIL;
+      if (destino && typeof email.sendRaw === 'function') {
+        await email.sendRaw({
+          to: destino,
+          subject: r.ok ? '🔧 House of Shake: se repararon cosas solas' : '🚨 House of Shake necesita atención',
+          html: `<p><strong>Revisión automática del sistema</strong></p>`
+            + (r.reparados.length ? `<p>Reparado solo:</p><ul>${r.reparados.map(x => `<li>${x}</li>`).join('')}</ul>` : '')
+            + (r.problemas.length ? `<p>Necesita que alguien lo vea:</p><ul>${r.problemas.map(x => `<li>${x}</li>`).join('')}</ul>` : ''),
+        }).catch(() => {});
+      }
+    }
+    res.json(r);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/cron/backup', soloCron, async (req, res) => {
+  try {
+    const { runBackup } = require('../jobs/backup.job');
+    await runBackup();
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
 // === SHOPIFY WEBHOOKS ===
 router.post('/webhooks/shopify/orders-create', verifyShopifyWebhook, webhookController.handleOrderCreate);
@@ -54,6 +163,8 @@ router.post('/webhooks/shopify/orders-cancelled', verifyShopifyWebhook, webhookC
 router.post('/webhooks/shopify/customers-create', verifyShopifyWebhook, webhookController.handleCustomerCreate);
 
 // === CUSTOMER AUTH ===
+router.use('/me', license.requireActiveLicense);
+router.use('/auth', license.requireActiveLicense);
 router.post('/auth/register', authLimiter, customerAuthController.register);
 router.post('/auth/login', authLimiter, customerAuthController.login);
 router.post('/auth/forgot-password', authLimiter, customerAuthController.forgotPassword);
@@ -62,6 +173,9 @@ router.get('/me', authenticateCustomer, customerAuthController.getMe);
 router.get('/me/transactions', authenticateCustomer, customerAuthController.getMyTransactions);
 router.put('/me/profile', authenticateCustomer, customerAuthController.updateProfile);
 router.post('/me/birthday-reward', authenticateCustomer, customerAuthController.claimBirthdayReward);
+// Solicitud de canje: el cliente marca qué quiere y el staff lo ve en caja
+router.post('/me/redeem-intent', authenticateCustomer, customerAuthController.createRedeemIntent);
+router.delete('/me/redeem-intent', authenticateCustomer, customerAuthController.cancelRedeemIntent);
 
 // === CUSTOMERS ===
 router.post('/customers', customerController.getOrCreateCustomer);
@@ -107,8 +221,18 @@ router.get('/wallet/demo-pass', async (req, res) => {
 });
 
 // === POS (staff Y admin pueden usar el POS) ===
+// La licencia se exige aquí y en las rutas del cliente, NUNCA en /admin ni en
+// /health: si se exigiera ahí, una licencia vencida dejaría fuera a quien tiene
+// que renovarla.
+router.use('/pos', license.requireActiveLicense);
 router.get('/pos/search', authenticateStaff, posController.searchCustomers);
 router.get('/pos/customer/:code', authenticateStaff, posController.lookupCustomer);
+// Cobro por PRODUCTO: el barista elige del catálogo y el precio sale de la BD.
+router.post('/pos/customer/:customerId/add-products', authenticateStaff, posLimiter, posController.addPointsForProducts);
+// Cobro por MONTO MANUAL: disponible para el staff, pero con tope
+// (MAX_MONTO_MANUAL) y marcado en la descripción para poder auditarlo. Sin
+// tope, un barista podía teclear $2000 y regalarse 200 Pinos. El admin no
+// tiene límite.
 router.post('/pos/customer/:customerId/add-points', authenticateStaff, posLimiter, posController.addPointsForPurchase);
 router.post('/pos/customer/:customerId/redeem', authenticateStaff, posLimiter, posController.redeemPoints);
 router.post('/pos/customer/:customerId/redeem-drink', authenticateStaff, posLimiter, posController.redeemFreeDrink);
@@ -152,6 +276,11 @@ router.post('/admin/products/recompute-points', authenticateAdmin, productsContr
 router.get('/admin/birthday-customers', authenticateAdmin, adminController.getBirthdayCustomers);
 router.post('/admin/double-points', authenticateAdmin, adminController.toggleDoublePoints);
 router.get('/admin/double-points/status', authenticateAdmin, adminController.getDoublePointsStatus);
+
+// Admin: licencia de servicio. Nunca pasa por requireActiveLicense.
+router.get('/admin/license',        authenticateAdmin, adminController.getLicense);
+router.post('/admin/license/renew', authenticateAdmin, adminController.renewLicense);
+router.put('/admin/license',        authenticateAdmin, adminController.setLicense);
 
 // Admin: Apple Wallet
 router.get('/admin/wallet/status',        authenticateAdmin, adminController.getWalletStatus);

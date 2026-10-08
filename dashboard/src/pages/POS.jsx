@@ -167,14 +167,14 @@ export default function POS() {
           <h1 style={styles.title}>POS · Cobrar</h1>
           <p style={styles.sub}>Escanea el QR del cliente para acumular o canjear puntos</p>
           <div style={{ display: 'grid', gap: 12, marginTop: 32 }}>
-            <button onClick={() => setScreen('camera')} style={{ ...styles.bigBtn, background: 'var(--gold)', color: '#2C1A0E' }}>
+            <button onClick={() => setScreen('camera')} style={{ ...styles.bigBtn, background: '#0F448B', color: '#FFFFFF' }}>
               <span style={{ fontSize: 28 }}>📷</span>
               <div>
                 <div style={styles.bigBtnTitle}>Escanear con cámara</div>
                 <div style={styles.bigBtnSub}>Apunta al código QR del cliente</div>
               </div>
             </button>
-            <button onClick={() => { setScreen('searchEmail'); setError(''); }} style={{ ...styles.bigBtn, background: 'rgba(245,200,66,.10)', color: 'var(--gold)', border: '1px solid rgba(245,200,66,.25)' }}>
+            <button onClick={() => { setScreen('searchEmail'); setError(''); }} style={{ ...styles.bigBtn, background: 'rgba(15,68,139,.08)', color: '#0F448B', border: '1px solid rgba(15,68,139,.2)' }}>
               <span style={{ fontSize: 28 }}>📧</span>
               <div>
                 <div style={styles.bigBtnTitle}>Buscar por email</div>
@@ -188,7 +188,7 @@ export default function POS() {
                 <div style={{ ...styles.bigBtnSub, opacity: .7 }}>Sin teléfono, sin email</div>
               </div>
             </button>
-            <button onClick={() => setScreen('scan')} style={{ ...styles.bigBtn, background: 'rgba(251,247,240,.06)', color: 'var(--cream)', border: '1px solid rgba(251,247,240,.12)' }}>
+            <button onClick={() => setScreen('scan')} style={{ ...styles.bigBtn, background: 'rgba(15,68,139,.05)', color: '#0F448B', border: '1px solid rgba(15,68,139,.12)' }}>
               <span style={{ fontSize: 28 }}>⌨️</span>
               <div>
                 <div style={styles.bigBtnTitle}>Ingresar código manual</div>
@@ -220,7 +220,7 @@ export default function POS() {
                 </p>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <button onClick={() => setQuickReg(q => ({ ...q, show: true }))}
-                    style={{ flex: 1, padding: '9px 12px', background: 'var(--gold)', border: 'none', borderRadius: 8, color: '#2C1A0E', cursor: 'pointer', fontSize: 11, fontWeight: 800, fontFamily: "'Montserrat', sans-serif" }}>
+                    style={{ flex: 1, padding: '9px 12px', background: '#0F448B', border: 'none', borderRadius: 8, color: '#FFFFFF', cursor: 'pointer', fontSize: 11, fontWeight: 800, fontFamily: "'Montserrat', sans-serif" }}>
                     ✚ Registrar aquí
                   </button>
                   <button onClick={() => { setError(''); setScreen('searchEmail'); }}
@@ -228,7 +228,7 @@ export default function POS() {
                     Buscar email
                   </button>
                   <button onClick={() => setError('')}
-                    style={{ flex: 1, padding: '9px 12px', background: 'none', border: '1px solid rgba(251,247,240,.15)', borderRadius: 8, color: 'rgba(251,247,240,.5)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: "'Montserrat', sans-serif" }}>
+                    style={{ flex: 1, padding: '9px 12px', background: 'none', border: '1px solid rgba(15,68,139,.15)', borderRadius: 8, color: 'rgba(15,68,139,.65)', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: "'Montserrat', sans-serif" }}>
                     Reintentar
                   </button>
                 </div>
@@ -236,8 +236,8 @@ export default function POS() {
             )}
 
             {isNotFound && quickReg.show && (
-              <div style={{ background: 'rgba(245,200,66,.06)', border: '1px solid rgba(245,200,66,.2)', borderRadius: 14, padding: 16, marginBottom: 14 }}>
-                <p style={{ fontWeight: 800, color: 'var(--gold)', marginBottom: 12, fontSize: 14 }}>✚ Registrar cliente rápido</p>
+              <div style={{ background: 'rgba(15,68,139,.06)', border: '1px solid rgba(15,68,139,.15)', borderRadius: 14, padding: 16, marginBottom: 14 }}>
+                <p style={{ fontWeight: 800, color: '#0F448B', marginBottom: 12, fontSize: 14 }}>✚ Registrar cliente rápido</p>
                 <form onSubmit={handleQuickRegister}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
                     <input required placeholder="Nombre *" value={quickReg.firstName}
@@ -253,11 +253,11 @@ export default function POS() {
                   {quickReg.error && <div style={{ ...styles.errorBox, marginBottom: 8 }}>{quickReg.error}</div>}
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button type="submit" disabled={quickReg.loading}
-                      style={{ flex: 1, padding: '10px', background: 'var(--gold)', border: 'none', borderRadius: 10, color: '#2C1A0E', fontWeight: 800, fontSize: 12, cursor: 'pointer', fontFamily: "'Montserrat', sans-serif", opacity: quickReg.loading ? .6 : 1 }}>
+                      style={{ flex: 1, padding: '10px', background: '#0F448B', border: 'none', borderRadius: 10, color: '#FFFFFF', fontWeight: 800, fontSize: 12, cursor: 'pointer', fontFamily: "'Montserrat', sans-serif", opacity: quickReg.loading ? .6 : 1 }}>
                       {quickReg.loading ? 'Registrando…' : 'Crear cuenta →'}
                     </button>
                     <button type="button" onClick={() => setQuickReg(q => ({ ...q, show: false }))}
-                      style={{ padding: '10px 14px', background: 'none', border: '1px solid rgba(251,247,240,.15)', borderRadius: 10, color: 'rgba(251,247,240,.4)', cursor: 'pointer', fontSize: 11, fontFamily: "'Montserrat', sans-serif" }}>
+                      style={{ padding: '10px 14px', background: 'none', border: '1px solid rgba(15,68,139,.15)', borderRadius: 10, color: 'rgba(15,68,139,.55)', cursor: 'pointer', fontSize: 11, fontFamily: "'Montserrat', sans-serif" }}>
                       ✕
                     </button>
                   </div>
@@ -329,25 +329,25 @@ export default function POS() {
             <div style={{ marginTop: 14, display: 'grid', gap: 8 }}>
               {nameResults.map(c => (
                 <button key={c.id} onClick={() => lookupByCode(c.id)} style={{
-                  background: 'rgba(251,247,240,.05)', border: '1px solid rgba(251,247,240,.1)',
+                  background: 'rgba(15,68,139,.04)', border: '1px solid rgba(15,68,139,.08)',
                   borderRadius: 12, padding: '14px 16px', cursor: 'pointer',
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  color: 'var(--cream)', fontFamily: 'inherit', textAlign: 'left',
+                  color: '#0F448B', fontFamily: 'inherit', textAlign: 'left',
                 }}>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 14 }}>{c.firstName} {c.lastName}</div>
-                    {c.phone && <div style={{ fontSize: 11, color: 'rgba(251,247,240,.35)', marginTop: 2 }}>Tel: {c.phone}</div>}
+                    {c.phone && <div style={{ fontSize: 11, color: 'rgba(15,68,139,.45)', marginTop: 2 }}>Tel: {c.phone}</div>}
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: 'var(--gold)' }}>{c.availablePoints} pts</div>
-                    <div style={{ fontSize: 10, color: 'rgba(251,247,240,.3)' }}>{c.level}</div>
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: '#0F448B' }}>{c.availablePoints} pts</div>
+                    <div style={{ fontSize: 10, color: 'rgba(15,68,139,.4)' }}>{c.level}</div>
                   </div>
                 </button>
               ))}
             </div>
           )}
           {nameInput.length >= 2 && nameResults.length === 0 && (
-            <div style={{ textAlign: 'center', color: 'rgba(251,247,240,.3)', fontSize: 13, marginTop: 20 }}>Sin resultados para "{nameInput}"</div>
+            <div style={{ textAlign: 'center', color: 'rgba(15,68,139,.4)', fontSize: 13, marginTop: 20 }}>Sin resultados para "{nameInput}"</div>
           )}
         </div>
       )}
@@ -381,7 +381,7 @@ export default function POS() {
 
           {/* Customer card */}
           <div style={{
-            background: 'linear-gradient(135deg, #2C1A0E 0%, #1a0e06 100%)',
+            background: '#FFFFFF',
             border: `1px solid ${lvl.color}30`,
             borderRadius: 20,
             padding: 24,
@@ -389,13 +389,13 @@ export default function POS() {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
               <div>
-                <div style={{ fontSize: 10, letterSpacing: 3, color: 'rgba(251,247,240,.35)', textTransform: 'uppercase', marginBottom: 6 }}>
+                <div style={{ fontSize: 10, letterSpacing: 3, color: 'rgba(15,68,139,.45)', textTransform: 'uppercase', marginBottom: 6 }}>
                   House of Shake
                 </div>
-                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: 2, color: 'var(--cream)' }}>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: 2, color: '#0F448B' }}>
                   {customer.firstName} {customer.lastName}
                 </div>
-                <div style={{ fontSize: 12, color: 'rgba(251,247,240,.4)', marginTop: 2 }}>{customer.email}</div>
+                <div style={{ fontSize: 12, color: 'rgba(15,68,139,.55)', marginTop: 2 }}>{customer.email}</div>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: 28 }}>{lvl.emoji}</div>
@@ -406,7 +406,7 @@ export default function POS() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div style={styles.statBox}>
                 <div style={styles.statLabel}>Puntos disponibles</div>
-                <div style={{ ...styles.statValue, color: 'var(--gold)' }}>{customer.availablePoints}</div>
+                <div style={{ ...styles.statValue, color: '#0F448B' }}>{customer.availablePoints}</div>
               </div>
               <div style={styles.statBox}>
                 <div style={styles.statLabel}>Canjeable</div>
@@ -443,7 +443,7 @@ export default function POS() {
               <div style={styles.recentTitle}>Últimas transacciones</div>
               {customer.recentTransactions.map(t => (
                 <div key={t.id} style={styles.recentRow}>
-                  <span style={{ color: 'rgba(251,247,240,.6)', fontSize: 12, flex: 1 }}>{t.description}</span>
+                  <span style={{ color: 'rgba(15,68,139,.75)', fontSize: 12, flex: 1 }}>{t.description}</span>
                   <span style={{ fontWeight: 700, color: t.points > 0 ? '#5EC97A' : '#E05C5C', fontSize: 13 }}>
                     {t.points > 0 ? '+' : ''}{t.points}
                   </span>
@@ -460,15 +460,15 @@ export default function POS() {
           <button onClick={() => setScreen('customer')} style={styles.back}>← Volver</button>
           <h2 style={styles.title}>Acumular puntos</h2>
           <p style={styles.sub}>
-            Cliente: <strong style={{ color: 'var(--cream)' }}>{customer.firstName} {customer.lastName}</strong>
+            Cliente: <strong style={{ color: '#0F448B' }}>{customer.firstName} {customer.lastName}</strong>
           </p>
-          <div style={{ ...styles.infoBanner, borderColor: 'rgba(245,200,66,.25)', background: 'rgba(245,200,66,.06)', color: 'var(--gold)', marginBottom: 20, marginTop: 16 }}>
+          <div style={{ ...styles.infoBanner, borderColor: 'rgba(15,68,139,.2)', background: 'rgba(15,68,139,.06)', color: '#0F448B', marginBottom: 20, marginTop: 16 }}>
             1 punto por cada $1 MXN gastado
           </div>
           <form onSubmit={handleAddPoints}>
             <label style={styles.label}>Monto de la compra (MXN)</label>
             <div style={{ position: 'relative' }}>
-              <span style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: 'rgba(251,247,240,.4)', fontSize: 20 }}>$</span>
+              <span style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: 'rgba(15,68,139,.55)', fontSize: 20 }}>$</span>
               <input
                 type="number" required min="1" step="0.01" autoFocus
                 value={amount} onChange={e => setAmount(e.target.value)}
@@ -477,7 +477,7 @@ export default function POS() {
               />
             </div>
             {amount && (
-              <div style={{ textAlign: 'center', color: 'var(--gold)', fontSize: 14, fontWeight: 700, marginTop: 8 }}>
+              <div style={{ textAlign: 'center', color: '#0F448B', fontSize: 14, fontWeight: 700, marginTop: 8 }}>
                 +{Math.floor(parseFloat(amount) || 0)} puntos para {customer.firstName}
               </div>
             )}
@@ -495,13 +495,13 @@ export default function POS() {
           <button onClick={() => setScreen('customer')} style={styles.back}>← Volver</button>
           <h2 style={styles.title}>Canjear puntos</h2>
           <p style={styles.sub}>
-            Cliente: <strong style={{ color: 'var(--cream)' }}>{customer.firstName} {customer.lastName}</strong>
+            Cliente: <strong style={{ color: '#0F448B' }}>{customer.firstName} {customer.lastName}</strong>
           </p>
 
           <div style={styles.statBox2}>
             <div style={styles.statLabel}>Puntos disponibles</div>
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, color: 'var(--gold)', letterSpacing: 2 }}>{customer.availablePoints}</div>
-            <div style={{ fontSize: 11, color: 'rgba(251,247,240,.35)', letterSpacing: 1 }}>100 puntos = $5 MXN de descuento</div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, color: '#0F448B', letterSpacing: 2 }}>{customer.availablePoints}</div>
+            <div style={{ fontSize: 11, color: 'rgba(15,68,139,.45)', letterSpacing: 1 }}>100 puntos = $5 MXN de descuento</div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, margin: '16px 0' }}>
@@ -509,9 +509,9 @@ export default function POS() {
               <button key={v} onClick={() => setRedeemPts(String(v))}
                 style={{
                   padding: '14px 8px', borderRadius: 12,
-                  background: redeemPts === String(v) ? 'var(--gold)' : 'rgba(251,247,240,.06)',
-                  color: redeemPts === String(v) ? '#2C1A0E' : 'var(--cream)',
-                  border: `1px solid ${redeemPts === String(v) ? 'var(--gold)' : 'rgba(251,247,240,.1)'}`,
+                  background: redeemPts === String(v) ? '#0F448B' : 'rgba(15,68,139,.05)',
+                  color: redeemPts === String(v) ? '#FFFFFF' : '#0F448B',
+                  border: `1px solid ${redeemPts === String(v) ? '#0F448B' : 'rgba(15,68,139,.08)'}`,
                   fontFamily: "'Montserrat', sans-serif",
                   fontWeight: 700, cursor: 'pointer', textAlign: 'center', fontSize: 12,
                 }}>
@@ -568,12 +568,12 @@ function POSSuccessScreen({ result, customer, onViewProfile, onReset }) {
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, letterSpacing: 2, color: '#5EC97A' }}>
             +{result.pointsAdded} puntos
           </div>
-          <p style={{ color: 'rgba(251,247,240,.6)', marginBottom: 12 }}>
-            agregados a <strong style={{ color: 'var(--cream)' }}>{customer?.firstName}</strong>
+          <p style={{ color: 'rgba(15,68,139,.75)', marginBottom: 12 }}>
+            agregados a <strong style={{ color: '#0F448B' }}>{customer?.firstName}</strong>
           </p>
           {result.levelChanged && (
-            <div style={{ background: 'rgba(255,215,0,.12)', border: '1px solid rgba(255,215,0,.3)', borderRadius: 12, padding: '10px 16px', marginBottom: 12 }}>
-              <span style={{ fontWeight: 800, color: '#FFD700', fontSize: 13 }}>¡Subió de nivel! 🎖 {result.level}</span>
+            <div style={{ background: 'rgba(15,68,139,.1)', border: '1px solid rgba(15,68,139,.2)', borderRadius: 12, padding: '10px 16px', marginBottom: 12 }}>
+              <span style={{ fontWeight: 800, color: '#0F448B', fontSize: 13 }}>¡Subió de nivel! 🎖 {result.level}</span>
             </div>
           )}
         </>
@@ -582,15 +582,15 @@ function POSSuccessScreen({ result, customer, onViewProfile, onReset }) {
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, letterSpacing: 2, color: '#4a9fd4' }}>
             -${result.discountMxn || (result.discountUsd * 20)?.toFixed(0)} MXN
           </div>
-          <p style={{ color: 'rgba(251,247,240,.6)', marginBottom: 12 }}>
-            descuento aplicado a <strong style={{ color: 'var(--cream)' }}>{customer?.firstName}</strong>
+          <p style={{ color: 'rgba(15,68,139,.75)', marginBottom: 12 }}>
+            descuento aplicado a <strong style={{ color: '#0F448B' }}>{customer?.firstName}</strong>
           </p>
         </>
       )}
-      <div style={{ background: 'rgba(251,247,240,.04)', border: '1px solid rgba(251,247,240,.08)', borderRadius: 16, padding: '20px', textAlign: 'center', margin: '12px 0' }}>
-        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 3, textTransform: 'uppercase', color: 'rgba(251,247,240,.35)', marginBottom: 4, fontFamily: "'Montserrat', sans-serif" }}>Saldo actualizado</div>
-        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: 'var(--gold)', letterSpacing: 2 }}>{result.newBalance}</div>
-        <div style={{ fontSize: 11, color: 'rgba(251,247,240,.3)', letterSpacing: 1 }}>puntos disponibles</div>
+      <div style={{ background: 'rgba(15,68,139,.04)', border: '1px solid rgba(15,68,139,.06)', borderRadius: 16, padding: '20px', textAlign: 'center', margin: '12px 0' }}>
+        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 3, textTransform: 'uppercase', color: 'rgba(15,68,139,.45)', marginBottom: 4, fontFamily: "'Montserrat', sans-serif" }}>Saldo actualizado</div>
+        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 48, color: '#0F448B', letterSpacing: 2 }}>{result.newBalance}</div>
+        <div style={{ fontSize: 11, color: 'rgba(15,68,139,.4)', letterSpacing: 1 }}>puntos disponibles</div>
       </div>
       <div style={{ textAlign: 'left', marginTop: 4 }}>
         <AffordableSection
@@ -601,10 +601,10 @@ function POSSuccessScreen({ result, customer, onViewProfile, onReset }) {
         />
       </div>
       <div style={{ display: 'grid', gap: 10, marginTop: 20 }}>
-        <button onClick={onViewProfile} style={{ width: '100%', padding: '16px', background: 'rgba(251,247,240,.08)', color: 'var(--cream)', border: 'none', borderRadius: 12, fontFamily: "'Montserrat', sans-serif", fontWeight: 800, fontSize: 13, letterSpacing: 1.5, textTransform: 'uppercase', cursor: 'pointer', marginTop: 12, display: 'block' }}>
+        <button onClick={onViewProfile} style={{ width: '100%', padding: '16px', background: 'rgba(15,68,139,.06)', color: '#0F448B', border: 'none', borderRadius: 12, fontFamily: "'Montserrat', sans-serif", fontWeight: 800, fontSize: 13, letterSpacing: 1.5, textTransform: 'uppercase', cursor: 'pointer', marginTop: 12, display: 'block' }}>
           Ver perfil del cliente
         </button>
-        <button onClick={onReset} style={{ width: '100%', padding: '16px', background: 'var(--gold)', color: '#2C1A0E', border: 'none', borderRadius: 12, fontFamily: "'Montserrat', sans-serif", fontWeight: 800, fontSize: 13, letterSpacing: 1.5, textTransform: 'uppercase', cursor: 'pointer', marginTop: 12, display: 'block' }}>
+        <button onClick={onReset} style={{ width: '100%', padding: '16px', background: '#0F448B', color: '#FFFFFF', border: 'none', borderRadius: 12, fontFamily: "'Montserrat', sans-serif", fontWeight: 800, fontSize: 13, letterSpacing: 1.5, textTransform: 'uppercase', cursor: 'pointer', marginTop: 12, display: 'block' }}>
           Nueva transacción
         </button>
       </div>
@@ -618,17 +618,17 @@ const styles = {
     fontFamily: "'Bebas Neue', sans-serif",
     fontSize: 40,
     letterSpacing: 2,
-    color: 'var(--cream)',
+    color: '#0F448B',
     marginBottom: 6,
   },
   sub: {
     fontSize: 13,
-    color: 'rgba(251,247,240,.45)',
+    color: 'rgba(15,68,139,.6)',
     fontWeight: 600,
   },
   back: {
     background: 'none', border: 'none', cursor: 'pointer',
-    color: 'rgba(251,247,240,.4)', fontSize: 12, fontWeight: 700,
+    color: 'rgba(15,68,139,.55)', fontSize: 12, fontWeight: 700,
     letterSpacing: 1, padding: 0, marginBottom: 16,
     fontFamily: "'Montserrat', sans-serif",
   },
@@ -644,9 +644,9 @@ const styles = {
   bigBtnSub: { fontSize: 11, letterSpacing: .5 },
   input: {
     width: '100%',
-    background: 'rgba(251,247,240,.05)',
-    color: 'var(--cream)',
-    border: '1px solid rgba(251,247,240,.12)',
+    background: 'rgba(15,68,139,.04)',
+    color: '#0F448B',
+    border: '1px solid rgba(15,68,139,.12)',
     borderRadius: 12,
     padding: '14px 16px',
     outline: 'none',
@@ -658,12 +658,12 @@ const styles = {
   label: {
     display: 'block',
     fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase',
-    color: 'rgba(251,247,240,.4)', marginBottom: 8,
+    color: 'rgba(15,68,139,.55)', marginBottom: 8,
     fontFamily: "'Montserrat', sans-serif",
   },
   goldBtn: {
     width: '100%', padding: '16px',
-    background: 'var(--gold)', color: '#2C1A0E',
+    background: '#0F448B', color: '#FFFFFF',
     border: 'none', borderRadius: 12,
     fontFamily: "'Montserrat', sans-serif",
     fontWeight: 800, fontSize: 13, letterSpacing: 1.5, textTransform: 'uppercase',
@@ -676,7 +676,7 @@ const styles = {
   },
   loadingBox: {
     textAlign: 'center', padding: 24,
-    color: 'rgba(251,247,240,.4)', fontSize: 13, fontWeight: 600,
+    color: 'rgba(15,68,139,.55)', fontSize: 13, fontWeight: 600,
   },
   infoBanner: {
     padding: '10px 16px', borderRadius: 10, border: '1px solid',
@@ -684,17 +684,17 @@ const styles = {
     fontFamily: "'Montserrat', sans-serif",
   },
   statBox: {
-    background: 'rgba(251,247,240,.05)',
+    background: 'rgba(15,68,139,.04)',
     borderRadius: 12, padding: '14px',
     textAlign: 'center',
   },
   statBox2: {
-    background: 'rgba(251,247,240,.04)', border: '1px solid rgba(251,247,240,.08)',
+    background: 'rgba(15,68,139,.04)', border: '1px solid rgba(15,68,139,.06)',
     borderRadius: 16, padding: '20px', textAlign: 'center', margin: '12px 0',
   },
   statLabel: {
     fontSize: 9, fontWeight: 700, letterSpacing: 3,
-    textTransform: 'uppercase', color: 'rgba(251,247,240,.35)', marginBottom: 4,
+    textTransform: 'uppercase', color: 'rgba(15,68,139,.45)', marginBottom: 4,
     fontFamily: "'Montserrat', sans-serif",
   },
   statValue: {
@@ -708,18 +708,18 @@ const styles = {
     cursor: 'pointer', transition: 'opacity .2s',
   },
   recentBox: {
-    background: 'rgba(251,247,240,.03)', border: '1px solid rgba(251,247,240,.07)',
+    background: 'rgba(15,68,139,.03)', border: '1px solid rgba(15,68,139,.05)',
     borderRadius: 16, padding: '16px 20px',
   },
   recentTitle: {
     fontSize: 9, fontWeight: 700, letterSpacing: 3,
-    textTransform: 'uppercase', color: 'rgba(251,247,240,.3)',
+    textTransform: 'uppercase', color: 'rgba(15,68,139,.4)',
     marginBottom: 12, fontFamily: "'Montserrat', sans-serif",
   },
   recentRow: {
     display: 'flex', justifyContent: 'space-between',
     alignItems: 'center', padding: '6px 0',
-    borderBottom: '1px solid rgba(251,247,240,.04)',
+    borderBottom: '1px solid rgba(15,68,139,.04)',
   },
 };
 
@@ -735,12 +735,12 @@ function AffordableSection({ affordable = [], almost = [], points = 0, title = '
           {affordable.map(p => (
             <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(94,201,122,.05)', borderRadius: 10, padding: '10px 14px', marginBottom: 6 }}>
               <div style={{ flex: 1, marginRight: 12 }}>
-                <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--cream)', fontFamily: "'Montserrat', sans-serif" }}>{p.name}</div>
-                {p.description && <div style={{ fontSize: 11, color: 'rgba(251,247,240,.4)', marginTop: 2 }}>{p.description}</div>}
+                <div style={{ fontWeight: 700, fontSize: 13, color: '#0F448B', fontFamily: "'Montserrat', sans-serif" }}>{p.name}</div>
+                {p.description && <div style={{ fontSize: 11, color: 'rgba(15,68,139,.55)', marginTop: 2 }}>{p.description}</div>}
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
                 <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: '#5EC97A', lineHeight: 1 }}>{p.pointsValue} pts</div>
-                {p.price != null && <div style={{ fontSize: 10, color: 'rgba(251,247,240,.3)', marginTop: 1 }}>${p.price.toFixed(0)} MXN</div>}
+                {p.price != null && <div style={{ fontSize: 10, color: 'rgba(15,68,139,.4)', marginTop: 1 }}>${p.price.toFixed(0)} MXN</div>}
               </div>
             </div>
           ))}
@@ -748,7 +748,7 @@ function AffordableSection({ affordable = [], almost = [], points = 0, title = '
       )}
       {almost.length > 0 && (
         <div style={{ background: 'rgba(160,120,30,.06)', border: '1px solid rgba(160,120,30,.2)', borderRadius: 14, padding: '14px 16px' }}>
-          <div style={{ fontSize: 9, letterSpacing: 3, color: 'var(--gold)', textTransform: 'uppercase', marginBottom: 10, fontWeight: 800, fontFamily: "'Montserrat', sans-serif" }}>
+          <div style={{ fontSize: 9, letterSpacing: 3, color: '#0F448B', textTransform: 'uppercase', marginBottom: 10, fontWeight: 800, fontFamily: "'Montserrat', sans-serif" }}>
             ◎ Casi alcanza para:
           </div>
           {almost.map(p => {
@@ -756,12 +756,12 @@ function AffordableSection({ affordable = [], almost = [], points = 0, title = '
             return (
               <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(160,120,30,.05)', borderRadius: 10, padding: '10px 14px', marginBottom: 6 }}>
                 <div style={{ flex: 1, marginRight: 12 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--cream)', fontFamily: "'Montserrat', sans-serif" }}>{p.name}</div>
-                  <div style={{ fontSize: 11, color: 'rgba(251,247,240,.4)', marginTop: 2 }}>Faltan {needed} pts más</div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: '#0F448B', fontFamily: "'Montserrat', sans-serif" }}>{p.name}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(15,68,139,.55)', marginTop: 2 }}>Faltan {needed} pts más</div>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: 'var(--gold)', lineHeight: 1 }}>{p.pointsValue} pts</div>
-                  {p.price != null && <div style={{ fontSize: 10, color: 'rgba(251,247,240,.3)', marginTop: 1 }}>${p.price.toFixed(0)} MXN</div>}
+                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: '#0F448B', lineHeight: 1 }}>{p.pointsValue} pts</div>
+                  {p.price != null && <div style={{ fontSize: 10, color: 'rgba(15,68,139,.4)', marginTop: 1 }}>${p.price.toFixed(0)} MXN</div>}
                 </div>
               </div>
             );
